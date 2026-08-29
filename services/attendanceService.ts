@@ -13,6 +13,7 @@ import {
   PayrollDay,
   PayrollResult,
   PayrollRow,
+  ShiftWeekSubmission,
 } from '@/types/attendance';
 
 const BASE = '/attendance';
@@ -29,7 +30,49 @@ export async function fetchMyShiftWeek(from: string, to: string): Promise<MyShif
       ? d.shifts.filter((s: any) => s?.active !== false)
       : [],
     week: d?.week && typeof d.week === 'object' ? d.week : {},
+    submission: toSubmission(d?.submission),
   };
+}
+
+/** Type-guard trạng thái chốt (API untrusted). */
+function toSubmission(v: any): ShiftWeekSubmission {
+  return {
+    submitted: v?.submitted === true,
+    submittedAt: typeof v?.submittedAt === 'string' ? v.submittedAt : null,
+    submittedBy: typeof v?.submittedBy === 'string' ? v.submittedBy : null,
+  };
+}
+
+/** NV CHỐT đăng ký cả tuần (weekStart = thứ 2, 'yyyy-mm-dd') → khoá. */
+export async function submitMyWeek(weekStart: string): Promise<ShiftWeekSubmission> {
+  const res = await apiClient.post<any>(`${BASE}/my-shifts/submit`, { weekStart });
+  return toSubmission(res.data);
+}
+
+/** Danh sách NV đã chốt trong 1 tuần — admin. */
+export async function fetchWeekSubmissions(
+  weekStart: string,
+): Promise<Array<{ employeeId: string; submittedAt: string | null; submittedBy: string | null }>> {
+  const res = await apiClient.get<any[]>(`${BASE}/shift-submissions`, { params: { weekStart } });
+  return Array.isArray(res.data)
+    ? res.data.map((r) => ({
+        employeeId: str(r?.employeeId) ?? '',
+        submittedAt: str(r?.submittedAt),
+        submittedBy: str(r?.submittedBy),
+      }))
+    : [];
+}
+
+/** Admin mở lại tuần (bỏ chốt) cho 1 NV → NV đăng ký lại được. */
+export async function reopenWeek(
+  employeeId: string,
+  weekStart: string,
+): Promise<{ submitted: boolean }> {
+  const res = await apiClient.post<any>(`${BASE}/shift-submissions/reopen`, {
+    employeeId,
+    weekStart,
+  });
+  return { submitted: res.data?.submitted === true };
 }
 
 /** NV tự đăng ký ca CỦA MÌNH cho 1 ngày tương lai (thay trọn ngày). */

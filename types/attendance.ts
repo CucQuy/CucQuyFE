@@ -153,11 +153,19 @@ export interface WorkShiftDef {
   active: boolean;
 }
 
+/** Trạng thái "đã chốt" đăng ký của 1 tuần. */
+export interface ShiftWeekSubmission {
+  submitted: boolean;
+  submittedAt: string | null; // 'DD/MM/YYYY HH:MM' (giờ VN), null nếu chưa chốt
+  submittedBy: string | null;
+}
+
 /** Kết quả GET /attendance/my-shifts (lưới đăng ký ca). */
 export interface MyShiftWeek {
   employee: EmployeeRef;
   shifts: WorkShiftDef[];
   week: Record<string, string[]>; // { 'yyyy-mm-dd': ['ca1','ca2'] }
+  submission: ShiftWeekSubmission;
 }
 
 /** Nhãn trạng thái ca (compute). */

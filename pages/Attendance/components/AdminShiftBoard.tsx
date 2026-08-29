@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, CalendarRange } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarRange, Lock, Unlock } from 'lucide-react';
 import { useEmployees } from '@/hooks/queries/useEmployeesQuery';
 import { fetchShifts, fetchShiftAssignments, setDayAssignments } from '@/services/shiftService';
+import { fetchWeekSubmissions, reopenWeek } from '@/services/attendanceService';
 import { WorkShift } from '@/types/shift';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
@@ -39,6 +40,9 @@ const AdminShiftBoard: React.FC = () => {
   const [shifts, setShifts] = useState<WorkShift[]>([]);
   // map `${date}|${shift}` -> Set(employeeId đã đăng ký)
   const [reg, setReg] = useState<Map<string, Set<string>>>(new Map());
+  // employeeId -> thời điểm chốt (đã chốt tuần này)
+  const [submitted, setSubmitted] = useState<Map<string, string>>(new Map());
+  const [reopening, setReopening] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -57,7 +61,11 @@ const AdminShiftBoard: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sh, assigns] = await Promise.all([fetchShifts(), fetchShiftAssignments(from, to)]);
+      const [sh, assigns, subs] = await Promise.all([
+        fetchShifts(),
+        fetchShiftAssignments(from, to),
+        fetchWeekSubmissions(from),
+      ]);
       setShifts(sh);
       const m = new Map<string, Set<string>>();
       for (const a of assigns) {
@@ -66,12 +74,31 @@ const AdminShiftBoard: React.FC = () => {
         m.get(k)!.add(a.employeeId);
       }
       setReg(m);
+      setSubmitted(new Map(subs.map((s) => [s.employeeId, s.submittedAt ?? ''])));
     } catch {
       toast.error('Không tải được bảng đăng ký.');
     } finally {
       setLoading(false);
     }
   }, [from, to]);
+
+  const doReopen = async (empId: string) => {
+    if (!window.confirm('Mở lại tuần cho NV này? Họ sẽ đăng ký/sửa lại được.')) return;
+    setReopening(empId);
+    try {
+      await reopenWeek(empId, from);
+      setSubmitted((prev) => {
+        const nx = new Map(prev);
+        nx.delete(empId);
+        return nx;
+      });
+      toast.success('Đã mở lại tuần.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Mở lại thất bại.');
+    } finally {
+      setReopening(null);
+    }
+  };
 
   useEffect(() => {
     void load();
@@ -187,10 +214,36 @@ const AdminShiftBoard: React.FC = () => {
                   layoutClassName="flex items-stretch gap-1 rounded-lg"
                   borderClassName="border border-slate-200 dark:border-slate-700"
                 >
-                  <Box layoutClassName="flex w-36 shrink-0 items-center px-2 py-2">
+                  <Box layoutClassName="flex w-36 shrink-0 flex-col justify-center gap-0.5 px-2 py-2">
                     <Typography as="span" size="sm" layoutClassName="truncate font-medium" textClassName="text-slate-800 dark:text-slate-100">
                       {emp.name}
                     </Typography>
+                    {submitted.has(emp.id) ? (
+                      <Box layoutClassName="flex items-center gap-1">
+                        <Lock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                        <Typography as="span" size="xs" textClassName="text-emerald-600 dark:text-emerald-400">
+                          Đã chốt
+                        </Typography>
+                        <Button
+                          type="button"
+                          onClick={() => void doReopen(emp.id)}
+                          disabled={reopening === emp.id}
+                          variant="secondary"
+                          leftIcon={<Unlock />}
+                          iconClassName="inline-flex shrink-0 [&_svg]:h-3 [&_svg]:w-3"
+                          sizeClassName="px-1.5 py-0.5 text-[10px]"
+                          roundedClassName="rounded"
+                          borderClassName="border border-slate-200 dark:border-slate-600"
+                          backgroundClassName="bg-white dark:bg-slate-800"
+                          textClassName="text-slate-600 dark:text-slate-300"
+                          layoutClassName="inline-flex items-center gap-0.5"
+                        >
+                          Mở lại
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Typography as="span" size="xs" variant="muted">Chưa chốt</Typography>
+                    )}
                   </Box>
                   {days.map((d) => {
                     const date = fmt(d);

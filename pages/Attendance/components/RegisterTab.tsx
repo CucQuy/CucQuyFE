@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, CalendarCheck, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarCheck, Lock, CheckCircle2 } from 'lucide-react';
 import { MyShiftWeek } from '@/types/attendance';
-import { fetchMyShiftWeek, registerMyShift } from '@/services/attendanceService';
+import { fetchMyShiftWeek, registerMyShift, submitMyWeek } from '@/services/attendanceService';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
 import Typography from '@/components/ui/Typography';
@@ -37,6 +37,7 @@ const RegisterTab: React.FC = () => {
   const [data, setData] = useState<MyShiftWeek | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null); // `${date}:${code}` đang lưu
+  const [submitting, setSubmitting] = useState(false);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const from = fmt(days[0]);
@@ -60,9 +61,30 @@ const RegisterTab: React.FC = () => {
 
   const shifts = data?.shifts ?? [];
   const week = data?.week ?? {};
+  const submitted = data?.submission?.submitted ?? false;
+  const submittedAt = data?.submission?.submittedAt ?? null;
+
+  const doSubmit = async () => {
+    if (submitted || submitting) return;
+    const anyRegistered = Object.values(week).some((c) => Array.isArray(c) && c.length > 0);
+    const msg = anyRegistered
+      ? 'Chốt đăng ký tuần này? Sau khi chốt sẽ KHÔNG sửa được nữa (nhờ quản lý mở lại nếu cần).'
+      : 'Bạn chưa tick ca nào. Vẫn chốt (báo là tuần này không đăng ký ca)?';
+    if (!window.confirm(msg)) return;
+    setSubmitting(true);
+    try {
+      const s = await submitMyWeek(from);
+      setData((prev) => (prev ? { ...prev, submission: s } : prev));
+      toast.success('Đã chốt đăng ký tuần.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Chốt đăng ký thất bại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const toggle = async (date: string, code: string, applicable: boolean, future: boolean) => {
-    if (!applicable || !future) return;
+    if (!applicable || !future || submitted) return;
     const cur = week[date] ?? [];
     const next = cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code];
     setSaving(`${date}:${code}`);
@@ -123,6 +145,45 @@ const RegisterTab: React.FC = () => {
         Tick ca bạn sẽ làm. Chỉ sửa được ngày <b>tương lai</b>; ngày đã tới/qua bị khoá.
       </Typography>
 
+      {/* Thanh chốt đăng ký tuần */}
+      {!loading && (
+        submitted ? (
+          <Box
+            layoutClassName="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2"
+            borderClassName="border border-emerald-200 dark:border-emerald-800"
+            backgroundClassName="bg-emerald-50 dark:bg-emerald-900/20"
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Typography as="span" size="sm" layoutClassName="font-medium" textClassName="text-emerald-700 dark:text-emerald-300">
+              Đã chốt đăng ký tuần này{submittedAt ? ` (lúc ${submittedAt})` : ''}. Không sửa được — nhờ quản lý mở lại nếu cần.
+            </Typography>
+          </Box>
+        ) : (
+          <Box layoutClassName="flex flex-wrap items-center justify-between gap-2">
+            <Typography as="span" size="xs" variant="muted">
+              Xong thì bấm <b>Chốt đăng ký</b> để gửi. Sau khi chốt sẽ không sửa được nữa.
+            </Typography>
+            <Button
+              type="button"
+              onClick={() => void doSubmit()}
+              disabled={submitting}
+              variant="primary"
+              leftIcon={<CheckCircle2 />}
+              iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4"
+              sizeClassName="px-3.5 py-1.5 text-sm"
+              roundedClassName="rounded-lg"
+              backgroundClassName="bg-emerald-600"
+              textClassName="font-semibold text-white"
+              layoutClassName="inline-flex items-center gap-1.5"
+              disableVariantHover
+              disableVariantTextColor
+            >
+              {submitting ? 'Đang chốt…' : 'Chốt đăng ký tuần'}
+            </Button>
+          </Box>
+        )
+      )}
+
       {loading ? (
         <Box layoutClassName="flex items-center justify-center gap-2 py-10">
           <Spinner /> <Typography as="span" size="sm" variant="muted">Đang tải…</Typography>
@@ -167,7 +228,7 @@ const RegisterTab: React.FC = () => {
                         key={s.code}
                         type="button"
                         onClick={() => void toggle(date, s.code, applicable, future)}
-                        disabled={!future || busy}
+                        disabled={!future || busy || submitted}
                         variant={on ? 'primary' : 'secondary'}
                         sizeClassName="px-2.5 py-1 text-xs"
                         roundedClassName="rounded-lg"
