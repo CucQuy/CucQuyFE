@@ -31,7 +31,6 @@ import {
   PieChart,
   BarChart3,
   BookText,
-  GitCompareArrows,
   Receipt,
   Armchair,
   Factory,
@@ -142,13 +141,6 @@ export const routes: RouteConfig[] = [
     path: "/finance/ledger",
     labelKey: "nav.txLedger",
     icon: BookText,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/finance/reconcile",
-    labelKey: "nav.txReconcile",
-    icon: GitCompareArrows,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -455,7 +447,6 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: [
       "/finance/overview",
       "/finance/ledger",
-      "/finance/reconcile",
     ],
   },
   {

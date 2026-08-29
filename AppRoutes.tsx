@@ -12,7 +12,6 @@ const DineInPage = lazy(() => import("./pages/DineIn/index"));
 const ShippingPage = lazy(() => import("./pages/Shipping/index"));
 const TxOverviewPage = lazy(() => import("./pages/Transactions/OverviewPage"));
 const TxLedgerPage = lazy(() => import("./pages/Transactions/LedgerPage"));
-const TxReconcilePage = lazy(() => import("./pages/Transactions/ReconcilePage"));
 const PromotionsPage = lazy(() => import("./pages/Promotions/index"));
 const InventoryPage = lazy(() => import("./pages/Storage/index"));
 const ProductDetailPage = lazy(() => import("./pages/Storage/product/ProductDetailPage"));
@@ -126,18 +125,11 @@ const AppRoutes: React.FC = () => (
           </RoleBasedRoute>
         }
       />
-      <Route
-        path="finance/reconcile"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/finance/reconcile")?.roles}>
-            <TxReconcilePage />
-          </RoleBasedRoute>
-        }
-      />
-      {/* Back-compat redirect các path cũ → Sổ giao dịch mới */}
+      {/* Back-compat redirect các path cũ → Sổ giao dịch mới ("Cần đối soát" đã gỡ) */}
       <Route path="finance" element={<Navigate to="/finance/overview" replace />} />
       <Route path="finance/history" element={<Navigate to="/finance/ledger" replace />} />
-      <Route path="finance/reconciliation" element={<Navigate to="/finance/reconcile" replace />} />
+      <Route path="finance/reconcile" element={<Navigate to="/finance/ledger" replace />} />
+      <Route path="finance/reconciliation" element={<Navigate to="/finance/ledger" replace />} />
       <Route path="finance/transactions" element={<Navigate to="/finance/ledger" replace />} />
       <Route path="revenue" element={<Navigate to="/finance/overview" replace />} />
       <Route path="finance/cashflow" element={<Navigate to="/finance/ledger" replace />} />
