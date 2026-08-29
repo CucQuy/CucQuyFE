@@ -219,27 +219,34 @@ const AdminShiftBoard: React.FC = () => {
                       {emp.name}
                     </Typography>
                     {submitted.has(emp.id) ? (
-                      <Box layoutClassName="flex items-center gap-1">
-                        <Lock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                        <Typography as="span" size="xs" textClassName="text-emerald-600 dark:text-emerald-400">
-                          Đã chốt
-                        </Typography>
-                        <Button
-                          type="button"
-                          onClick={() => void doReopen(emp.id)}
-                          disabled={reopening === emp.id}
-                          variant="secondary"
-                          leftIcon={<Unlock />}
-                          iconClassName="inline-flex shrink-0 [&_svg]:h-3 [&_svg]:w-3"
-                          sizeClassName="px-1.5 py-0.5 text-[10px]"
-                          roundedClassName="rounded"
-                          borderClassName="border border-slate-200 dark:border-slate-600"
-                          backgroundClassName="bg-white dark:bg-slate-800"
-                          textClassName="text-slate-600 dark:text-slate-300"
-                          layoutClassName="inline-flex items-center gap-0.5"
-                        >
-                          Mở lại
-                        </Button>
+                      <Box layoutClassName="flex flex-col gap-0.5">
+                        <Box layoutClassName="flex items-center gap-1">
+                          <Lock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          <Typography as="span" size="xs" textClassName="text-emerald-600 dark:text-emerald-400">
+                            Đã chốt
+                          </Typography>
+                          <Button
+                            type="button"
+                            onClick={() => void doReopen(emp.id)}
+                            disabled={reopening === emp.id}
+                            variant="secondary"
+                            leftIcon={<Unlock />}
+                            iconClassName="inline-flex shrink-0 [&_svg]:h-3 [&_svg]:w-3"
+                            sizeClassName="px-1.5 py-0.5 text-[10px]"
+                            roundedClassName="rounded"
+                            borderClassName="border border-slate-200 dark:border-slate-600"
+                            backgroundClassName="bg-white dark:bg-slate-800"
+                            textClassName="text-slate-600 dark:text-slate-300"
+                            layoutClassName="inline-flex items-center gap-0.5"
+                          >
+                            Mở lại
+                          </Button>
+                        </Box>
+                        {submitted.get(emp.id) ? (
+                          <Typography as="span" size="xs" variant="muted" layoutClassName="leading-tight">
+                            lúc {submitted.get(emp.id)}
+                          </Typography>
+                        ) : null}
                       </Box>
                     ) : (
                       <Typography as="span" size="xs" variant="muted">Chưa chốt</Typography>
