@@ -373,8 +373,11 @@ const EmpRow: React.FC<{
 }> = ({ row, open, onToggle, adjByKey, onAdjust, onRemoveAdjust }) => {
   const td = 'px-4 py-3';
   const missingRate = row.days.some((d) => d.hours > 0 && d.rate == null);
+  const today = todayStr();
   // Thiếu ca = ca đăng ký nhưng CHƯA làm và CHƯA bổ sung (còn cần xử lý).
+  // Ngày CHƯA TỚI không tính (chưa đến hạn làm nên không thể "vắng").
   const missedShifts = row.days.reduce((n, d) => {
+    if (d.date > today) return n;
     const adjs = adjByKey.get(`${row.employeeId}|${d.date}`) ?? [];
     const adjCodes = new Set(adjs.map((a) => a.shiftCode).filter(Boolean));
     const generalAdj = adjs.some((a) => !a.shiftCode && a.hours > 0);
@@ -485,9 +488,20 @@ const DayDetail: React.FC<{
   );
 };
 
+/** yyyy-mm-dd theo giờ máy (= giờ VN của quán). */
+const todayStr = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // ── 1 dòng ngày: đăng ký ca + chấm công + hợp lệ + công + giờ ──
 /** Trạng thái chấm công trong ngày so với ca đăng ký. */
-const dayStatus = (day: PayrollDay): 'off' | 'full' | 'short' | 'absent' => {
+const dayStatus = (
+  day: PayrollDay,
+  today: string,
+): 'off' | 'full' | 'short' | 'absent' | 'upcoming' => {
+  // Ngày CHƯA TỚI: không tính vắng/thiếu — chỉ là "sắp tới" nếu có đăng ký.
+  if (day.date > today) return day.registered > 0 ? 'upcoming' : 'off';
   const reg = day.registered;
   const workedUnreg = day.shifts.filter((s) => s.worked && !s.registered).length;
   if (reg === 0 && workedUnreg === 0 && !day.in) return 'off';
@@ -509,14 +523,21 @@ const DayRow: React.FC<{
   const shownShifts = day.shifts.filter((s) => s.registered || adjustedCodes.has(s.code));
   const hasAtt = !!day.in;
   const hasAdj = adjustments.length > 0 || day.adjHours !== 0;
-  const status = dayStatus(day);
+  const today = todayStr();
+  const isToday = day.date === today;
+  const status = dayStatus(day, today);
 
   return (
-    <TableRow borderClassName="border-b border-slate-100 dark:border-slate-700/40 last:border-0">
+    <TableRow
+      borderClassName="border-b border-slate-100 dark:border-slate-700/40 last:border-0"
+      backgroundClassName={isToday ? 'bg-primary-50 dark:bg-primary-900/20' : undefined}>
       <TableCell layoutClassName={`${td} whitespace-nowrap`}>
         <Box layoutClassName="flex items-baseline gap-1.5">
-          <Typography as="span" size="xs" layoutClassName="font-medium tabular-nums" textClassName="text-slate-800 dark:text-slate-100">{fmtDay(day.date)}</Typography>
+          <Typography as="span" size="xs" layoutClassName="font-medium tabular-nums" textClassName={isToday ? 'text-primary-600 dark:text-primary-300 font-semibold' : 'text-slate-800 dark:text-slate-100'}>{fmtDay(day.date)}</Typography>
           <Typography as="span" size="xs" textClassName="text-slate-400">{dowLabel(day.date)}</Typography>
+          {isToday && (
+            <Badge size="sm" layoutClassName="px-1.5 py-0.5 text-[9px] font-semibold" backgroundClassName="bg-primary-100 dark:bg-primary-900/40" textClassName="text-primary-700 dark:text-primary-300">hôm nay</Badge>
+          )}
         </Box>
       </TableCell>
       {/* Đăng ký ca — ca đủ giờ (hợp lệ) HOẶC đã bổ sung → xanh, còn lại xám */}
@@ -562,6 +583,8 @@ const DayRow: React.FC<{
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-amber-50 dark:bg-amber-900/20" textClassName="text-amber-600 dark:text-amber-400">Thiếu công</Badge>
         ) : status === 'absent' ? (
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-rose-50 dark:bg-rose-900/20" textClassName="text-rose-600 dark:text-rose-400">Vắng</Badge>
+        ) : status === 'upcoming' ? (
+          <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-slate-100 dark:bg-slate-700" textClassName="text-slate-500 dark:text-slate-400">Chưa tới</Badge>
         ) : (
           <Typography as="span" size="xs" textClassName="text-slate-300 dark:text-slate-600">—</Typography>
         )}
