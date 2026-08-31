@@ -374,6 +374,51 @@ export async function fetchPayroll(params?: {
   };
 }
 
+/** Kết quả chốt công + gửi bảng lương Zalo (POST /attendance/payroll/close). */
+export interface ClosePayrollResult {
+  month: string;
+  from: string;
+  to: string;
+  totalSalary: number;
+  employeeCount: number;
+  sent: number;
+  skipped: number;
+  fullFileUrl: string | null;
+  sentToGroup: boolean;
+  dryRun: boolean;
+}
+
+/**
+ * Chốt công kỳ + gửi bảng lương Excel qua Zalo NGAY (cá nhân từng NV + file tổng
+ * vào nhóm chính). `dryRun` → chỉ sinh file tổng, trả link, KHÔNG gửi Zalo.
+ */
+export async function closePayroll(params?: {
+  from?: string;
+  to?: string;
+  dryRun?: boolean;
+}): Promise<ClosePayrollResult> {
+  const res = await apiClient.post<any>(`${BASE}/payroll/close`, null, {
+    params: {
+      from: params?.from,
+      to: params?.to,
+      dryRun: params?.dryRun ? 'true' : undefined,
+    },
+  });
+  const d = res.data ?? {};
+  return {
+    month: str(d?.month) ?? '',
+    from: str(d?.from) ?? '',
+    to: str(d?.to) ?? '',
+    totalSalary: n0(d?.totalSalary),
+    employeeCount: n0(d?.employeeCount),
+    sent: n0(d?.sent),
+    skipped: n0(d?.skipped),
+    fullFileUrl: str(d?.fullFileUrl) ?? null,
+    sentToGroup: d?.sentToGroup === true,
+    dryRun: d?.dryRun === true,
+  };
+}
+
 function toAdjustment(a: any): AttendanceAdjustment {
   return {
     id: str(a?.id) ?? '',

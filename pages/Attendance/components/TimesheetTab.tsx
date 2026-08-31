@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Download,
   Plus,
+  Send,
   Trash2,
 } from 'lucide-react';
 import Box from '@/components/ui/Box';
@@ -33,6 +34,7 @@ import {
   useAdjustments,
   usePayroll,
 } from '@/hooks/queries/useAttendanceQuery';
+import { closePayroll } from '@/services/attendanceService';
 import { SHIFTS, shiftLabel } from '@/types/attendance';
 import type { AttendanceAdjustment, AttendanceShift, PayrollDay, PayrollRow } from '@/types/attendance';
 import {
@@ -80,6 +82,7 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
   const [reasonChoice, setReasonChoice] = useState(''); // lý do chọn sẵn ('' | preset | 'Khác')
   const [reasonOther, setReasonOther] = useState(''); // nhập tay khi chọn "Khác"
   const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false); // đang chốt công + gửi Zalo
 
   // (2) data
   const range = useMemo(() => monthRange(month), [month]);
@@ -192,6 +195,37 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
     }
   };
 
+  /** Chốt công kỳ + gửi bảng lương Excel qua Zalo (cá nhân từng NV + file tổng vào nhóm). */
+  const handleClosePayroll = async () => {
+    if (employees.length === 0) {
+      toast.error('Chưa có dữ liệu công trong kỳ.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Chốt công kỳ này và GỬI bảng lương Excel qua Zalo?\n\n` +
+          `• Mỗi nhân viên (có SĐT) nhận link file lương riêng.\n` +
+          `• Nhóm chính nhận link file tổng hợp.\n\n` +
+          `Tin nhắn sẽ gửi ngay — hãy chắc chắn số liệu đã đúng.`,
+      )
+    ) {
+      return;
+    }
+    setClosing(true);
+    try {
+      const r = await closePayroll({ from: range.from, to: range.to });
+      toast.success(
+        `Đã gửi bảng lương ${r.month}: ${r.sent} nhân viên` +
+          (r.skipped > 0 ? `, bỏ qua ${r.skipped}` : '') +
+          (r.sentToGroup ? ', đã gửi nhóm chính.' : '.'),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Chốt công thất bại.');
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const th = 'px-4 py-3';
 
   // (4) render
@@ -230,6 +264,9 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
           </Box>
           <Button type="button" variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={exportExcel}>
             Xuất Excel
+          </Button>
+          <Button type="button" variant="primary" size="sm" disabled={closing} leftIcon={<Send className="h-4 w-4" />} onClick={handleClosePayroll}>
+            {closing ? 'Đang gửi…' : 'Chốt & gửi lương'}
           </Button>
         </Box>
 
