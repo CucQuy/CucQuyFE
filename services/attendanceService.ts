@@ -384,13 +384,12 @@ export interface ClosePayrollResult {
   sent: number;
   skipped: number;
   fullFileUrl: string | null;
-  sentToGroup: boolean;
   dryRun: boolean;
 }
 
 /**
- * Chốt công kỳ + gửi bảng lương Excel qua Zalo NGAY (cá nhân từng NV + file tổng
- * vào nhóm chính). `dryRun` → chỉ sinh file tổng, trả link, KHÔNG gửi Zalo.
+ * Chốt công kỳ + gửi bảng lương Excel qua Zalo NGAY — chỉ gửi cho từng NV tương
+ * ứng (file riêng). `dryRun` → chỉ sinh file tổng, trả link, KHÔNG gửi Zalo.
  */
 export async function closePayroll(params?: {
   from?: string;
@@ -414,7 +413,6 @@ export async function closePayroll(params?: {
     sent: n0(d?.sent),
     skipped: n0(d?.skipped),
     fullFileUrl: str(d?.fullFileUrl) ?? null,
-    sentToGroup: d?.sentToGroup === true,
     dryRun: d?.dryRun === true,
   };
 }

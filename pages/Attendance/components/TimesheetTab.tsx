@@ -204,8 +204,8 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
     if (
       !window.confirm(
         `Chốt công kỳ này và GỬI bảng lương Excel qua Zalo?\n\n` +
-          `• Mỗi nhân viên (có SĐT) nhận link file lương riêng.\n` +
-          `• Nhóm chính nhận link file tổng hợp.\n\n` +
+          `• Mỗi nhân viên (có SĐT) nhận link file lương RIÊNG của mình.\n` +
+          `• Chỉ gửi cho từng nhân viên — không gửi vào nhóm.\n\n` +
           `Tin nhắn sẽ gửi ngay — hãy chắc chắn số liệu đã đúng.`,
       )
     ) {
@@ -216,8 +216,7 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
       const r = await closePayroll({ from: range.from, to: range.to });
       toast.success(
         `Đã gửi bảng lương ${r.month}: ${r.sent} nhân viên` +
-          (r.skipped > 0 ? `, bỏ qua ${r.skipped}` : '') +
-          (r.sentToGroup ? ', đã gửi nhóm chính.' : '.'),
+          (r.skipped > 0 ? `, bỏ qua ${r.skipped}.` : '.'),
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Chốt công thất bại.');
