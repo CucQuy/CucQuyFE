@@ -27,9 +27,6 @@ export const qk = {
   customers: {
     all: ['customers'] as const,
   },
-  tables: {
-    all: ['dine-in-tables'] as const,
-  },
   employees: {
     all: ['employees'] as const,
     wages: (employeeId: string) => ['employees', 'wages', employeeId] as const,

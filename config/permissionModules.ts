@@ -36,7 +36,6 @@ export const PERM_GROUPS = [
 export const PERMISSION_MODULES: PermModule[] = [
   // ── Bán hàng ──
   { key: 'orders', label: 'Đơn hàng', actions: ALL, group: 'Bán hàng' },
-  { key: 'dine_in', label: 'Bán tại bàn', actions: ALL, group: 'Bán hàng' },
   { key: 'shipping', label: 'Vận chuyển', actions: ['view', 'edit'], group: 'Bán hàng' },
   { key: 'promotions', label: 'Khuyến mãi', actions: ALL, group: 'Bán hàng' },
   { key: 'calendar', label: 'Lịch', actions: ALL, group: 'Bán hàng' },

@@ -8,7 +8,6 @@ import Spinner from "./components/ui/Spinner";
 const DashboardPage = lazy(() => import("./pages/Dashboard/index"));
 const GoalsPage = lazy(() => import("./pages/Goals/index"));
 const OrdersPage = lazy(() => import("./pages/Orders/index"));
-const DineInPage = lazy(() => import("./pages/DineIn/index"));
 const ShippingPage = lazy(() => import("./pages/Shipping/index"));
 const TxOverviewPage = lazy(() => import("./pages/Transactions/OverviewPage"));
 const TxLedgerPage = lazy(() => import("./pages/Transactions/LedgerPage"));
@@ -89,14 +88,6 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/orders")?.roles}>
             <OrdersPage />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="dine-in"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/dine-in")?.roles}>
-            <DineInPage />
           </RoleBasedRoute>
         }
       />

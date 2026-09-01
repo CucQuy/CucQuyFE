@@ -26,7 +26,6 @@ import {
   Clock,
   UserCheck,
   CalendarCheck,
-  Utensils,
   ChefHat,
   PieChart,
   BarChart3,
@@ -114,13 +113,6 @@ export const routes: RouteConfig[] = [
     labelKey: "nav.orders",
     icon: ShoppingCart,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
-  },
-  {
-    type: "page",
-    path: "/dine-in",
-    labelKey: "nav.dineIn",
-    icon: Utensils,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
     type: "page",

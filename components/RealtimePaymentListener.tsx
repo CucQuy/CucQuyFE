@@ -76,19 +76,12 @@ const RealtimePaymentListener: React.FC = () => {
         // ...rồi refetch để đồng bộ các field server tính (sepayId, updatedAt...).
         queryClient.invalidateQueries({ queryKey: qk.orders.all });
       });
-
-      // Bàn ăn tại chỗ đổi trạng thái (máy khác mở/sửa/đóng bàn) → refetch để mọi
-      // máy admin thấy hiện trạng bàn theo thời gian thực.
-      socket.on(SOCKET_EVENTS.TABLES_CHANGED, () => {
-        queryClient.invalidateQueries({ queryKey: qk.tables.all });
-      });
     });
 
     return () => {
       cancelled = true;
       if (socket) {
         socket.off(SOCKET_EVENTS.ORDER_PAID);
-        socket.off(SOCKET_EVENTS.TABLES_CHANGED);
         socket.disconnect();
       }
     };

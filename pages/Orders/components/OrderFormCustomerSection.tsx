@@ -23,8 +23,6 @@ interface CustomerSectionProps {
   setAddress: (val: string) => void;
   deliveryType: DeliveryType;
   setDeliveryType: (val: DeliveryType) => void;
-  /** Ẩn ô chọn hình thức nhận (dùng cho order theo bàn — cứng DINE_IN). */
-  hideDeliveryType?: boolean;
   trackingNumber?: string;
   setTrackingNumber?: (val: string) => void;
   /** ĐVVC đã gửi (carriers.id) — thống kê số đơn theo hãng. */
@@ -51,7 +49,6 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
   setAddress,
   deliveryType,
   setDeliveryType,
-  hideDeliveryType,
   trackingNumber,
   setTrackingNumber,
   carrierId,
@@ -172,8 +169,7 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
           filterFn={phoneFilterFn}
         />
 
-        {/* Delivery type — ẩn khi order theo bàn (cứng DINE_IN) */}
-        {!hideDeliveryType ? (
+        {/* Delivery type */}
         <Field label={t('deliveryType.label')} htmlFor="order-form-delivery-type">
           <Box layoutClassName="grid grid-cols-2 gap-2">
             {([
@@ -212,7 +208,6 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
             })}
           </Box>
         </Field>
-        ) : null}
 
         {/* Address + map: SHIP → tính phí ship tự động; SHIP_PROVINCE → chỉ map, phí nhập tay */}
         {deliveryType === DeliveryType.SHIP || deliveryType === DeliveryType.SHIP_PROVINCE ? (
