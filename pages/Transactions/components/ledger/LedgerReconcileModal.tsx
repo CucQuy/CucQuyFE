@@ -88,7 +88,7 @@ const LedgerReconcileModal: React.FC<Props> = ({ isOpen, onClose, fromDate, toDa
   };
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Đối soát giao dịch chưa khớp" size="xl">
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Đối soát giao dịch chưa khớp" size="2xl">
       <Box layoutClassName="flex h-[70vh] flex-col gap-3 sm:flex-row">
         {/* Cột trái: danh sách GD chưa khớp */}
         <Box
