@@ -35,6 +35,7 @@ const SystemTrafficPage = lazy(() => import("./pages/System/Traffic/index"));
 const SystemLogsPage = lazy(() => import("./pages/System/Requests/index"));
 const NotificationsPage = lazy(() => import("./pages/Notifications/index"));
 const SepaySettingsTab = lazy(() => import("./pages/Settings/SepaySettingsTab"));
+const SpeakerSettingsTab = lazy(() => import("./pages/Settings/SpeakerSettingsTab"));
 const ZaloSettingsTab = lazy(() => import("./pages/Settings/ZaloSettingsTab"));
 const ScreenVisibilityTab = lazy(() => import("./pages/Settings/ScreenVisibilityTab"));
 const RolesPage = lazy(() => import("./pages/Settings/RolesPage"));
@@ -295,6 +296,14 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/settings/sepay")?.roles}>
             <SepaySettingsTab />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="settings/speaker"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/settings/speaker")?.roles}>
+            <SpeakerSettingsTab />
           </RoleBasedRoute>
         }
       />

@@ -42,6 +42,7 @@ import {
   BriefcaseBusiness,
   Store,
   ShoppingBag,
+  Volume2,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import ZaloIcon from "@/components/ui/ZaloIcon";
@@ -307,6 +308,13 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
+    path: "/settings/speaker",
+    labelKey: "nav.settingsSpeaker",
+    icon: Volume2,
+    roles: [UserRole.SUPER_ADMIN],
+  },
+  {
+    type: "page",
     path: "/settings/zalo",
     labelKey: "nav.settingsZalo",
     icon: ZaloIcon as unknown as LucideIcon,
@@ -516,6 +524,7 @@ export const navGroups: NavGroupConfig[] = [
     icon: Settings,
     childPaths: [
       "/settings/sepay",
+      "/settings/speaker",
       "/settings/zalo",
       "/settings/screens",
       "/settings/roles",
