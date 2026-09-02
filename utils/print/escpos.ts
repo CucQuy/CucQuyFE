@@ -1,4 +1,5 @@
 import { PRINT_AGENT_URL } from '@/config/printAgent';
+import { apiClient } from '@/services/api/client';
 
 /** Máy in nhiệt 58mm = 384 dot ngang (48 byte/dòng). */
 const WIDTH_DOTS = 384;
@@ -68,15 +69,41 @@ export function buildEscpos(canvases: HTMLCanvasElement[]): Uint8Array {
   return Uint8Array.from(out);
 }
 
-/** Gửi bytes ESC/POS tới cầu nối in local. Throw nếu agent không chạy / máy in lỗi. */
+/** Encode Uint8Array → base64 (chia khúc, tránh tràn stack khi bill dài). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/**
+ * Gửi bytes ESC/POS ra máy in. 2 đường:
+ * 1) Cầu nối LOCAL (máy đang cắm máy in, localhost:9110) — nhanh, không qua mạng.
+ * 2) Nếu không có agent local (in từ điện thoại/máy khác) → RELAY qua BE:
+ *    POST /print/job (base64) → BE đẩy socket.io tới agent máy in ở quán.
+ * Throw nếu cả 2 đều không in được (để caller toast lỗi).
+ */
 export async function sendToPrintAgent(bytes: Uint8Array): Promise<void> {
-  const res = await fetch(`${PRINT_AGENT_URL}/print`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/octet-stream' },
-    body: bytes,
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(t || `agent HTTP ${res.status}`);
+  // 1) Thử cầu nối local trước (timeout ngắn: máy khác sẽ fail nhanh rồi relay).
+  try {
+    const res = await fetch(`${PRINT_AGENT_URL}/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: bytes,
+      signal: AbortSignal.timeout(2500),
+    });
+    if (res.ok) return;
+  } catch {
+    /* không có agent local → relay qua BE bên dưới */
+  }
+
+  // 2) Relay qua BE (in từ thiết bị bất kỳ). apiClient bóc envelope → res.data = { printers }.
+  const res = await apiClient.post('/print/job', { base64: bytesToBase64(bytes) });
+  const printers = (res.data as { printers?: number } | null)?.printers ?? 0;
+  if (printers < 1) {
+    throw new Error('Máy in ở quán đang offline (không có agent kết nối). Kiểm tra máy quán.');
   }
 }

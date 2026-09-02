@@ -209,3 +209,57 @@ export const speakPaymentAmount = (amount: number): void => {
   }
   speakViaSpeechSynthesis(amt);
 };
+
+/* ===================== Máy quán (kiosk): loa đơn mới + tự in phiếu bếp ===================== */
+
+const KITCHEN_STATION_KEY = 'cucquy.kitchenStation.enabled';
+
+/**
+ * Máy NÀY có phải "máy quán" không (phát âm "đơn mới" + tự in phiếu bếp khi có
+ * đơn mới). Mặc định TẮT — phải bật thủ công trên đúng máy đặt ở quán (kiosk),
+ * để điện thoại/máy khác không kêu + không in trùng.
+ */
+export const isKitchenStationEnabled = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(KITCHEN_STATION_KEY) === 'on';
+};
+
+/** Bật/tắt chế độ "máy quán" cho THIẾT BỊ này, lưu localStorage. */
+export const setKitchenStationEnabled = (enabled: boolean): void => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(KITCHEN_STATION_KEY, enabled ? 'on' : 'off');
+};
+
+/** Fallback đọc câu đơn mới bằng Web Speech API (khi audio TTS lỗi/chặn). */
+const speakNewOrderFallback = (): void => {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    const u = new SpeechSynthesisUtterance('Bạn có đơn hàng mới từ Cúc Quy');
+    u.lang = 'vi-VN';
+    if (synth.speaking || synth.pending) synth.cancel();
+    synth.speak(u);
+  } catch {
+    /* bỏ qua */
+  }
+};
+
+// Giữ tham chiếu để audio không bị GC giữa lúc đang phát.
+let newOrderAudio: HTMLAudioElement | null = null;
+
+/** Phát câu "Bạn có đơn hàng mới từ Cúc Quy" (TTS từ BE, fallback Web Speech). */
+export const speakNewOrder = (): void => {
+  if (typeof window === 'undefined') return;
+  if (API_BASE_URL) {
+    try {
+      const audio = new Audio(`${API_BASE_URL}/tts/new-order`);
+      audio.volume = 1;
+      newOrderAudio = audio;
+      audio.play().catch(() => speakNewOrderFallback());
+      return;
+    } catch {
+      /* rơi xuống fallback */
+    }
+  }
+  speakNewOrderFallback();
+};

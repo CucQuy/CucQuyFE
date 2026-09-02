@@ -6,6 +6,7 @@ import Heading from '@/components/ui/Heading';
 import Typography from '@/components/ui/Typography';
 import PaymentSettingsTab from '@/pages/Settings/PaymentSettingsTab';
 import PaymentSpeakerCard from '@/pages/Settings/PaymentSpeakerCard';
+import KitchenStationCard from '@/pages/Settings/KitchenStationCard';
 
 /**
  * Trang cài đặt SePay (tài khoản nhận tiền / QR thanh toán).
@@ -29,6 +30,8 @@ const SepaySettingsPage: React.FC = () => {
       <PaymentSettingsTab />
 
       <PaymentSpeakerCard />
+
+      <KitchenStationCard />
     </Box>
   );
 };
