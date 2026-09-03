@@ -24,6 +24,8 @@ export interface PublicOrder {
   total: number;
   paidAmount: number;
   trackingNumber: string;
+  /** Mốc hành trình mới nhất từ ĐVVC (SPX) — rỗng nếu chưa sync. */
+  trackingStatus: string;
   createdAt: string | null;
 }
 
@@ -57,6 +59,7 @@ export const fetchPublicOrder = async (token: string): Promise<PublicOrder | nul
       total: num(r.total),
       paidAmount: num(r.paidAmount),
       trackingNumber: str(r.trackingNumber),
+      trackingStatus: str(r.trackingStatus),
       createdAt: typeof r.createdAt === 'string' ? r.createdAt : null,
     };
   } catch {

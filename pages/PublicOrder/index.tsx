@@ -237,12 +237,33 @@ const PublicOrderPage: React.FC = () => {
                 </Typography>
               </Box>
               {order.trackingNumber ? (
-                <Box layoutClassName="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-slate-400" />
-                  <Typography size="sm" textClassName="text-slate-800 dark:text-slate-100">
-                    Mã vận đơn: {order.trackingNumber}
-                  </Typography>
-                </Box>
+                <>
+                  <Box layoutClassName="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-slate-400" />
+                    <Typography size="sm" textClassName="text-slate-800 dark:text-slate-100">
+                      Mã vận đơn: {order.trackingNumber}
+                    </Typography>
+                  </Box>
+                  {order.trackingStatus ? (
+                    <Typography size="sm" layoutClassName="pl-6" textClassName="text-slate-500 dark:text-slate-400">
+                      {order.trackingStatus}
+                    </Typography>
+                  ) : null}
+                  <Button
+                    type="button"
+                    onClick={() => window.open(`https://spx.vn/track?${order.trackingNumber}`, '_blank')}
+                    leftIcon={<Package className="h-3.5 w-3.5" />}
+                    variant="secondary"
+                    borderClassName="border border-slate-200 dark:border-slate-600"
+                    backgroundClassName="bg-white dark:bg-slate-800"
+                    textClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
+                    roundedClassName="rounded-lg"
+                    sizeClassName="px-2.5 py-1.5"
+                    layoutClassName="inline-flex items-center gap-1.5"
+                  >
+                    Tra cứu trên SPX
+                  </Button>
+                </>
               ) : null}
             </Card>
 
