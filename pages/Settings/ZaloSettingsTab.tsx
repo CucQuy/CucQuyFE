@@ -118,6 +118,9 @@ const ZaloSettingsTab: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [mainGroupId, setMainGroupId] = useState('');
   // Danh sách nhóm THẬT lấy từ Zalo (qua bridge) để chọn đúng ID thay vì copy tay.
+  // Chống bấm Test dồn: bridge Abit có anti-abuse, bắn liên tiếp là bị CHẶN IP
+  // (mọi noti sau đó fail với "fetch failed"). Khoá nút 15s sau mỗi lần gửi.
+  const [testCooldownUntil, setTestCooldownUntil] = useState(0);
   const [bridgeGroups, setBridgeGroups] = useState<ZaloBridgeGroup[] | null>(null);
   const [loadingBridgeGroups, setLoadingBridgeGroups] = useState(false);
   const [mainNotifyOnCreate, setMainNotifyOnCreate] = useState(true);
@@ -258,6 +261,11 @@ const ZaloSettingsTab: React.FC = () => {
       toast.error('Group ID trống');
       return;
     }
+    const waitMs = testCooldownUntil - Date.now();
+    if (waitMs > 0) {
+      toast.error(`Chờ ${Math.ceil(waitMs / 1000)}s nữa hãy test lại (tránh bị Zalo chặn)`);
+      return;
+    }
     setTestingGroupId(id);
     try {
       const result = await sendZaloTestMessage(id);
@@ -268,6 +276,7 @@ const ZaloSettingsTab: React.FC = () => {
       }
     } finally {
       setTestingGroupId(null);
+      setTestCooldownUntil(Date.now() + 15000);
     }
   };
 
