@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Bell, CheckCircle2, Facebook, MessageCircle, RefreshCw, Send, Tag, XCircle } from 'lucide-react';
+import { Bell, CheckCircle2, MessageCircle, RefreshCw, Send, XCircle } from 'lucide-react';
 import {
   fetchOrderNotifyMatrix,
   notifyCustomerZalo,
@@ -44,15 +44,8 @@ const at = (iso?: string | null): string => {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-/** 1 ô trạng thái thông báo: đã gửi (kèm giờ) / lỗi (kèm lý do) / chưa gửi / chưa hỗ trợ. */
-const NotifyCell: React.FC<{ cell: NotifyCellState; unsupported?: boolean }> = ({ cell, unsupported }) => {
-  if (unsupported) {
-    return (
-      <Typography as="span" size="xs" variant="muted">
-        Chưa hỗ trợ
-      </Typography>
-    );
-  }
+/** 1 ô trạng thái thông báo: đã gửi (kèm giờ) / lỗi (kèm lý do) / chưa gửi. */
+const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
   if (cell.status === 'sent') {
     return (
       <Box layoutClassName="space-y-0.5">
@@ -101,9 +94,11 @@ const NotifyCell: React.FC<{ cell: NotifyCellState; unsupported?: boolean }> = (
 };
 
 /**
- * Màn "Thông báo" của khu vực Đơn hàng: bảng ĐƠN × các kênh thông báo cho khách —
- * mỗi dòng 1 đơn, mỗi cột 1 loại tin (Zalo đơn hàng, Zalo khuyến mãi, Facebook sau này).
- * Bấm "Gửi"/"Gửi lại" ở từng dòng để bắn tin Zalo đơn hàng cho khách của đơn đó.
+ * Màn "Thông báo đơn" của khu vực Đơn hàng: mỗi dòng 1 đơn + trạng thái tin thông báo
+ * đơn hàng đã gửi cho khách (đã gửi kèm giờ / lỗi kèm lý do / chưa gửi).
+ * Bấm "Gửi"/"Gửi lại" ở từng dòng để bắn tin cho khách của đơn đó.
+ * BE (order_notify_matrix) vẫn trả sẵn cột khuyến mãi + Facebook — muốn hiện thêm cột
+ * thì chỉ cần render `r.zaloPromo` / `r.facebook`, không phải sửa SQL.
  */
 const OrderNotifyPage: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('');
@@ -254,19 +249,7 @@ const OrderNotifyPage: React.FC = () => {
                   <TableHeaderCell layoutClassName="px-4 py-3">
                     <Box layoutClassName="inline-flex items-center gap-1.5">
                       <MessageCircle className="h-3.5 w-3.5 text-[#0068FF]" />
-                      Zalo · Đơn hàng
-                    </Box>
-                  </TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">
-                    <Box layoutClassName="inline-flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5 text-amber-500" />
-                      Zalo · Khuyến mãi
-                    </Box>
-                  </TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">
-                    <Box layoutClassName="inline-flex items-center gap-1.5">
-                      <Facebook className="h-3.5 w-3.5 text-[#1877F2]" />
-                      Facebook
+                      Thông báo đơn hàng
                     </Box>
                   </TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3 text-right">Thao tác</TableHeaderCell>
@@ -294,12 +277,6 @@ const OrderNotifyPage: React.FC = () => {
                     </TableCell>
                     <TableCell layoutClassName="px-4 py-3">
                       <NotifyCell cell={r.zaloOrder} />
-                    </TableCell>
-                    <TableCell layoutClassName="px-4 py-3">
-                      <NotifyCell cell={r.zaloPromo} />
-                    </TableCell>
-                    <TableCell layoutClassName="px-4 py-3">
-                      <NotifyCell cell={r.facebook} unsupported />
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
                       <Button
