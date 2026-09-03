@@ -288,7 +288,7 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               <Box layoutClassName="mb-2 flex items-center gap-2">
                 <Hash className="h-4 w-4 text-slate-400" />
                 <Typography as="span" size="xs" layoutClassName="font-medium uppercase" textClassName="text-slate-600 dark:text-slate-400">
-                  SePay ID
+                  Mã GD ngân hàng
                 </Typography>
               </Box>
               <Badge

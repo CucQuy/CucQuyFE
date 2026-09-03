@@ -155,7 +155,7 @@ export interface OrderRefund {
 
 /** Nhãn hiển thị cách đối soát phiếu hoàn (types-convention). */
 export const reconcileMethodLabel = (m?: RefundReconcileMethod | null): string => {
-  if (m === 'sepay') return 'SePay';
+  if (m === 'sepay') return 'Ngân hàng';
   if (m === 'cash') return 'Tiền mặt';
   return 'Chưa đối soát';
 };

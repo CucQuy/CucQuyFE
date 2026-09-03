@@ -2216,7 +2216,7 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
                 txSorted.forEach((tx) => {
                   const syntheticEntry = {
                     at: tx.receivedAt,
-                    by: 'System (SePay)',
+                    by: 'System (Ngân hàng)',
                     byUid: 'system',
                   };
                   const syntheticChange = {
