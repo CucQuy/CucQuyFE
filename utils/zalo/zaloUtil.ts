@@ -137,6 +137,24 @@ export const formatOrderMessage = (order: any): string => {
   return lines.join('\n');
 };
 
+/**
+ * Text đi KÈM ẢNH đơn mới (thẻ chia sẻ đã chứa chi tiết): tiêu đề + khách + địa chỉ.
+ * Giữ ngắn nhưng đủ để đọc ngay trên thông báo Zalo mà không cần mở ảnh.
+ */
+export const formatOrderImageCaption = (order: any): string => {
+  const lines: string[] = [];
+  if (order?.isTest) lines.push('⚠️ ĐƠN HÀNG TEST');
+  lines.push(`🟢 ĐƠN MỚI · ${order?.orderNumber || order?.id || ''}`);
+  lines.push(`👤 ${customerLine(order?.customer?.name, order?.customer?.phone)}`);
+  const addr = (order?.customer?.address ?? '').trim();
+  if (order?.deliveryType === 'PICKUP') {
+    lines.push('🏠 Khách qua lấy');
+  } else if (addr) {
+    lines.push(`🏠 ${addr}`);
+  }
+  return lines.join('\n');
+};
+
 // ============== UPDATE ORDER ==============
 export interface OrderUpdateEditorInfo {
   name?: string;

@@ -3,6 +3,7 @@ import { uploadImage } from '@/services/imageService';
 import { sendZaloOrderImage, sendNewOrderZaloNotifications } from '@/services/zaloService';
 import { dequeueOrderShare, setZaloShareListener, type ZaloShareJob } from '@/services/zaloShareQueue';
 import { captureShareCard } from '@/utils/order/captureShareCard';
+import { formatOrderImageCaption } from '@/utils/zalo/zaloUtil';
 import { generateQRCodeImage, getOrderTotal } from '@/utils/order/orderUtils';
 import { surchargeTagLabel } from '@/types/order';
 import { TEST_PAYMENT_ACCOUNT } from '@/types/paymentConfig';
@@ -46,9 +47,9 @@ const ZaloShareQueueHost: React.FC = () => {
     if (!job) return;
     let cancelled = false;
     const run = async () => {
-      // Text kèm ảnh = gọn: icon xanh + ĐƠN MỚI + mã đơn (chi tiết đã nằm trong ảnh).
-      const num = job.order?.orderNumber || job.order?.id || '';
-      const message = `🟢 ĐƠN MỚI · ${num}`;
+      // Text kèm ảnh: mã đơn + tên/SĐT khách + địa chỉ (chi tiết còn lại nằm trong ảnh)
+      // → đọc được ngay trên thông báo Zalo, khỏi phải mở ảnh.
+      const message = formatOrderImageCaption(job.order);
       try {
         // Chờ thẻ + ảnh render xong (font/ảnh SP) trước khi chụp.
         await new Promise((r) => setTimeout(r, 450));
@@ -58,7 +59,7 @@ const ZaloShareQueueHost: React.FC = () => {
         const file = new File([blob], `don-${job.order?.orderNumber || 'order'}.png`, { type: 'image/png' });
         const url = await uploadImage(file, 'zalo-orders');
         if (cancelled) return;
-        await sendZaloOrderImage(job.groupIds, message, `Đơn ${job.order?.orderNumber || ''}`, url);
+        await sendZaloOrderImage(job.groupIds, message, message, url);
       } catch (e) {
         console.error('Zalo share image failed → fallback text:', e);
         try { await sendNewOrderZaloNotifications(job.order, job.groupIds); } catch { /* bỏ qua */ }
