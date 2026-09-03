@@ -289,6 +289,17 @@ const ZaloSettingsTab: React.FC = () => {
     }
   };
 
+  /** Lưu từ trong modal nhóm → lưu cả cấu hình rồi đóng modal (khỏi phải tìm nút ngoài). */
+  const handleSaveGroupModal = async () => {
+    const g = groups.find((x) => x.id === groupModalId);
+    if (g && !g.zaloGroupId.trim()) {
+      toast.error('Nhóm này chưa có ID nhóm Zalo');
+      return;
+    }
+    await handleSaveAll();
+    closeGroupModal();
+  };
+
   const addGroup = () => {
     const newId = crypto.randomUUID();
     setGroups((prev) => [...prev, { id: newId, name: '', zaloGroupId: '', memberUids: [] }]);
@@ -455,6 +466,26 @@ const ZaloSettingsTab: React.FC = () => {
         sizeClassName="px-4 py-2"
       >
         Đóng
+      </Button>
+      {/* Lưu NGAY trong modal: nút "Lưu cấu hình" ở toolbar bị modal che → sửa ID nhóm
+          xong không lưu được. Lưu xong đóng modal luôn cho gọn. */}
+      <Button
+        type="button"
+        onClick={() => void handleSaveGroupModal()}
+        disabled={saving}
+        leftIcon={saving ? <Spinner size="sm" textClassName="text-white" borderClassName="border-white" /> : <Check className="h-4 w-4" />}
+        backgroundClassName="bg-primary-600"
+        hoverClassName="hover:bg-primary-700"
+        textClassName="text-sm font-semibold text-white"
+        roundedClassName="rounded-xl"
+        sizeClassName="px-4 py-2"
+        layoutClassName="inline-flex items-center gap-1.5"
+        stateClassName="transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        variant="primary"
+        disableVariantHover
+        disableVariantTextColor
+      >
+        {saving ? 'Đang lưu…' : 'Lưu'}
       </Button>
     </>
   ) : undefined;
