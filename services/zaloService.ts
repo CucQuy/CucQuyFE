@@ -111,6 +111,32 @@ export const sendCustomNotification = async (message: string) => {
 /**
  * Gui 1 message test toi 1 group ID. Tra ve { ok, error? } thay vi throw.
  */
+/** 1 nhóm Zalo của nick đang gửi (BE proxy API listAllGroupForPartner của Abit). */
+export interface ZaloBridgeGroup {
+  groupId: string;
+  name: string;
+  members: number;
+}
+
+/**
+ * Lấy danh sách nhóm Zalo THẬT của nick đang dùng để gửi → chọn đúng ID nhóm,
+ * khỏi copy tay (ID copy sai là tin không tới mà bridge vẫn báo nhận).
+ */
+export const fetchZaloBridgeGroups = async (phone?: string): Promise<ZaloBridgeGroup[]> => {
+  const { data } = await apiClient.get<ZaloBridgeGroup[]>('/zalo/groups', {
+    params: phone ? { phone } : undefined,
+  });
+  return Array.isArray(data)
+    ? data
+        .map((g) => ({
+          groupId: typeof g?.groupId === 'string' ? g.groupId : '',
+          name: typeof g?.name === 'string' ? g.name : '',
+          members: typeof g?.members === 'number' ? g.members : 0,
+        }))
+        .filter((g) => g.groupId)
+    : [];
+};
+
 export const sendZaloTestMessage = async (
   groupId: string,
   customMessage?: string,

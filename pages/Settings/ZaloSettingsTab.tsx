@@ -17,7 +17,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { sendZaloTestMessage } from '@/services/zaloService';
+import { sendZaloTestMessage, fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
 import { useUsers, useUserMutations } from '@/hooks/queries/useUsersQuery';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +34,7 @@ import IconButton from '@/components/ui/IconButton';
 import FilterToolbar from '@/components/shared/FilterToolbar';
 import Heading from '@/components/ui/Heading';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
 import ZaloIcon from '@/components/ui/ZaloIcon';
@@ -116,6 +117,9 @@ const ZaloSettingsTab: React.FC = () => {
   const [groupSearch, setGroupSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [mainGroupId, setMainGroupId] = useState('');
+  // Danh sách nhóm THẬT lấy từ Zalo (qua bridge) để chọn đúng ID thay vì copy tay.
+  const [bridgeGroups, setBridgeGroups] = useState<ZaloBridgeGroup[] | null>(null);
+  const [loadingBridgeGroups, setLoadingBridgeGroups] = useState(false);
   const [mainNotifyOnCreate, setMainNotifyOnCreate] = useState(true);
   const [mainNotifyOnUpdate, setMainNotifyOnUpdate] = useState(true);
   const [mainNotifyOnDelete, setMainNotifyOnDelete] = useState(true);
@@ -286,6 +290,21 @@ const ZaloSettingsTab: React.FC = () => {
       toast.error('Không lưu được cấu hình Zalo');
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Lấy danh sách nhóm thật của nick Zalo đang gửi (bridge Abit) để chọn ID. */
+  const loadBridgeGroups = async () => {
+    setLoadingBridgeGroups(true);
+    try {
+      const list = await fetchZaloBridgeGroups();
+      setBridgeGroups(list);
+      if (list.length === 0) toast.error('Nick Zalo đang gửi không có nhóm nào');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Không lấy được danh sách nhóm';
+      toast.error(String(msg));
+    } finally {
+      setLoadingBridgeGroups(false);
     }
   };
 
@@ -713,6 +732,39 @@ const ZaloSettingsTab: React.FC = () => {
                   placeholder="Dán hoặc nhập ID nhóm từ Zalo"
                   containerClassName="w-full"
                 />
+                {/* Chọn từ danh sách nhóm THẬT của nick Zalo đang gửi — ID copy tay dễ sai
+                    (bridge vẫn báo "đã nhận" nhưng tin không tới nhóm nào). */}
+                <Box layoutClassName="mt-2 space-y-2">
+                  <Button
+                    type="button"
+                    onClick={() => void loadBridgeGroups()}
+                    disabled={loadingBridgeGroups}
+                    leftIcon={loadingBridgeGroups ? <Spinner size="sm" /> : <Users className="h-3.5 w-3.5" />}
+                    variant="secondary"
+                    borderClassName="border border-slate-200 dark:border-slate-600"
+                    backgroundClassName="bg-white dark:bg-slate-800"
+                    textClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
+                    roundedClassName="rounded-lg"
+                    sizeClassName="px-2.5 py-1.5"
+                    layoutClassName="inline-flex items-center gap-1.5"
+                  >
+                    {loadingBridgeGroups ? 'Đang lấy…' : 'Lấy danh sách nhóm từ Zalo'}
+                  </Button>
+                  {bridgeGroups && bridgeGroups.length > 0 ? (
+                    <Select
+                      value={activeGroup.zaloGroupId}
+                      searchable
+                      onChange={(e) => updateGroup(activeGroup.id, { zaloGroupId: e.target.value })}
+                    >
+                      <option value="">— Chọn nhóm ({bridgeGroups.length} nhóm) —</option>
+                      {bridgeGroups.map((g) => (
+                        <option key={g.groupId} value={g.groupId}>
+                          {g.name || g.groupId} · {g.members} thành viên
+                        </option>
+                      ))}
+                    </Select>
+                  ) : null}
+                </Box>
               </Box>
 
               {/* Loại thông báo */}
