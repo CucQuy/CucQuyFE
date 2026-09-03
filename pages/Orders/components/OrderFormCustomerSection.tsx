@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bus, Globe, Package, Route as RouteIcon, Store, Truck, User } from 'lucide-react';
+import { Bus, Globe, Package, Route as RouteIcon, Store, Truck, User, UserX } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useCarriers } from '@/hooks/queries/useCarriersQuery';
@@ -7,12 +7,13 @@ import AddressMapInput, { type ShipInfoSnapshot } from '@/components/AddressMapI
 import AutocompleteInput, { AutocompleteOption } from '@/components/AutocompleteInput';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
+import Checkbox from '@/components/ui/Checkbox';
 import Field from '@/components/ui/Field';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Typography from '@/components/ui/Typography';
 import Heading from '@/components/ui/Heading';
-import { DeliveryType } from '@/types';
+import { DeliveryType, WALK_IN_CUSTOMER_NAME } from '@/types';
 
 interface CustomerSectionProps {
   customerName: string;
@@ -38,6 +39,9 @@ interface CustomerSectionProps {
   onShipFeeChange?: (fee: number | null) => void;
   initialShipInfo?: ShipInfoSnapshot;
   onShipInfoChange?: (info: ShipInfoSnapshot | null) => void;
+  /** Khách vãng lai: không nhập tên/SĐT (khách không muốn để lại thông tin). */
+  isWalkIn?: boolean;
+  setIsWalkIn?: (val: boolean) => void;
 }
 
 const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
@@ -61,6 +65,8 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
   onShipFeeChange,
   initialShipInfo,
   onShipInfoChange,
+  isWalkIn = false,
+  setIsWalkIn,
 }) => {
   const { t } = useLanguage();
   const { customers } = useCustomers();
@@ -128,6 +134,15 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
     );
   };
 
+  // Bật khách vãng lai → xoá tên/SĐT đang nhập (đơn không lưu thông tin khách).
+  const toggleWalkIn = (val: boolean) => {
+    setIsWalkIn?.(val);
+    if (val) {
+      setCustomerName('');
+      setPhone('');
+    }
+  };
+
   const phoneFilterFn = (option: AutocompleteOption, searchValue: string) => {
     if (!searchValue.trim()) return false;
     const term = normalize(searchValue);
@@ -148,26 +163,51 @@ const OrderFormCustomerSection: React.FC<CustomerSectionProps> = ({
       </Heading>
 
       <Box layoutClassName="space-y-3">
-        <AutocompleteInput
-          value={customerName}
-          onChange={setCustomerName}
-          onSelect={handleSelectCustomer}
-          options={customerOptions}
-          placeholder="Search by name or phone..."
-          label={t('form.customerName')}
-          required
-          filterFn={nameFilterFn}
-        />
+        {setIsWalkIn ? (
+          <Checkbox
+            checked={isWalkIn}
+            onChange={(e) => toggleWalkIn(e.target.checked)}
+            label="Khách vãng lai (không cần tên & SĐT)"
+            labelClassName="text-sm text-slate-600 dark:text-slate-300"
+          />
+        ) : null}
 
-        <AutocompleteInput
-          value={phone}
-          onChange={setPhone}
-          onSelect={handleSelectCustomer}
-          options={customerOptions}
-          placeholder="090 123 4567"
-          label={t('form.phone')}
-          filterFn={phoneFilterFn}
-        />
+        {isWalkIn ? (
+          <Box
+            layoutClassName="flex items-start gap-2 px-3 py-2"
+            backgroundClassName="bg-slate-50 dark:bg-slate-800/60"
+            borderClassName="border border-slate-200 dark:border-slate-600"
+            roundedClassName="rounded-lg"
+          >
+            <UserX className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <Typography size="xs" variant="muted">
+              Đơn lưu với tên “{WALK_IN_CUSTOMER_NAME}”, không lưu tên & số điện thoại khách.
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <AutocompleteInput
+              value={customerName}
+              onChange={setCustomerName}
+              onSelect={handleSelectCustomer}
+              options={customerOptions}
+              placeholder="Search by name or phone..."
+              label={t('form.customerName')}
+              required
+              filterFn={nameFilterFn}
+            />
+
+            <AutocompleteInput
+              value={phone}
+              onChange={setPhone}
+              onSelect={handleSelectCustomer}
+              options={customerOptions}
+              placeholder="090 123 4567"
+              label={t('form.phone')}
+              filterFn={phoneFilterFn}
+            />
+          </>
+        )}
 
         {/* Delivery type */}
         <Field label={t('deliveryType.label')} htmlFor="order-form-delivery-type">

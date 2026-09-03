@@ -17,7 +17,7 @@ import { getNextOrderNumber } from '@/services/orderService';
 import { fetchCommissionGroups } from '@/services/commissionGroupService';
 import { calcItemCommission } from '@/types/commissionGroup';
 import { getUserByUid } from '@/services/userService';
-import { DeliveryType, Order, OrderStatus, PaymentMethod, PaymentStatus, Product, SurchargeLine, DiscountLine, sizeCount } from '@/types/index';
+import { DeliveryType, Order, OrderStatus, PaymentMethod, PaymentStatus, Product, SurchargeLine, DiscountLine, sizeCount, WALK_IN_CUSTOMER_NAME, isWalkInCustomer } from '@/types/index';
 import { resolveTierPrice } from '@/types/product';
 import { useSurchargeTags } from '@/hooks/queries/useSurchargeTagsQuery';
 import BaseSlidePanel from '@/components/BaseSlidePanel';
@@ -116,6 +116,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
   };
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
+  // Khách vãng lai: khách không để lại tên/SĐT → lưu đơn với tên mặc định, bỏ qua tạo khách.
+  const [isWalkIn, setIsWalkIn] = useState(false);
   const [address, setAddress] = useState('');
   
   // New: Multiple Items State
@@ -216,6 +218,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
       setOrderNumber(initialData.orderNumber || 'N/A');
       setCustomerName(initialData.customer.name);
       setPhone(initialData.customer.phone);
+      setIsWalkIn(isWalkInCustomer(initialData.customer.name, initialData.customer.phone));
       setAddress(initialData.customer.address);
       setDeliveryDate(initialData.deliveryDate || '');
       setDeliveryTime(initialData.deliveryTime || '');
@@ -289,6 +292,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
       // orderNumber cho đơn mới được set từ React Query (effect riêng bên dưới).
       setCustomerName('');
       setPhone('');
+      setIsWalkIn(false);
       setAddress('');
       setNote('');
       // Mặc định đơn mới: ngày giao = hôm nay, giờ giao = giờ hiện tại (bật sẵn).
@@ -609,7 +613,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
     setError(null);
 
     try {
-      if (!customerName.trim()) {
+      if (!isWalkIn && !customerName.trim()) {
         throw new Error("Customer name is required");
       }
 
@@ -665,8 +669,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
         id: initialData?.id,
         orderNumber: orderNumber,
         customer: {
-          name: customerName,
-          phone: phone,
+          name: isWalkIn ? WALK_IN_CUSTOMER_NAME : customerName,
+          phone: isWalkIn ? '' : phone,
           address: address,
         },
         items: finalItems,
@@ -762,7 +766,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
         }
       }
 
-      if (phone.trim() && !checkCustomerExists(phone)) {
+      if (!isWalkIn && phone.trim() && !checkCustomerExists(phone)) {
         setPendingOrderData(formData);
         setShowCreateCustomerModal(true);
         return;
@@ -919,6 +923,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
             <OrderFormCustomerSection
               customerName={customerName} setCustomerName={setCustomerName}
               phone={phone} setPhone={setPhone}
+              isWalkIn={isWalkIn} setIsWalkIn={setIsWalkIn}
               address={address} setAddress={setAddress}
               deliveryType={deliveryType}
               setDeliveryType={setDeliveryType}

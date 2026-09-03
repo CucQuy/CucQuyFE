@@ -287,3 +287,10 @@ export const SPX_ADDRESS_STATUSES: { value: SpxAddressStatus; label: string }[] 
 /** Nhãn hiển thị trạng thái làm mịn địa chỉ (types-convention). */
 export const spxAddressStatusLabel = (s?: SpxAddressStatus | null): string =>
   SPX_ADDRESS_STATUSES.find((x) => x.value === s)?.label ?? 'Chưa làm mịn';
+
+/** Tên khách mặc định cho đơn khách vãng lai (khách không để lại tên/SĐT). */
+export const WALK_IN_CUSTOMER_NAME = 'Khách vãng lai';
+
+/** Đơn khách vãng lai: tên đúng bằng nhãn mặc định + không có SĐT. */
+export const isWalkInCustomer = (name?: string | null, phone?: string | null): boolean =>
+  !phone?.trim() && name?.trim() === WALK_IN_CUSTOMER_NAME;
