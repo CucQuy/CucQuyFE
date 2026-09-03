@@ -18,6 +18,8 @@ import {
   Users,
 } from 'lucide-react';
 import { sendZaloTestMessage, fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
+import { fetchCustomerNotifyPreview } from '@/services/orderService';
+import { usePromotions } from '@/hooks/queries/usePromotionsQuery';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
 import { useUsers, useUserMutations } from '@/hooks/queries/useUsersQuery';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +36,8 @@ import IconButton from '@/components/ui/IconButton';
 import FilterToolbar from '@/components/shared/FilterToolbar';
 import Heading from '@/components/ui/Heading';
 import Input from '@/components/ui/Input';
+import Checkbox from '@/components/ui/Checkbox';
+import Label from '@/components/ui/Label';
 import Select from '@/components/ui/Select';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
@@ -117,6 +121,13 @@ const ZaloSettingsTab: React.FC = () => {
   const [groupSearch, setGroupSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [mainGroupId, setMainGroupId] = useState('');
+  // ── Thông báo Zalo cho KHÁCH (cảm ơn + link tra đơn + mã KM) ──
+  const { promotions } = usePromotions();
+  const [custEnabled, setCustEnabled] = useState(false);
+  const [custPromotionId, setCustPromotionId] = useState('');
+  const [custDailyLimit, setCustDailyLimit] = useState(40);
+  const [custPreview, setCustPreview] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
   // Danh sách nhóm THẬT lấy từ Zalo (qua bridge) để chọn đúng ID thay vì copy tay.
   // Chống bấm Test dồn: bridge Abit có anti-abuse, bắn liên tiếp là bị CHẶN IP
   // (mọi noti sau đó fail với "fetch failed"). Khoá nút 15s sau mỗi lần gửi.
@@ -152,6 +163,11 @@ const ZaloSettingsTab: React.FC = () => {
     setMainNotifyOnUpdate(zaloConfig.mainNotifyOnUpdate !== false);
     setMainNotifyOnDelete(zaloConfig.mainNotifyOnDelete !== false);
     setMainUpdateFieldWhitelist(zaloConfig.mainUpdateFieldWhitelist ?? []);
+    setCustEnabled(zaloConfig.customerNotifyEnabled === true);
+    setCustPromotionId(zaloConfig.customerNotifyPromotionId ?? '');
+    setCustDailyLimit(
+      typeof zaloConfig.customerNotifyDailyLimit === 'number' ? zaloConfig.customerNotifyDailyLimit : 40,
+    );
   }, [zaloConfig]);
 
   useEffect(() => {
@@ -250,6 +266,9 @@ const ZaloSettingsTab: React.FC = () => {
         mainNotifyOnUpdate,
         mainNotifyOnDelete,
         mainUpdateFieldWhitelist,
+        customerNotifyEnabled: custEnabled,
+        customerNotifyPromotionId: custPromotionId,
+        customerNotifyDailyLimit: custDailyLimit,
       },
     });
     setGroups(next);
@@ -299,6 +318,19 @@ const ZaloSettingsTab: React.FC = () => {
       toast.error('Không lưu được cấu hình Zalo');
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Xem trước tin sẽ gửi cho khách (BE dựng từ 1 đơn mẫu, không gửi gì). */
+  const loadCustPreview = async () => {
+    setLoadingPreview(true);
+    try {
+      const r = await fetchCustomerNotifyPreview();
+      setCustPreview(r.message);
+    } catch {
+      toast.error('Không lấy được nội dung xem trước');
+    } finally {
+      setLoadingPreview(false);
     }
   };
 
@@ -691,6 +723,88 @@ const ZaloSettingsTab: React.FC = () => {
           </Box>
         </Card>
       )}
+
+      {/* ── Thông báo Zalo cho KHÁCH HÀNG (cảm ơn + link tra đơn + mã KM) ── */}
+      <Card layoutClassName="space-y-4 p-4">
+        <Box layoutClassName="flex flex-wrap items-start justify-between gap-2">
+          <Box layoutClassName="space-y-1">
+            <Heading level={3} textClassName="text-sm font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+              Thông báo cho khách
+            </Heading>
+            <Typography size="xs" variant="muted">
+              Sau khi tạo đơn, gửi Zalo cho khách: cảm ơn + thông tin đơn + link tự tra trạng thái
+              + mã khuyến mãi lần sau. Gửi rải để không bị Zalo chặn.
+            </Typography>
+          </Box>
+          <Checkbox
+            checked={custEnabled}
+            onChange={(e) => setCustEnabled(e.target.checked)}
+            label="Bật gửi tự động"
+            labelClassName="text-sm font-medium text-slate-700 dark:text-slate-200"
+          />
+        </Box>
+
+        <Box layoutClassName="grid gap-3 sm:grid-cols-2">
+          <Box layoutClassName="space-y-1">
+            <Label className="mb-0">Mã khuyến mãi chèn vào tin</Label>
+            <Select value={custPromotionId} searchable onChange={(e) => setCustPromotionId(e.target.value)}>
+              <option value="">— Không chèn mã —</option>
+              {promotions
+                .filter((p) => (p.code ?? '').trim() !== '')
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code} · {p.name}
+                  </option>
+                ))}
+            </Select>
+            <Typography size="xs" variant="muted">
+              Chỉ hiện khuyến mãi có MÃ. Mã hết hạn/hết lượt thì tin tự bỏ dòng mã.
+            </Typography>
+          </Box>
+          <Box layoutClassName="space-y-1">
+            <Label className="mb-0">Hạn mức tin/ngày</Label>
+            <Input
+              type="number"
+              min={0}
+              value={String(custDailyLimit)}
+              onChange={(e) => setCustDailyLimit(Math.max(0, Number(e.target.value) || 0))}
+              containerClassName="w-full"
+            />
+            <Typography size="xs" variant="muted">
+              Zalo giới hạn tin gửi người lạ — vượt hạn mức thì bỏ qua, hôm sau gửi tiếp.
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box layoutClassName="space-y-2">
+          <Button
+            type="button"
+            onClick={() => void loadCustPreview()}
+            disabled={loadingPreview}
+            leftIcon={loadingPreview ? <Spinner size="sm" /> : <Eye className="h-3.5 w-3.5" />}
+            variant="secondary"
+            borderClassName="border border-slate-200 dark:border-slate-600"
+            backgroundClassName="bg-white dark:bg-slate-800"
+            textClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
+            roundedClassName="rounded-lg"
+            sizeClassName="px-2.5 py-1.5"
+            layoutClassName="inline-flex items-center gap-1.5"
+          >
+            {loadingPreview ? 'Đang tải…' : 'Xem trước tin gửi khách'}
+          </Button>
+          {custPreview ? (
+            <Box
+              layoutClassName="whitespace-pre-wrap rounded-xl p-3"
+              backgroundClassName="bg-slate-50 dark:bg-slate-800/60"
+              borderClassName="border border-slate-200 dark:border-slate-600"
+            >
+              <Typography size="xs" textClassName="text-slate-700 dark:text-slate-200">
+                {custPreview}
+              </Typography>
+            </Box>
+          ) : null}
+        </Box>
+      </Card>
 
       <BaseModal
         isOpen={Boolean(activeGroup)}

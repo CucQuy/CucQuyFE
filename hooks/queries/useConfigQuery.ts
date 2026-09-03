@@ -118,6 +118,9 @@ export interface SaveZaloGroupsArgs {
       | 'mainNotifyOnUpdate'
       | 'mainNotifyOnDelete'
       | 'mainUpdateFieldWhitelist'
+      | 'customerNotifyEnabled'
+      | 'customerNotifyPromotionId'
+      | 'customerNotifyDailyLimit'
     >
   >;
 }

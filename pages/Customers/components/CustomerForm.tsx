@@ -7,6 +7,7 @@ import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
 import Field from '@/components/ui/Field';
 import Heading from '@/components/ui/Heading';
+import Checkbox from '@/components/ui/Checkbox';
 import Input from '@/components/ui/Input';
 import PhoneCarrierBadge from './PhoneCarrierBadge';
 
@@ -24,14 +25,18 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, initialData, onSave
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  // Khách xin đừng gửi tin nữa → chặn thông báo Zalo tự động cho khách này.
+  const [notifyOptOut, setNotifyOptOut] = useState(false);
 
   useEffect(() => {
     if (initialData) {
       setName(initialData.name);
       setPhone(initialData.phone);
+      setNotifyOptOut(initialData.notifyOptOut === true);
     } else {
       setName('');
       setPhone('');
+      setNotifyOptOut(false);
     }
     setError(null);
   }, [initialData, isOpen]);
@@ -48,6 +53,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, initialData, onSave
         id: initialData?.id,
         name,
         phone,
+        notifyOptOut,
       };
 
       await onSave(formData);
@@ -168,6 +174,15 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ isOpen, initialData, onSave
                     <PhoneCarrierBadge phone={phone.trim()} />
                   </Box>
                 ) : null}
+              </Box>
+
+              <Box layoutClassName="md:col-span-2">
+                <Checkbox
+                  checked={notifyOptOut}
+                  onChange={(e) => setNotifyOptOut(e.target.checked)}
+                  label="Không gửi thông báo Zalo cho khách này"
+                  labelClassName="text-sm text-slate-600 dark:text-slate-300"
+                />
               </Box>
             </Box>
           </Box>

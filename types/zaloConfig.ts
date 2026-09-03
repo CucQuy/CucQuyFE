@@ -41,4 +41,11 @@ export interface ZaloGroupsConfiguration {
   mainUpdateFieldWhitelist?: string[];
   updatedAt?: string;
   updatedBy?: string | null;
+  // ── Thông báo Zalo cho KHÁCH HÀNG (cảm ơn + trạng thái đơn) ──
+  /** Bật gửi tin cảm ơn cho khách sau khi tạo đơn. */
+  customerNotifyEnabled?: boolean;
+  /** Chiến dịch khuyến mãi (dạng MÃ) để chèn mã vào tin — rỗng = không chèn. */
+  customerNotifyPromotionId?: string;
+  /** Trần số tin gửi khách mỗi ngày (bridge Zalo giới hạn tin cho người lạ). */
+  customerNotifyDailyLimit?: number;
 }

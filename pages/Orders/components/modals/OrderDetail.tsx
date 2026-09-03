@@ -33,7 +33,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
 import { TEST_PAYMENT_ACCOUNT } from '@/types/paymentConfig';
 import { qk } from '@/hooks/queryKeys';
-import { ORDER_EDIT_DENIED, reconcileRefund, markRefundCash, unreconcileRefund, fetchTrackingTimeline, fetchOrder, markOrderBillPrinted } from '@/services/orderService';
+import { ORDER_EDIT_DENIED, reconcileRefund, markRefundCash, unreconcileRefund, fetchTrackingTimeline, fetchOrder, markOrderBillPrinted, notifyCustomerZalo } from '@/services/orderService';
 import { fetchTransactionsByOrderNumber, fetchOutUnlinkedTransactions } from '@/services/transactionService';
 import { DeliveryType, Order, OrderItem, PaymentMethod, OrderStatus, PaymentStatus, Transaction, productUsesFlavorPricing, flavorImage, flavorVariantColor, groupFlavors, isMixFlavors, sizeCountsLabel, sizeImage, sizeCount } from '@/types';
 import { useProducts } from '@/hooks/queries/useProductsQuery';
@@ -46,7 +46,7 @@ import { formatVND } from '@/utils/format/currencyUtil';
 import { allocateSurcharge, generateQRCodeImage, getOrderTotal } from '@/utils/order/orderUtils';
 import { buildOrderEmvQr } from '@/utils/order/vietQrEmv';
 import { pushPosQr, clearPosQr } from '@/services/posService';
-import { Sparkles, MonitorSmartphone, Home, Printer, ChefHat, MoreHorizontal } from 'lucide-react';
+import { Sparkles, MonitorSmartphone, Home, Printer, ChefHat, MoreHorizontal, Send } from 'lucide-react';
 import BaseSlidePanel from '@/components/BaseSlidePanel';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -693,11 +693,48 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
     </Button>
   );
 
+  // ── Gửi Zalo cảm ơn + link tra đơn CHO KHÁCH (nút tay; auto đã chạy lúc tạo đơn) ──
+  const [notifyingCustomer, setNotifyingCustomer] = useState(false);
+  const customerNotifiedAt = currentOrder?.customerNotifiedAt ?? null;
+  const handleNotifyCustomer = async () => {
+    if (!currentOrder?.id) return;
+    if (customerNotifiedAt && !window.confirm('Đơn này đã gửi tin cho khách. Gửi lại?')) return;
+    setNotifyingCustomer(true);
+    try {
+      const r = await notifyCustomerZalo(currentOrder.id, true);
+      if (r.sent) {
+        toast.success('Đã xếp gửi Zalo cho khách (rải tin để tránh bị Zalo chặn)');
+        setLocalOrder({ ...currentOrder, customerNotifiedAt: new Date().toISOString() });
+      } else {
+        const why: Record<string, string> = {
+          no_phone: 'Đơn không có số điện thoại khách',
+          opt_out: 'Khách đã chọn không nhận thông báo',
+          daily_limit: 'Đã đạt hạn mức tin/ngày — thử lại mai',
+          already_sent: 'Đơn này đã gửi rồi',
+          disabled: 'Tính năng đang tắt ở Cài đặt Zalo',
+          no_order: 'Không tìm thấy đơn',
+          test_order: 'Đơn test — không gửi cho khách',
+        };
+        toast.error(why[r.reason ?? ''] ?? 'Không gửi được tin cho khách');
+      }
+    } catch {
+      toast.error('Không gửi được tin cho khách');
+    } finally {
+      setNotifyingCustomer(false);
+    }
+  };
+
   const renderMoreMenu = (close: () => void) => (
     <Box layoutClassName="flex flex-col gap-0.5">
       <MoreRow icon={Printer} label="In bill" disabled={printMode !== null} onClick={() => { close(); startPrint('bill'); }} />
       <MoreRow icon={ChefHat} label="In bếp" disabled={printMode !== null} onClick={() => { close(); startPrint('kitchen'); }} />
       <MoreRow icon={Share2} label="Chia sẻ" disabled={copyingImg} onClick={() => { close(); handleShareOrder(); }} />
+      <MoreRow
+        icon={Send}
+        label={customerNotifiedAt ? 'Gửi lại Zalo cho khách' : 'Gửi Zalo cho khách'}
+        disabled={notifyingCustomer}
+        onClick={() => { close(); void handleNotifyCustomer(); }}
+      />
       {canDelete && onDelete ? (
         <MoreRow icon={Trash2} label={t('orders.delete')} danger onClick={() => { close(); onDelete(); }} />
       ) : null}
@@ -761,6 +798,12 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       <ActionButton icon={Printer} label="In bill" disabled={printMode !== null} onClick={() => startPrint('bill')} />
       <ActionButton icon={ChefHat} label="In bếp" disabled={printMode !== null} onClick={() => startPrint('kitchen')} />
       <ActionButton icon={Share2} label="Chia sẻ" disabled={copyingImg} onClick={handleShareOrder} />
+      <ActionButton
+        icon={Send}
+        label={customerNotifiedAt ? 'Gửi lại cho khách' : 'Gửi cho khách'}
+        disabled={notifyingCustomer}
+        onClick={() => void handleNotifyCustomer()}
+      />
       {canDelete && onDelete ? (
         <ActionButton icon={Trash2} label={t('orders.delete')} danger onClick={onDelete} />
       ) : null}

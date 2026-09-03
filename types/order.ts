@@ -277,6 +277,11 @@ export interface Order {
   spx2Source?: string | null;
   /** ISO thời điểm resolve 2 cấp gần nhất. */
   spx2ResolvedAt?: string | null;
+  // ── Thông báo Zalo cho KHÁCH (cảm ơn + link tra đơn) ──
+  /** Token mở trang tra cứu công khai /don/<token> (sinh khi gửi tin cho khách). */
+  publicToken?: string | null;
+  /** ISO thời điểm đã gửi tin Zalo cho khách — null = chưa gửi. */
+  customerNotifiedAt?: string | null;
   // ── ĐVVC đã gửi (danh bạ carriers) — để thống kê số đơn theo hãng ──
   /** id hãng vận chuyển (carriers.id) đơn được gửi qua. */
   carrierId?: string | null;

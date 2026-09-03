@@ -146,7 +146,15 @@ export const saveZaloGroupsConfiguration = async (
   updatedBy?: string | null,
   mainSettings?: Partial<Pick<
     ZaloGroupsConfiguration,
-    'mainGroupId' | 'paymentGroupId' | 'mainNotifyOnCreate' | 'mainNotifyOnUpdate' | 'mainNotifyOnDelete' | 'mainUpdateFieldWhitelist'
+    | 'mainGroupId'
+    | 'paymentGroupId'
+    | 'mainNotifyOnCreate'
+    | 'mainNotifyOnUpdate'
+    | 'mainNotifyOnDelete'
+    | 'mainUpdateFieldWhitelist'
+    | 'customerNotifyEnabled'
+    | 'customerNotifyPromotionId'
+    | 'customerNotifyDailyLimit'
   >>,
 ): Promise<void> => {
   await apiClient.put('/configurations/zalo-groups', {

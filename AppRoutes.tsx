@@ -42,6 +42,8 @@ const RolesPage = lazy(() => import("./pages/Settings/RolesPage"));
 const ProductSettings = lazy(() => import("./pages/Settings/ProductSettings"));
 const LoginPage = lazy(() => import("./pages/Login/index"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback/index"));
+// Trang tra cứu đơn CÔNG KHAI cho khách (link trong tin Zalo) — ngoài ProtectedRoute/Layout.
+const PublicOrderPage = lazy(() => import("./pages/PublicOrder/index"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -60,6 +62,7 @@ const AppRoutes: React.FC = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    <Route path="/don/:token" element={<PublicOrderPage />} />
     <Route
       path="/"
       element={

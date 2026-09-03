@@ -6,4 +6,6 @@ export interface Customer {
   address?: string;
   city?: string;
   country?: string;
+  /** Khách không muốn nhận tin Zalo từ tiệm → auto-notify bỏ qua. */
+  notifyOptOut?: boolean;
 }

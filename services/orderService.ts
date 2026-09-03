@@ -470,6 +470,49 @@ export const setOrderSpxAddress = async (
   return res.data as Order;
 };
 
+/** Lý do BE không gửi được tin Zalo cho khách (để FE hiện toast đúng nguyên nhân). */
+export type CustomerNotifySkipReason =
+  | 'disabled'
+  | 'no_order'
+  | 'no_phone'
+  | 'opt_out'
+  | 'already_sent'
+  | 'daily_limit'
+  | 'test_order';
+
+export interface CustomerNotifyResult {
+  sent: boolean;
+  reason?: CustomerNotifySkipReason;
+  notifiedAt?: string;
+}
+
+/**
+ * Gửi tin Zalo cảm ơn + trạng thái đơn CHO KHÁCH (nút ở chi tiết đơn).
+ * force=true → gửi lại dù đơn đã gửi trước đó.
+ */
+export const notifyCustomerZalo = async (
+  orderId: string,
+  force = false,
+): Promise<CustomerNotifyResult> => {
+  const res = await apiClient.post(`/orders/${orderId}/notify-customer`, { force });
+  const d = (res.data ?? {}) as Partial<CustomerNotifyResult>;
+  return {
+    sent: d.sent === true,
+    reason: d.reason,
+    notifiedAt: typeof d.notifiedAt === 'string' ? d.notifiedAt : undefined,
+  };
+};
+
+/** Xem trước nội dung tin gửi khách (Cài đặt Zalo). */
+export const fetchCustomerNotifyPreview = async (): Promise<{ message: string; promoCode: string }> => {
+  const res = await apiClient.get('/orders/customer-notify-preview');
+  const d = (res.data ?? {}) as { message?: unknown; promoCode?: unknown };
+  return {
+    message: typeof d.message === 'string' ? d.message : '',
+    promoCode: typeof d.promoCode === 'string' ? d.promoCode : '',
+  };
+};
+
 /** Lưu địa chỉ SPX 2 CẤP user CHỌN TAY (dropdown Tỉnh/Xã) — BE set spx2_manual=true. */
 export const setOrderSpx2Address = async (
   id: string,
