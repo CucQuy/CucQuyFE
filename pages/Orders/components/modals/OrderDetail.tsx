@@ -766,17 +766,21 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
   );
 
   // Nút hành động dạng inline (PC hiện đủ nút thay vì gom vào "Thêm").
+  // `label` để NGẮN cho vừa 1 hàng (6 nút), nhãn đầy đủ đưa vào `title` (tooltip) —
+  // trước đây nhãn dài làm chữ ngắt dòng giữa từ ("In / bill", "Xóa đơn / hàng").
   const ActionButton: React.FC<{
     icon: typeof Printer;
     label: string;
+    title?: string;
     onClick: () => void;
     disabled?: boolean;
     danger?: boolean;
-  }> = ({ icon: Icon, label, onClick, disabled, danger }) => (
+  }> = ({ icon: Icon, label, title, onClick, disabled, danger }) => (
     <Button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title ?? label}
       variant="secondary"
       disableVariantHover
       disableVariantTextColor
@@ -787,8 +791,8 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
       hoverClassName={danger ? 'hover:bg-red-50 dark:hover:bg-red-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}
       textClassName={danger ? 'text-sm font-medium text-red-600 dark:text-red-400' : 'text-sm font-medium text-slate-700 dark:text-slate-200'}
       roundedClassName="rounded-lg"
-      sizeClassName="px-3 py-2"
-      layoutClassName="justify-center"
+      sizeClassName="px-2.5 py-2"
+      layoutClassName="shrink-0 justify-center whitespace-nowrap"
       stateClassName="transition-colors disabled:opacity-50"
     >
       {label}
@@ -797,23 +801,26 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
 
   const desktopActions = (
     <>
-      <ActionButton icon={Printer} label="In bill" disabled={printMode !== null} onClick={() => startPrint('bill')} />
-      <ActionButton icon={ChefHat} label="In bếp" disabled={printMode !== null} onClick={() => startPrint('kitchen')} />
-      <ActionButton icon={Share2} label="Chia sẻ" disabled={copyingImg} onClick={handleShareOrder} />
+      <ActionButton icon={Printer} label="Bill" title="In bill" disabled={printMode !== null} onClick={() => startPrint('bill')} />
+      <ActionButton icon={ChefHat} label="Bếp" title="In phiếu bếp" disabled={printMode !== null} onClick={() => startPrint('kitchen')} />
+      <ActionButton icon={Share2} label="Chia sẻ" title="Chia sẻ ảnh đơn" disabled={copyingImg} onClick={handleShareOrder} />
       <ActionButton
         icon={Send}
-        label={customerNotifiedAt ? 'Gửi lại cho khách' : 'Gửi cho khách'}
+        label={customerNotifiedAt ? 'Gửi lại' : 'Gửi khách'}
+        title={customerNotifiedAt
+          ? `Gửi lại Zalo cho khách (đã gửi ${new Date(customerNotifiedAt).toLocaleString('vi-VN')})`
+          : 'Gửi Zalo cảm ơn + trạng thái đơn cho khách'}
         disabled={notifyingCustomer}
         onClick={() => void handleNotifyCustomer()}
       />
       {canDelete && onDelete ? (
-        <ActionButton icon={Trash2} label={t('orders.delete')} danger onClick={onDelete} />
+        <ActionButton icon={Trash2} label="Xoá" title={t('orders.delete')} danger onClick={onDelete} />
       ) : null}
     </>
   );
 
   const footer = (
-    <Box layoutClassName="flex items-center gap-2 sm:justify-end sm:gap-3">
+    <Box layoutClassName="flex items-center gap-2 overflow-x-auto sm:justify-end sm:gap-2">
       {onEdit ? (
         <Button
           type="button"
