@@ -264,6 +264,19 @@ export interface Order {
   spxSource?: string | null;
   /** ISO thời điểm resolve gần nhất. */
   spxResolvedAt?: string | null;
+  // ── Địa chỉ SPX hệ MỚI 2 cấp (Tỉnh + Xã/Phường, danh mục sau sáp nhập 2025) ──
+  /** Tỉnh/Thành dạng ĐẦY ĐỦ theo danh mục mới (vd "Thành phố Hà Nội", "Tỉnh Lạng Sơn"). */
+  spx2Province?: string | null;
+  /** Xã/Phường theo danh mục mới (vd "Phường Láng"). */
+  spx2Ward?: string | null;
+  /** Trạng thái làm mịn 2 cấp: đủ 2 cấp / thiếu / chưa khớp. */
+  spx2Status?: SpxAddressStatus | null;
+  /** true = user đã sửa tay bản 2 cấp → auto-resolve KHÔNG ghi đè. */
+  spx2Manual?: boolean;
+  /** Snapshot địa chỉ gốc đã resolve 2 cấp — đổi thì mới chạy lại. */
+  spx2Source?: string | null;
+  /** ISO thời điểm resolve 2 cấp gần nhất. */
+  spx2ResolvedAt?: string | null;
   // ── ĐVVC đã gửi (danh bạ carriers) — để thống kê số đơn theo hãng ──
   /** id hãng vận chuyển (carriers.id) đơn được gửi qua. */
   carrierId?: string | null;

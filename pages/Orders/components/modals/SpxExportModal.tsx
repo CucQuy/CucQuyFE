@@ -90,10 +90,32 @@ const SpxExportModal: React.FC<Props> = ({ isOpen, onClose, orders }) => {
         label = `Tỉnh+Quận+Xã · tái dùng ${reused}/${eligible.length}`;
       } else {
         // Hệ MỚI 2 cấp (danh mục 2025 + AI): Tỉnh + Phường/Xã (KHÔNG Quận).
-        const nw = await resolveSpxAddresses(eligible, useAi);
-        resolved = nw.map((r) => ({ province: r.province, ward: r.ward }));
-        filled = nw.filter((r) => r.province && r.ward).length;
-        label = 'Tỉnh+Phường/Xã';
+        const addrs = eligible.map((o) =>
+          [o.customer.address, o.customer.city].filter(Boolean).join(', '),
+        );
+        // TÁI DÙNG bản "làm mịn" 2 cấp lưu sẵn trên đơn (spx2Status='matched' + địa chỉ chưa đổi).
+        const arr = eligible.map((o, i) =>
+          o.spx2Status === 'matched' && (o.spx2Source ?? '') === addrs[i]
+            ? { province: o.spx2Province ?? '', ward: o.spx2Ward ?? '' }
+            : { province: '', ward: '' },
+        );
+        const missIdx = arr
+          .map((r, i) => (!r.province || !r.ward ? i : -1))
+          .filter((i) => i >= 0);
+        if (missIdx.length > 0) {
+          const got = await resolveSpxAddresses(
+            missIdx.map((i) => eligible[i]),
+            useAi,
+          );
+          missIdx.forEach((oi, k) => {
+            const g = got[k];
+            if (g) arr[oi] = { province: g.province, ward: g.ward };
+          });
+        }
+        resolved = arr.map((r) => ({ province: r.province, ward: r.ward }));
+        filled = arr.filter((r) => r.province && r.ward).length;
+        const reused = eligible.length - missIdx.length;
+        label = `Tỉnh+Phường/Xã · tái dùng ${reused}/${eligible.length}`;
       }
       if (loadingId) toast.dismiss(loadingId);
       const n = await exportOrdersToSpx(eligible, { weightKg: w, addressMode, resolved });

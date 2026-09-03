@@ -444,13 +444,20 @@ export const resolveSpxOldAddresses = async (
     : [];
 };
 
+/** Cấp địa chỉ cần làm mịn: 3 = Tỉnh/Quận/Xã (hệ cũ), 2 = Tỉnh/Xã (hệ mới), 'both' = cả hai. */
+export type SpxResolveLevel = 3 | 2 | 'both';
+
 /**
- * Làm mịn địa chỉ SPX cho 1 đơn: BE resolve Tỉnh/Quận/Xã (danh mục cũ + AI) → lưu trên đơn.
+ * Làm mịn địa chỉ SPX cho 1 đơn: BE resolve (danh mục + AI) → lưu trên đơn.
  * force=true (nút "Làm mịn lại") luôn chạy; false (auto) bỏ qua nếu đã sửa tay / địa chỉ chưa đổi.
- * Trả order đã cập nhật (có spxState/spxCity/spxWard/spxStatus).
+ * level=3 → cột spxState/spxCity/spxWard; level=2 → spx2Province/spx2Ward; 'both' → cả hai.
  */
-export const resolveOrderSpx = async (id: string, force = false): Promise<Order> => {
-  const res = await apiClient.post(`/orders/${id}/resolve-spx`, { force });
+export const resolveOrderSpx = async (
+  id: string,
+  force = false,
+  level: SpxResolveLevel = 3,
+): Promise<Order> => {
+  const res = await apiClient.post(`/orders/${id}/resolve-spx`, { force, level });
   return res.data as Order;
 };
 
@@ -463,13 +470,23 @@ export const setOrderSpxAddress = async (
   return res.data as Order;
 };
 
+/** Lưu địa chỉ SPX 2 CẤP user CHỌN TAY (dropdown Tỉnh/Xã) — BE set spx2_manual=true. */
+export const setOrderSpx2Address = async (
+  id: string,
+  patch: { province?: string; ward?: string },
+): Promise<Order> => {
+  const res = await apiClient.patch(`/orders/${id}/spx2-address`, patch);
+  return res.data as Order;
+};
+
 /**
  * Đơn ship tỉnh → nền làm mịn địa chỉ SPX (FIRE-AND-FORGET, không chặn caller).
  * BE tự bỏ qua nếu địa chỉ chưa đổi hoặc user đã sửa tay.
  */
 const triggerSpxResolve = (order: { id?: string; deliveryType?: string } | undefined): void => {
   if (!order?.id || order.deliveryType !== DeliveryType.SHIP_PROVINCE) return;
-  void resolveOrderSpx(String(order.id), false).catch((e) => {
+  // 'both': làm mịn CẢ 3 cấp (sheet "địa chỉ cũ") lẫn 2 cấp (sheet "địa chỉ mới").
+  void resolveOrderSpx(String(order.id), false, 'both').catch((e) => {
     console.error("Auto resolve SPX address error (ignored):", e);
   });
 };
