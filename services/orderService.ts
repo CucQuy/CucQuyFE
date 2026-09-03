@@ -503,6 +503,58 @@ export const notifyCustomerZalo = async (
   };
 };
 
+/** 1 dòng nhật ký gửi tin Zalo cho khách. */
+export interface CustomerNotifyLogRow {
+  id: string;
+  createdAt: string;
+  status: 'sent' | 'failed' | 'pending';
+  error: string;
+  phone: string;
+  orderId: string | null;
+  orderNumber: string;
+  customerName: string;
+  total: number;
+  body: string;
+}
+
+export interface CustomerNotifyLogResult {
+  items: CustomerNotifyLogRow[];
+  counts: { sent: number; failed: number; total: number };
+}
+
+/** Nhật ký gửi tin cho khách: đơn nào gửi OK / lỗi (màn "Trạng thái thông báo"). */
+export const fetchCustomerNotifyLog = async (
+  params: { status?: 'sent' | 'failed' | ''; limit?: number; offset?: number } = {},
+): Promise<CustomerNotifyLogResult> => {
+  const res = await apiClient.get('/orders/customer-notify-log', {
+    params: {
+      status: params.status || undefined,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    },
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const rawItems = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+  const c = (d.counts ?? {}) as Record<string, unknown>;
+  const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const s = (v: unknown): string => (typeof v === 'string' ? v : '');
+  return {
+    items: rawItems.map((r) => ({
+      id: s(r.id),
+      createdAt: s(r.createdAt),
+      status: r.status === 'sent' || r.status === 'failed' ? r.status : 'pending',
+      error: s(r.error),
+      phone: s(r.phone),
+      orderId: typeof r.orderId === 'string' ? r.orderId : null,
+      orderNumber: s(r.orderNumber),
+      customerName: s(r.customerName),
+      total: n(r.total),
+      body: s(r.body),
+    })),
+    counts: { sent: n(c.sent), failed: n(c.failed), total: n(c.total) },
+  };
+};
+
 /** Xem trước nội dung tin gửi khách (Cài đặt Zalo). */
 export const fetchCustomerNotifyPreview = async (): Promise<{ message: string; promoCode: string }> => {
   const res = await apiClient.get('/orders/customer-notify-preview');
