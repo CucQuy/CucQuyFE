@@ -173,6 +173,9 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   // Cờ loading khi đang copy ảnh từ modal preview.
   const [copyingPreview, setCopyingPreview] = useState(false);
+  // Cờ loading nút "Gửi cho khách". PHẢI khai báo ở đây — dưới `if (!currentOrder) return null`
+  // là hook có điều kiện → React error #310 (số hook lệch giữa 2 lần render).
+  const [notifyingCustomer, setNotifyingCustomer] = useState(false);
 
   const currentOrder = localOrder || order;
   if (!currentOrder) return null;
@@ -694,7 +697,6 @@ const OrderDetail: React.FC<OrderDetailProps> = ({
   );
 
   // ── Gửi Zalo cảm ơn + link tra đơn CHO KHÁCH (nút tay; auto đã chạy lúc tạo đơn) ──
-  const [notifyingCustomer, setNotifyingCustomer] = useState(false);
   const customerNotifiedAt = currentOrder?.customerNotifiedAt ?? null;
   const handleNotifyCustomer = async () => {
     if (!currentOrder?.id) return;
