@@ -117,6 +117,13 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
+    path: "/order-notify",
+    labelKey: "nav.orderNotify",
+    icon: Bell,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
     path: "/shipping",
     labelKey: "nav.shipping",
     icon: Truck,
@@ -436,6 +443,7 @@ export const navGroups: NavGroupConfig[] = [
     labelKey: "nav.salesGroup",
     icon: ShoppingBag,
     childPaths: [
+      "/order-notify",
       "/shipping",
       "/promotions",
     ],

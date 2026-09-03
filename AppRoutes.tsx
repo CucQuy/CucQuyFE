@@ -44,6 +44,7 @@ const LoginPage = lazy(() => import("./pages/Login/index"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback/index"));
 // Trang tra cứu đơn CÔNG KHAI cho khách (link trong tin Zalo) — ngoài ProtectedRoute/Layout.
 const PublicOrderPage = lazy(() => import("./pages/PublicOrder/index"));
+const OrderNotifyPage = lazy(() => import("./pages/OrderNotify/index"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -92,6 +93,14 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/orders")?.roles}>
             <OrdersPage />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="order-notify"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/order-notify")?.roles}>
+            <OrderNotifyPage />
           </RoleBasedRoute>
         }
       />

@@ -503,6 +503,81 @@ export const notifyCustomerZalo = async (
   };
 };
 
+/** Trạng thái 1 loại thông báo của 1 đơn (null status = chưa gửi). */
+export interface NotifyCellState {
+  status: 'sent' | 'failed' | null;
+  at: string | null;
+  error?: string;
+  notifId?: string | null;
+}
+
+/** 1 dòng trong màn "Thông báo" (khu vực Đơn hàng): 1 đơn × các kênh thông báo. */
+export interface OrderNotifyRow {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  phone: string;
+  status: string;
+  deliveryType: string;
+  total: number;
+  paidAmount: number;
+  createdAt: string;
+  notifiedAt: string | null;
+  zaloOrder: NotifyCellState;
+  zaloPromo: NotifyCellState;
+  facebook: NotifyCellState;
+}
+
+export interface OrderNotifyMatrix {
+  items: OrderNotifyRow[];
+  counts: { total: number; sent: number; failed: number; none: number };
+}
+
+/** Ma trận đơn × kênh thông báo cho màn "Thông báo" trong khu vực Đơn hàng. */
+export const fetchOrderNotifyMatrix = async (
+  params: { filter?: 'sent' | 'failed' | 'none' | ''; limit?: number; offset?: number } = {},
+): Promise<OrderNotifyMatrix> => {
+  const res = await apiClient.get('/orders/notify-matrix', {
+    params: {
+      filter: params.filter || undefined,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    },
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const s = (v: unknown): string => (typeof v === 'string' ? v : '');
+  const cell = (v: unknown): NotifyCellState => {
+    const c = (v ?? {}) as Record<string, unknown>;
+    return {
+      status: c.status === 'sent' || c.status === 'failed' ? c.status : null,
+      at: typeof c.at === 'string' ? c.at : null,
+      error: s(c.error),
+      notifId: typeof c.notifId === 'string' ? c.notifId : null,
+    };
+  };
+  const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+  const c = (d.counts ?? {}) as Record<string, unknown>;
+  return {
+    items: rows.map((r) => ({
+      id: s(r.id),
+      orderNumber: s(r.orderNumber),
+      customerName: s(r.customerName),
+      phone: s(r.phone),
+      status: s(r.status),
+      deliveryType: s(r.deliveryType),
+      total: n(r.total),
+      paidAmount: n(r.paidAmount),
+      createdAt: s(r.createdAt),
+      notifiedAt: typeof r.notifiedAt === 'string' ? r.notifiedAt : null,
+      zaloOrder: cell(r.zaloOrder),
+      zaloPromo: cell(r.zaloPromo),
+      facebook: cell(r.facebook),
+    })),
+    counts: { total: n(c.total), sent: n(c.sent), failed: n(c.failed), none: n(c.none) },
+  };
+};
+
 /** 1 dòng nhật ký gửi tin Zalo cho khách. */
 export interface CustomerNotifyLogRow {
   id: string;
