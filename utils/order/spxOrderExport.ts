@@ -1,22 +1,18 @@
 import { apiClient } from '@/services/api/client';
 import { Order, DeliveryType, OrderStatus } from '@/types';
 import { getOrderTotal } from '@/utils/order/orderUtils';
+import { snapProvince } from '@/utils/order/spxAddressMatch';
 
 /** Định dạng địa chỉ SPX: 'new' = 2 cấp (Tỉnh/Xã), 'old' = 3 cấp (Tỉnh/Quận/Xã). */
 export type SpxAddressMode = 'new' | 'old';
 
 /**
- * Sheet "địa chỉ mới" (2 cấp) của SPX nhận tên tỉnh KHÔNG có tiền tố hành chính:
- * "Hà Nội" (không "Thành phố Hà Nội"), "Lạng Sơn" (không "Tỉnh Lạng Sơn").
- * NGOẠI LỆ DUY NHẤT trong danh mục mới: TP.HCM ghi là "TP. Hồ Chí Minh" (còn giữ "TP.").
- * Chỉ áp dụng lúc GHI file — danh mục nội bộ (SPX_PROVINCES) vẫn giữ tên đầy đủ để matching.
+ * Sheet "địa chỉ mới" (2 cấp) của SPX nhận tên tỉnh ĐẦY ĐỦ theo danh mục State_list(2) của
+ * template hiện hành: "Thành phố Hà Nội", "Tỉnh Lạng Sơn", "Thành phố Hồ Chí Minh".
+ * (Template cũ dùng tên bỏ tiền tố — SPX đã đổi lại từ bản 2026-09.)
+ * Snap về đúng chuỗi trong SPX_PROVINCES; không khớp thì giữ nguyên để người dùng tự sửa.
  */
-export const stripSpxProvincePrefix = (s: string): string => {
-  const stripped = (s || '').replace(/^(Thành phố|Tỉnh)\s+/i, '').trim();
-  // "Thành phố Hồ Chí Minh" / "Hồ Chí Minh" → "TP. Hồ Chí Minh" (khớp State_list(2) template mới)
-  if (/^h[ồô]\s*ch[íi]\s*minh$/i.test(stripped)) return 'TP. Hồ Chí Minh';
-  return stripped;
-};
+export const toSpxProvinceLabel = (s: string): string => snapProvince(s || '') || (s || '').trim();
 
 /**
  * Địa chỉ đã giải sẵn cho 1 đơn (hệ CŨ, giải ở BE): `state` = Tỉnh ("TP. HỒ CHÍ MINH"),
@@ -116,13 +112,13 @@ const buildRow = (
   }
 
   // 2 cấp — sheet "Tạo đơn (địa chỉ mới)" (A..AC, 29 cột). Hệ MỚI: D=Tỉnh, E=Phường/Xã (KHÔNG Quận).
-  // SPX bắt tên tỉnh KHÔNG tiền tố → bỏ "Thành phố"/"Tỉnh" khi ghi (vd "Hà Nội", "Hồ Chí Minh").
-  const province = stripSpxProvincePrefix(resolved?.province ?? '');
+  // Tỉnh ghi ĐẦY ĐỦ theo State_list(2) (vd "Thành phố Hà Nội", "Tỉnh Lạng Sơn").
+  const province = toSpxProvinceLabel(resolved?.province ?? '');
   return [
     orderCode,      // A Mã đơn hàng (mã đơn shop, thay STT)
     name,           // B Tên
     phone,          // C SĐT
-    province,       // D Tỉnh (hệ mới, vd "Hà Nội" — KHÔNG tiền tố "Thành phố")
+    province,       // D Tỉnh (hệ mới, vd "Thành phố Hà Nội" — ĐẦY ĐỦ tiền tố)
     ward,           // E Phường/Xã (hệ mới, vd "Phường An Đông")
     detailAddress,  // F Địa chỉ chi tiết
     '',             // G Lưu ý địa chỉ
