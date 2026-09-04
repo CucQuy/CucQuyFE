@@ -210,6 +210,106 @@ export const fetchFacebookComments = async (
   };
 };
 
+/** Đánh giá khách để lại trên fanpage. */
+export interface PageRating {
+  id: string;
+  reviewerName: string;
+  rating: number;
+  text: string;
+  /** Meta bỏ sao 1-5 từ 2018: 'positive' (đề xuất) | 'negative' */
+  recommendation: string;
+  createdTime: string | null;
+}
+
+export const fetchPageRatings = async (): Promise<PageRating[]> => {
+  const res = await apiClient.get('/facebook/ratings');
+  const rows = Array.isArray(res.data) ? (res.data as Record<string, unknown>[]) : [];
+  return rows.map((r) => ({
+    id: str(r.id),
+    reviewerName: str(r.reviewerName),
+    rating: num(r.rating),
+    text: str(r.text),
+    recommendation: str(r.recommendation),
+    createdTime: typeof r.createdTime === 'string' ? r.createdTime : null,
+  }));
+};
+
+/** 1 lead từ quảng cáo thu SĐT. */
+export interface PageLead {
+  id: string;
+  formName: string;
+  name: string;
+  phone: string;
+  email: string;
+  createdTime: string | null;
+}
+
+export const fetchPageLeads = async (): Promise<PageLead[]> => {
+  const res = await apiClient.get('/facebook/leads');
+  const rows = Array.isArray(res.data) ? (res.data as Record<string, unknown>[]) : [];
+  return rows.map((r) => ({
+    id: str(r.id),
+    formName: str(r.formName),
+    name: str(r.name),
+    phone: str(r.phone),
+    email: str(r.email),
+    createdTime: typeof r.createdTime === 'string' ? r.createdTime : null,
+  }));
+};
+
+/** 1 bài soạn trong app để đăng lên fanpage / Instagram. */
+export interface SocialPost {
+  id: string;
+  message: string;
+  imageUrl: string;
+  targets: SocialPlatform[];
+  scheduledAt: string | null;
+  /** draft (nháp) | scheduled (đã hẹn giờ) | published (đã đăng) | failed */
+  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  remoteIds: Record<string, string>;
+  error: string;
+  publishedAt: string | null;
+  createdAt: string | null;
+}
+
+const platforms = (v: unknown): SocialPlatform[] =>
+  Array.isArray(v) ? (v.filter((x) => x === 'facebook' || x === 'instagram') as SocialPlatform[]) : [];
+
+export const fetchSocialPosts = async (limit = 50): Promise<SocialPost[]> => {
+  const res = await apiClient.get('/facebook/posts', { params: { limit } });
+  const rows = Array.isArray(res.data) ? (res.data as Record<string, unknown>[]) : [];
+  return rows.map((r) => ({
+    id: str(r.id),
+    message: str(r.message),
+    imageUrl: str(r.imageUrl),
+    targets: platforms(r.targets),
+    scheduledAt: typeof r.scheduledAt === 'string' ? r.scheduledAt : null,
+    status:
+      r.status === 'scheduled' || r.status === 'published' || r.status === 'failed'
+        ? r.status
+        : 'draft',
+    remoteIds: (r.remoteIds ?? {}) as Record<string, string>,
+    error: str(r.error),
+    publishedAt: typeof r.publishedAt === 'string' ? r.publishedAt : null,
+    createdAt: typeof r.createdAt === 'string' ? r.createdAt : null,
+  }));
+};
+
+export const saveSocialPost = (body: {
+  id?: string;
+  message: string;
+  imageUrl?: string;
+  targets: SocialPlatform[];
+  scheduledAt?: string;
+  publishNow?: boolean;
+}) => apiClient.post('/facebook/posts', body);
+
+export const publishSocialPost = (id: string) =>
+  apiClient.post(`/facebook/posts/${encodeURIComponent(id)}/publish`, {});
+
+export const deleteSocialPost = (id: string) =>
+  apiClient.delete(`/facebook/posts/${encodeURIComponent(id)}`);
+
 /** Số liệu fanpage + Instagram trong ngày (thẻ KPI ngoài Dashboard). */
 export interface SocialInsights {
   pageViews: number;

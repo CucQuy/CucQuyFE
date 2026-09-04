@@ -19,6 +19,8 @@ import {
   Facebook,
   MessageCircle,
   Plug,
+  Send,
+  Star,
   ScrollText,
   Activity,
   ShieldCheck,
@@ -153,6 +155,20 @@ export const routes: RouteConfig[] = [
     path: "/channels/facebook/comments",
     labelKey: "nav.chFbComments",
     icon: MessageSquare,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/facebook/posts",
+    labelKey: "nav.chSocialPosts",
+    icon: Send,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/facebook/feedback",
+    labelKey: "nav.chFeedback",
+    icon: Star,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -498,6 +514,8 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: [
       "/channels/facebook",
       "/channels/facebook/comments",
+      "/channels/facebook/posts",
+      "/channels/facebook/feedback",
       "/channels/facebook/connection",
     ],
   },

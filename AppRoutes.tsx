@@ -48,6 +48,8 @@ const ZaloOrdersScreen = lazy(() => import("./pages/Channels/ZaloOrdersScreen"))
 const ZaloLogScreen = lazy(() => import("./pages/Channels/ZaloLogScreen"));
 const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCustomersScreen"));
 const FacebookCommentsScreen = lazy(() => import("./pages/Channels/FacebookCommentsScreen"));
+const SocialPostsScreen = lazy(() => import("./pages/Channels/SocialPostsScreen"));
+const FeedbackScreen = lazy(() => import("./pages/Channels/FeedbackScreen"));
 const FacebookConnectionScreen = lazy(() => import("./pages/Channels/FacebookConnectionScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
@@ -137,6 +139,22 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/comments")?.roles}>
             <FacebookCommentsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/facebook/posts"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts")?.roles}>
+            <SocialPostsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/facebook/feedback"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/feedback")?.roles}>
+            <FeedbackScreen />
           </RoleBasedRoute>
         }
       />
