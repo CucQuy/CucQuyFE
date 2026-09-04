@@ -318,7 +318,10 @@ function toDayShift(s: any): AttendanceDayShift {
     valid: s?.valid === true,
     hours: n0(s?.hours),
     status:
-      s?.status === 'valid' || s?.status === 'missed' || s?.status === 'unregistered'
+      s?.status === 'valid' ||
+      s?.status === 'partial' ||
+      s?.status === 'missed' ||
+      s?.status === 'unregistered'
         ? s.status
         : 'off',
   };

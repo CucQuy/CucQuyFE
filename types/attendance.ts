@@ -63,7 +63,7 @@ export interface AttendanceStatus {
 }
 
 /** 1 ca theo compute đăng-ký↔đã-làm của 1 ngày. */
-export type SpxDayShiftStatus = 'valid' | 'missed' | 'unregistered' | 'off';
+export type SpxDayShiftStatus = 'valid' | 'partial' | 'missed' | 'unregistered' | 'off';
 export interface AttendanceDayShift {
   code: AttendanceShift;
   name: string;
@@ -171,6 +171,7 @@ export interface MyShiftWeek {
 /** Nhãn trạng thái ca (compute). */
 export const DAY_SHIFT_STATUS_LABELS: { value: SpxDayShiftStatus; label: string }[] = [
   { value: 'valid', label: 'Hợp lệ' },
+  { value: 'partial', label: 'Làm một phần' },
   { value: 'missed', label: 'Vắng (đã đăng ký)' },
   { value: 'unregistered', label: 'Chưa đăng ký' },
   { value: 'off', label: 'Không đăng ký' },

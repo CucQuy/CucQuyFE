@@ -187,9 +187,11 @@ const CheckInTab: React.FC = () => {
                     backgroundClassName={
                       cs.status === 'valid'
                         ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                        : cs.status === 'unregistered'
-                          ? 'bg-rose-100 dark:bg-rose-900/30'
-                          : 'bg-amber-100 dark:bg-amber-900/30'
+                        : cs.status === 'partial'
+                          ? 'bg-sky-100 dark:bg-sky-900/30'
+                          : cs.status === 'unregistered'
+                            ? 'bg-rose-100 dark:bg-rose-900/30'
+                            : 'bg-amber-100 dark:bg-amber-900/30'
                     }
                   >
                     <Typography
@@ -199,16 +201,20 @@ const CheckInTab: React.FC = () => {
                       textClassName={
                         cs.status === 'valid'
                           ? 'text-emerald-700 dark:text-emerald-300'
-                          : cs.status === 'unregistered'
-                            ? 'text-rose-700 dark:text-rose-300'
-                            : 'text-amber-700 dark:text-amber-300'
+                          : cs.status === 'partial'
+                            ? 'text-sky-700 dark:text-sky-300'
+                            : cs.status === 'unregistered'
+                              ? 'text-rose-700 dark:text-rose-300'
+                              : 'text-amber-700 dark:text-amber-300'
                       }
                     >
                       {cs.status === 'valid'
-                        ? '✓ hợp lệ'
-                        : cs.status === 'unregistered'
-                          ? 'chưa đăng ký · không tính'
-                          : 'đã đăng ký'}
+                        ? `✓ ${cs.hours}h`
+                        : cs.status === 'partial'
+                          ? `${cs.hours}h (một phần)`
+                          : cs.status === 'unregistered'
+                            ? 'chưa đăng ký · không tính'
+                            : 'đã đăng ký'}
                     </Typography>
                   </Box>
                 )}
