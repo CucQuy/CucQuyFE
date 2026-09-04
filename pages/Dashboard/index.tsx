@@ -9,6 +9,7 @@ import { useRevenueReport } from '@/hooks/queries/useTransactionsQuery';
 import DashboardSection from '@/pages/Dashboard/components/DashboardSection';
 import DashboardRangeControl from '@/pages/Dashboard/components/DashboardRangeControl';
 import DashboardAlerts from '@/pages/Dashboard/components/DashboardAlerts';
+import DashboardSocial from '@/pages/Dashboard/components/DashboardSocial';
 import DashboardToday from '@/pages/Dashboard/components/DashboardToday';
 import DashboardKpiCockpit from '@/pages/Dashboard/components/DashboardKpiCockpit';
 import DashboardChart from '@/pages/Dashboard/components/DashboardChart';
@@ -187,6 +188,9 @@ const DashboardPage: React.FC = () => {
 
       {/* Cảnh báo cần xử lý (tự ẩn khi không có) */}
       <DashboardAlerts orders={orders} />
+
+      {/* Fanpage + Instagram trong ngày (tự ẩn nếu chưa nối kênh) */}
+      <DashboardSocial />
 
       {/* BÁN HÀNG — biểu đồ doanh thu (2/3) + top sản phẩm bán chạy (1/3) */}
       <Box layoutClassName="grid grid-cols-1 gap-6 lg:grid-cols-3">

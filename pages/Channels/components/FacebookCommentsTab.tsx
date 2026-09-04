@@ -20,6 +20,7 @@ import {
   syncFacebookComments,
   type FacebookComment,
   type FacebookCommentConfig,
+  type SocialPlatform,
 } from '@/services/facebookService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
@@ -41,6 +42,13 @@ const FILTERS: { id: Filter; labelKey: string }[] = [
   { id: '', labelKey: 'channels.all' },
   { id: 'replied', labelKey: 'channels.cmtReplied' },
   { id: 'hidden', labelKey: 'channels.cmtHidden' },
+];
+
+/** Nguồn bình luận — Instagram dùng chung page token nên nằm chung danh sách. */
+const PLATFORMS: { id: '' | SocialPlatform; labelKey: string }[] = [
+  { id: '', labelKey: 'channels.allSources' },
+  { id: 'facebook', labelKey: 'channels.srcFacebook' },
+  { id: 'instagram', labelKey: 'channels.srcInstagram' },
 ];
 
 /** Nhãn cho luật tự động đã chạy trên bình luận. */
@@ -71,8 +79,16 @@ const isPermissionError = (e: any): boolean =>
 const FacebookCommentsTab: React.FC = () => {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('pending');
+  const [platform, setPlatform] = useState<'' | SocialPlatform>('');
   const [items, setItems] = useState<FacebookComment[]>([]);
-  const [counts, setCounts] = useState({ total: 0, pending: 0, hidden: 0, replied: 0 });
+  const [counts, setCounts] = useState({
+    total: 0,
+    pending: 0,
+    hidden: 0,
+    replied: 0,
+    facebook: 0,
+    instagram: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [noPermission, setNoPermission] = useState(false);
@@ -88,7 +104,7 @@ const FacebookCommentsTab: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetchFacebookComments(filter, 100);
+      const r = await fetchFacebookComments(filter, 100, platform);
       setItems(r.items);
       setCounts(r.counts);
     } catch {
@@ -96,7 +112,7 @@ const FacebookCommentsTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, platform]);
 
   useEffect(() => {
     void load();
@@ -282,6 +298,24 @@ const FacebookCommentsTab: React.FC = () => {
           </Typography>
         </Box>
         <Box layoutClassName="ml-auto flex flex-wrap items-center gap-2">
+          {PLATFORMS.map((p) => (
+            <Button
+              key={p.id || 'both'}
+              type="button"
+              onClick={() => setPlatform(p.id)}
+              variant="secondary"
+              disableVariantHover
+              disableVariantTextColor
+              borderClassName={platform === p.id ? 'border border-primary-400 dark:border-primary-500' : 'border border-slate-200 dark:border-slate-600'}
+              backgroundClassName={platform === p.id ? 'bg-primary-50 dark:bg-primary-900/30' : 'bg-white dark:bg-slate-800'}
+              textClassName={platform === p.id ? 'text-xs font-semibold text-primary-700 dark:text-primary-200' : 'text-xs font-medium text-slate-600 dark:text-slate-300'}
+              roundedClassName="rounded-lg"
+              sizeClassName="px-2.5 py-1.5"
+            >
+              {t(p.labelKey)}
+            </Button>
+          ))}
+          <Box layoutClassName="h-4 w-px" backgroundClassName="bg-slate-200 dark:bg-slate-600" />
           {FILTERS.map((f) => (
             <Button
               key={f.id || 'all'}
@@ -336,6 +370,13 @@ const FacebookCommentsTab: React.FC = () => {
           {items.map((c) => (
             <Card key={c.id} layoutClassName="space-y-2 p-3">
               <Box layoutClassName="flex flex-wrap items-center gap-2">
+                <Badge
+                  backgroundClassName={c.platform === 'instagram' ? 'bg-pink-50 dark:bg-pink-900/30' : 'bg-sky-50 dark:bg-sky-900/30'}
+                  textClassName={c.platform === 'instagram' ? 'text-pink-700 dark:text-pink-300' : 'text-sky-700 dark:text-sky-300'}
+                  size="sm"
+                >
+                  {c.platform === 'instagram' ? t('channels.srcInstagram') : t('channels.srcFacebook')}
+                </Badge>
                 <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-800 dark:text-slate-100">
                   {c.fromName || t('channels.cmtUnknownName')}
                 </Typography>

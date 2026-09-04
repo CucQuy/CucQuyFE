@@ -1,6 +1,9 @@
 import { apiClient } from '@/services/api/client';
 
 /** 1 khách đã inbox fanpage. */
+/** Nguồn của khách / bình luận: fanpage Facebook hay Instagram (dùng chung page token). */
+export type SocialPlatform = 'facebook' | 'instagram';
+
 export interface FacebookContact {
   psid: string;
   name: string;
@@ -13,6 +16,7 @@ export interface FacebookContact {
   /** Còn trong cửa sổ 24h kể từ tin cuối của khách → nhắn tự do được. */
   inWindow: boolean;
   minutesLeft: number;
+  platform: SocialPlatform;
 }
 
 export interface FacebookContactList {
@@ -53,6 +57,7 @@ export const fetchFacebookContacts = async (
       optedInAt: typeof r.optedInAt === 'string' ? r.optedInAt : null,
       inWindow: r.inWindow === true,
       minutesLeft: num(r.minutesLeft),
+      platform: r.platform === 'instagram' ? 'instagram' : 'facebook',
     })),
     counts: { total: num(c.total), inWindow: num(c.inWindow), optIn: num(c.optIn) },
   };
@@ -137,11 +142,21 @@ export interface FacebookComment {
   /** Luật tự động đã chạy: hide_phone | hide_keyword | reply | private_reply */
   autoAction: string;
   createdTime: string | null;
+  platform: SocialPlatform;
+  /** Ảnh bài (Instagram) để nhận ra bình luận thuộc bài nào. */
+  postMediaUrl: string;
 }
 
 export interface FacebookCommentList {
   items: FacebookComment[];
-  counts: { total: number; pending: number; hidden: number; replied: number };
+  counts: {
+    total: number;
+    pending: number;
+    hidden: number;
+    replied: number;
+    facebook: number;
+    instagram: number;
+  };
 }
 
 /** Cấu hình luật tự động cho bình luận. */
@@ -160,9 +175,10 @@ export const FB_MISSING_PERMISSION = 'FB_MISSING_PERMISSION';
 export const fetchFacebookComments = async (
   filter: '' | 'pending' | 'hidden' | 'replied' = '',
   limit = 50,
+  platform: '' | SocialPlatform = '',
 ): Promise<FacebookCommentList> => {
   const res = await apiClient.get('/facebook/comments', {
-    params: { filter: filter || undefined, limit },
+    params: { filter: filter || undefined, limit, platform: platform || undefined },
   });
   const d = (res.data ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
@@ -180,14 +196,69 @@ export const fetchFacebookComments = async (
       repliedAt: typeof r.repliedAt === 'string' ? r.repliedAt : null,
       autoAction: str(r.autoAction),
       createdTime: typeof r.createdTime === 'string' ? r.createdTime : null,
+      platform: r.platform === 'instagram' ? 'instagram' : 'facebook',
+      postMediaUrl: str(r.postMediaUrl),
     })),
     counts: {
       total: num(c.total),
       pending: num(c.pending),
       hidden: num(c.hidden),
       replied: num(c.replied),
+      facebook: num(c.facebook),
+      instagram: num(c.instagram),
     },
   };
+};
+
+/** Số liệu fanpage + Instagram trong ngày (thẻ KPI ngoài Dashboard). */
+export interface SocialInsights {
+  pageViews: number;
+  postEngagements: number;
+  newFollows: number;
+  igReach: number;
+}
+
+export const fetchSocialInsights = async (): Promise<SocialInsights> => {
+  const res = await apiClient.get('/facebook/insights');
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  return {
+    pageViews: num(d.pageViews),
+    postEngagements: num(d.postEngagements),
+    newFollows: num(d.newFollows),
+    igReach: num(d.igReach),
+  };
+};
+
+/** Hồ sơ Instagram gắn với fanpage — null nghĩa là page chưa nối tài khoản IG. */
+export interface InstagramProfile {
+  id: string;
+  username: string;
+  name: string;
+  followers: number;
+  following: number;
+  mediaCount: number;
+  avatar: string;
+}
+
+export const fetchInstagramProfile = async (): Promise<InstagramProfile | null> => {
+  const res = await apiClient.get('/facebook/instagram');
+  const d = res.data as Record<string, unknown> | null;
+  if (!d || !d.id) return null;
+  return {
+    id: str(d.id),
+    username: str(d.username),
+    name: str(d.name),
+    followers: num(d.followers),
+    following: num(d.following),
+    mediaCount: num(d.mediaCount),
+    avatar: str(d.avatar),
+  };
+};
+
+/** Kéo hội thoại Instagram Direct về danh sách khách. */
+export const syncInstagramConversations = async (): Promise<{ contacts: number }> => {
+  const res = await apiClient.post('/facebook/instagram/sync', {});
+  return { contacts: num((res.data as Record<string, unknown>)?.contacts) };
 };
 
 export const syncFacebookComments = async (): Promise<{ posts: number; comments: number }> => {

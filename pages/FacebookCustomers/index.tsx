@@ -5,6 +5,7 @@ import {
   fetchFacebookContacts,
   sendFacebookMessage,
   syncFacebookContacts,
+  syncInstagramConversations,
   type FacebookContact,
   type FacebookSendResult,
 } from '@/services/facebookService';
@@ -124,6 +125,15 @@ const FacebookCustomersPage: React.FC = () => {
     try {
       const r = await syncFacebookContacts();
       toast.success(t('channels.syncedConversations').replace('{n}', String(r.synced)));
+      // Instagram Direct dùng chung page token; lỗi bên IG không làm hỏng phần Facebook.
+      try {
+        const ig = await syncInstagramConversations();
+        if (ig.contacts > 0) {
+          toast.success(t('channels.igSynced').replace('{n}', String(ig.contacts)));
+        }
+      } catch {
+        // fanpage chưa nối Instagram — bỏ qua
+      }
       await load();
     } catch {
       toast.error(t('channels.syncFailed'));
@@ -419,7 +429,18 @@ const FacebookCustomersPage: React.FC = () => {
                       <Checkbox checked={selected.has(c.psid)} onChange={() => toggle(c.psid)} />
                     </TableCell>
                     <TableCell layoutClassName="px-4 py-3" textClassName="text-sm text-slate-800 dark:text-slate-100">
-                      {c.name || t('channels.cmtUnknownName')}
+                      <Box layoutClassName="flex items-center gap-1.5">
+                        <Badge
+                          size="sm"
+                          backgroundClassName={c.platform === 'instagram' ? 'bg-pink-50 dark:bg-pink-900/30' : 'bg-sky-50 dark:bg-sky-900/30'}
+                          textClassName={c.platform === 'instagram' ? 'text-pink-700 dark:text-pink-300' : 'text-sky-700 dark:text-sky-300'}
+                        >
+                          {c.platform === 'instagram' ? t('channels.srcInstagram') : t('channels.srcFacebook')}
+                        </Badge>
+                        <Typography as="span" size="sm" textClassName="text-slate-800 dark:text-slate-100">
+                          {c.name || t('channels.cmtUnknownName')}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3" textClassName="text-xs text-slate-500 dark:text-slate-400">
                       {at(c.lastInboundAt)}
