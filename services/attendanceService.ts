@@ -446,12 +446,16 @@ export async function fetchAdjustments(params?: {
 export async function addAdjustment(input: {
   employeeId: string;
   workDate: string;
-  hours: number;
+  /** Bỏ trống khi dùng `fill` — BE tự tính phần còn thiếu của ca. */
+  hours?: number;
   shiftCode?: string;
   reason?: string;
-}): Promise<AttendanceAdjustment> {
+  /** true = bù ĐỦ ca (thời lượng ca − giờ đã chấm − giờ đã bổ sung). */
+  fill?: boolean;
+}): Promise<AttendanceAdjustment | null> {
   const res = await apiClient.post<any>(`${BASE}/adjustments`, input);
-  return toAdjustment(res.data);
+  // Ca đã đủ giờ → BE trả null, không tạo bản ghi.
+  return res.data ? toAdjustment(res.data) : null;
 }
 
 export async function deleteAdjustment(id: string): Promise<{ ok: boolean }> {

@@ -112,6 +112,15 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
   const registeredCodes = modalDay?.shifts.filter((s) => s.registered).map((s) => s.code) ?? [];
   const chipShifts = registeredCodes.length ? SHIFTS.filter((s) => registeredCodes.includes(s.value)) : SHIFTS;
 
+  /** Giờ còn thiếu của 1 ca = thời lượng ca − giờ đã chấm trong ca − giờ đã bổ sung cho ca. */
+  const missingHours = (code: string): number => {
+    const done = modalDay?.shifts.find((s) => s.code === code)?.hours ?? 0;
+    const adj = modalAdjs
+      .filter((a) => a.shiftCode === code)
+      .reduce((sum, a) => sum + a.hours, 0);
+    return Math.max(0, Math.round((caHours(code) - done - adj) * 100) / 100);
+  };
+
   // (3) handlers
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -152,10 +161,18 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
     const finalReason = (reasonChoice === OTHER ? reasonOther.trim() : reasonChoice) || undefined;
     setSaving(true);
     try {
+      // `fill` = bù cho ĐỦ ca: BE trừ phần đã chấm rồi mới cộng, nên ngày đã làm 7.1h
+      // bấm bổ sung cả 3 ca cũng chỉ lên đúng 12h, không cộng dồn thành 19h.
+      let added = 0;
       for (const code of toAdd) {
-        await addAdjustment({ employeeId: adjTarget.employeeId, workDate: adjTarget.date, hours: caHours(code), shiftCode: code, reason: finalReason });
+        const r = await addAdjustment({ employeeId: adjTarget.employeeId, workDate: adjTarget.date, shiftCode: code, reason: finalReason, fill: true });
+        if (r) added += 1;
       }
-      toast.success(`Đã bổ sung ${toAdd.length} ca cho ${adjTarget.name}.`);
+      if (added === 0) {
+        toast.success(`${adjTarget.name} đã đủ giờ các ca đã chọn.`);
+      } else {
+        toast.success(`Đã bổ sung ${added} ca cho ${adjTarget.name}.`);
+      }
       setAdjTarget(null); // bổ sung xong → tắt modal
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Bổ sung thất bại.');
@@ -338,8 +355,8 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
               </Box>
             )}
 
-            {/* Chọn ca cần bổ sung (hoặc Tất cả) — mỗi ca +số giờ của ca đó */}
-            <Field label="Bổ sung ca" htmlFor="ts-adj-shifts">
+            {/* Chọn ca cần bù — bù cho ĐỦ thời lượng ca (đã trừ phần đã chấm) */}
+            <Field label="Bù cho đủ ca (tự trừ phần đã chấm)" htmlFor="ts-adj-shifts">
               <Box layoutClassName="flex flex-wrap items-center gap-2">
                 {chipShifts.map((s) => {
                   const on = selectedShifts.has(s.value);
@@ -358,7 +375,7 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
                       disableVariantHover
                       disableVariantTextColor
                     >
-                      {s.label} ({fmtHours(caHours(s.value))})
+                      {s.label} ({missingHours(s.value) > 0 ? `còn ${fmtHours(missingHours(s.value))}` : 'đủ'})
                     </Button>
                   );
                 })}
