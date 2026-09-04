@@ -667,7 +667,7 @@ const DayDetail: React.FC<{
               day={d}
               adjustments={adjByKey.get(`${row.employeeId}|${d.date}`) ?? []}
               onAdjust={() => onAdjust(d.date)}
-              onLock={() => onLock(d.date, d.hours, dayStatus(d, todayStr()) === 'full')}
+              onLock={() => onLock(d.date, d.hours, isDayFull(d))}
               onUnlock={() => onUnlock(d.date)}
             />
           ))}
@@ -699,6 +699,21 @@ const dayStatus = (
   if (reg > 0 && day.valid === 0) return 'absent'; // đăng ký mà không đủ 1 công nào
   if (day.valid === reg && workedUnreg === 0) return 'full'; // làm đúng & đủ ca đăng ký
   return 'short'; // thiếu ca so với đăng ký, hoặc chấm ngoài đăng ký (không tính)
+};
+
+/**
+ * Ngày ĐỦ giờ = tổng giờ (chấm + bổ sung) đã bằng thời lượng các ca ĐĂNG KÝ.
+ * Tính theo GIỜ chứ không theo số ca hợp lệ: ngày làm thiếu 1 ca nhưng đã bổ sung bù
+ * thì vẫn là đủ → chốt không cần hỏi lý do.
+ * Không đăng ký ca nào mà vẫn có giờ (làm ngoài đăng ký) → coi như đủ, khỏi hỏi.
+ */
+const isDayFull = (day: PayrollDay): boolean => {
+  const expected = day.shifts
+    .filter((s) => s.registered)
+    .reduce((sum, s) => sum + caHours(s.code), 0);
+  if (expected <= 0) return true;
+  // Trừ 0.05h (3 phút) cho sai số làm tròn giờ chấm.
+  return day.hours + 0.05 >= expected;
 };
 
 const DayRow: React.FC<{
