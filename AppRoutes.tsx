@@ -43,7 +43,8 @@ const LoginPage = lazy(() => import("./pages/Login/index"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback/index"));
 // Trang tra cứu đơn CÔNG KHAI cho khách (link trong tin Zalo) — ngoài ProtectedRoute/Layout.
 const PublicOrderPage = lazy(() => import("./pages/PublicOrder/index"));
-const ChannelsPage = lazy(() => import("./pages/Channels/index"));
+const ZaloChannelPage = lazy(() => import("./pages/Channels/ZaloChannelPage"));
+const FacebookChannelPage = lazy(() => import("./pages/Channels/FacebookChannelPage"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -96,17 +97,26 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels"
+        path="channels/zalo"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels")?.roles}>
-            <ChannelsPage />
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/zalo")?.roles}>
+            <ZaloChannelPage />
           </RoleBasedRoute>
         }
       />
-      {/* 3 màn cũ đã gộp vào /channels — giữ redirect để bookmark/link cũ không vỡ. */}
-      <Route path="facebook" element={<Navigate to="/channels?tab=facebook" replace />} />
-      <Route path="order-notify" element={<Navigate to="/channels?tab=zalo&sub=orders" replace />} />
-      <Route path="settings/zalo" element={<Navigate to="/channels?tab=zalo" replace />} />
+      <Route
+        path="channels/facebook"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook")?.roles}>
+            <FacebookChannelPage />
+          </RoleBasedRoute>
+        }
+      />
+      {/* Các đường cũ (và /channels gộp) → screen tương ứng, giữ bookmark không vỡ. */}
+      <Route path="channels" element={<Navigate to="/channels/zalo" replace />} />
+      <Route path="facebook" element={<Navigate to="/channels/facebook" replace />} />
+      <Route path="order-notify" element={<Navigate to="/channels/zalo?sub=orders" replace />} />
+      <Route path="settings/zalo" element={<Navigate to="/channels/zalo" replace />} />
       <Route
         path="shipping"
         element={

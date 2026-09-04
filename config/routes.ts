@@ -16,6 +16,7 @@ import {
   UserCog,
   IdCard,
   Bell,
+  Facebook,
   MessageCircle,
   Activity,
   ShieldCheck,
@@ -117,12 +118,19 @@ export const routes: RouteConfig[] = [
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
   },
   {
-    // Gom Zalo + Facebook về 1 màn (trước ở /settings/zalo, /facebook, /order-notify).
-    // Để PHẲNG ở sidebar (không nằm trong nhóm Bán hàng) — mục riêng như Đơn hàng.
+    // Kết nối đa kênh: mỗi kênh là 1 screen riêng, gom bằng navGroup "channels".
+    // (Trước đây nằm ở /settings/zalo, /facebook, /order-notify.)
     type: "page",
-    path: "/channels",
-    labelKey: "nav.channels",
+    path: "/channels/zalo",
+    labelKey: "nav.channelsZalo",
     icon: MessageCircle,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/facebook",
+    labelKey: "nav.channelsFacebook",
+    icon: Facebook,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -433,6 +441,16 @@ export interface NavGroupConfig {
 }
 
 export const navGroups: NavGroupConfig[] = [
+  {
+    // Kết nối đa kênh: mỗi kênh 1 screen con (Zalo / Facebook).
+    key: "channels",
+    labelKey: "nav.channelsGroup",
+    icon: MessageCircle,
+    childPaths: [
+      "/channels/zalo",
+      "/channels/facebook",
+    ],
+  },
   {
     // Bán hàng: vận chuyển + khuyến mãi (Đơn hàng để phẳng cho nhanh).
     key: "sales",
