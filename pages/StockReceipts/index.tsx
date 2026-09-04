@@ -89,10 +89,17 @@ const buildStructuredForSave = (
   );
   const taxV = typeof draft.tax === 'number' ? draft.tax : 0;
   const discountV = typeof draft.discount === 'number' ? draft.discount : 0;
+  // Phí ship cũng vào tổng — đúng như công thức hiện trên form nhập tay.
+  const shipV = typeof draft.shippingFee === 'number' ? draft.shippingFee : 0;
+  const computed = lineSum + taxV + shipV - discountV;
   const validLineCount = (draft.lineItems || []).filter((l) => (l.name ?? '').trim() !== '').length;
   return {
     ...draft,
-    totalAmount: hasExplicitTotal ? draft.totalAmount : lineSum + taxV - discountV,
+    // Phiếu THỦ CÔNG không có ô tổng nhập tay (form chỉ HIỆN tổng tự tính) nên luôn tính
+    // lại từ các dòng. Trước đây giữ `totalAmount` cũ → sửa dòng xong tổng vẫn kẹt số cũ
+    // (phiếu sữa tươi: dòng 70.000 mà tổng còn 70).
+    // Phiếu OCR thì giữ tổng đọc từ bill (bill in sẵn tổng, có thể lệch tổng dòng).
+    totalAmount: isManual ? computed : hasExplicitTotal ? draft.totalAmount : computed,
     productLineCount: isManual ? validLineCount : draft.productLineCount,
   };
 };
