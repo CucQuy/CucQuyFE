@@ -11,6 +11,7 @@ import {
   type FacebookSendResult,
 } from '@/services/facebookService';
 import { uploadImage } from '@/services/imageService';
+import ConversationModal from '@/pages/Channels/components/ConversationModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
@@ -82,6 +83,7 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
   );
   const [imageUrl, setImageUrl] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [openChat, setOpenChat] = useState<FacebookContact | null>(null);
   const [buttonTitle, setButtonTitle] = useState('');
   const [buttonUrl, setButtonUrl] = useState('');
   const [sending, setSending] = useState(false);
@@ -452,7 +454,13 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
                           {c.platform === 'instagram' ? t('channels.srcInstagram') : t('channels.srcFacebook')}
                         </Badge>
                         )}
-                        <Typography as="span" size="sm" textClassName="text-slate-800 dark:text-slate-100">
+                        <Typography
+                          as="span"
+                          size="sm"
+                          layoutClassName="cursor-pointer"
+                          textClassName="text-primary-600 hover:underline dark:text-primary-300"
+                          onClick={() => setOpenChat(c)}
+                        >
                           {c.name || t('channels.cmtUnknownName')}
                         </Typography>
                       </Box>
@@ -495,6 +503,17 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
           </Box>
         </Card>
       )}
+      {openChat ? (
+        <ConversationModal
+          psid={openChat.psid}
+          name={openChat.name}
+          platform={openChat.platform}
+          onClose={() => {
+            setOpenChat(null);
+            void load();
+          }}
+        />
+      ) : null}
     </PageContainer>
   );
 };

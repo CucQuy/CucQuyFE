@@ -53,6 +53,8 @@ const FeedbackScreen = lazy(() => import("./pages/Channels/FeedbackScreen"));
 const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
 const InstagramCommentsScreen = lazy(() => import("./pages/Channels/InstagramCommentsScreen"));
 const InstagramConnectionScreen = lazy(() => import("./pages/Channels/InstagramConnectionScreen"));
+const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
+const InstagramPostsScreen = lazy(() => import("./pages/Channels/InstagramPostsScreen"));
 const FacebookConnectionScreen = lazy(() => import("./pages/Channels/FacebookConnectionScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
@@ -154,6 +156,14 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
+        path="channels/facebook/posts-list"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts-list")?.roles}>
+            <FacebookPostsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
         path="channels/facebook/feedback"
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/feedback")?.roles}>
@@ -182,6 +192,14 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/comments")?.roles}>
             <InstagramCommentsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/instagram/posts"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/posts")?.roles}>
+            <InstagramPostsScreen />
           </RoleBasedRoute>
         }
       />

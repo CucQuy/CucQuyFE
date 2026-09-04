@@ -177,9 +177,15 @@ export const fetchFacebookComments = async (
   filter: '' | 'pending' | 'hidden' | 'replied' = '',
   limit = 50,
   platform: '' | SocialPlatform = '',
+  postId = '',
 ): Promise<FacebookCommentList> => {
   const res = await apiClient.get('/facebook/comments', {
-    params: { filter: filter || undefined, limit, platform: platform || undefined },
+    params: {
+      filter: filter || undefined,
+      limit,
+      platform: platform || undefined,
+      postId: postId || undefined,
+    },
   });
   const d = (res.data ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
@@ -208,6 +214,96 @@ export const fetchFacebookComments = async (
       facebook: num(c.facebook),
       instagram: num(c.instagram),
     },
+  };
+};
+
+/** 1 bài đã kéo về từ fanpage / Instagram. */
+export interface PagePost {
+  id: string;
+  message: string;
+  permalink: string;
+  mediaUrl: string;
+  mediaType: string;
+  platform: SocialPlatform;
+  createdTime: string | null;
+  commentCount: number;
+  /** Bình luận chưa trả lời, chưa ẩn — biết bài nào đang cần chăm. */
+  pendingCount: number;
+}
+
+export const fetchPagePosts = async (
+  platform: '' | SocialPlatform = '',
+  limit = 30,
+): Promise<PagePost[]> => {
+  const res = await apiClient.get('/facebook/page-posts', {
+    params: { platform: platform || undefined, limit },
+  });
+  const rows = Array.isArray(res.data) ? (res.data as Record<string, unknown>[]) : [];
+  return rows.map((r) => ({
+    id: str(r.id),
+    message: str(r.message),
+    permalink: str(r.permalink),
+    mediaUrl: str(r.mediaUrl),
+    mediaType: str(r.mediaType),
+    platform: r.platform === 'instagram' ? 'instagram' : 'facebook',
+    createdTime: typeof r.createdTime === 'string' ? r.createdTime : null,
+    commentCount: num(r.commentCount),
+    pendingCount: num(r.pendingCount),
+  }));
+};
+
+/** 1 tin nhắn trong hội thoại. */
+export interface FacebookMessage {
+  id: string;
+  direction: 'in' | 'out';
+  text: string;
+  attachments: Record<string, unknown>[];
+  error: string;
+  createdAt: string | null;
+}
+
+export interface FacebookThread {
+  contact: {
+    psid: string;
+    name: string;
+    profilePic: string;
+    platform: SocialPlatform;
+    lastInboundAt: string | null;
+    inWindow: boolean;
+  } | null;
+  items: FacebookMessage[];
+}
+
+/** Hội thoại với 1 người (BE kéo thêm lịch sử từ Graph rồi trả cả cuộc). */
+export const fetchFacebookThread = async (
+  psid: string,
+  platform: '' | SocialPlatform = '',
+): Promise<FacebookThread> => {
+  const res = await apiClient.get(`/facebook/contacts/${encodeURIComponent(psid)}/messages`, {
+    params: { platform: platform || undefined },
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const c = d.contact as Record<string, unknown> | null;
+  const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+  return {
+    contact: c
+      ? {
+          psid: str(c.psid),
+          name: str(c.name),
+          profilePic: str(c.profilePic),
+          platform: c.platform === 'instagram' ? 'instagram' : 'facebook',
+          lastInboundAt: typeof c.lastInboundAt === 'string' ? c.lastInboundAt : null,
+          inWindow: c.inWindow === true,
+        }
+      : null,
+    items: rows.map((r) => ({
+      id: str(r.id),
+      direction: r.direction === 'out' ? 'out' : 'in',
+      text: str(r.text),
+      attachments: Array.isArray(r.attachments) ? (r.attachments as Record<string, unknown>[]) : [],
+      error: str(r.error),
+      createdAt: typeof r.createdAt === 'string' ? r.createdAt : null,
+    })),
   };
 };
 

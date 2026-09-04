@@ -80,9 +80,13 @@ const isPermissionError = (e: any): boolean =>
 interface Props {
   /** Khoá màn theo 1 nền tảng; bỏ trống = hiện cả hai kèm hàng chọn nguồn. */
   lockPlatform?: SocialPlatform;
+  /** Chỉ bình luận của 1 bài (dùng khi mở từ màn Bài viết). */
+  postId?: string;
+  /** Ẩn thẻ luật tự động — không cần lặp lại khi nhúng trong cửa sổ 1 bài. */
+  hideAutoRules?: boolean;
 }
 
-const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform }) => {
+const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRules }) => {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('pending');
   const [platform, setPlatform] = useState<'' | SocialPlatform>(lockPlatform ?? '');
@@ -110,7 +114,7 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform }) => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetchFacebookComments(filter, 100, platform);
+      const r = await fetchFacebookComments(filter, 100, platform, postId ?? '');
       setItems(r.items);
       setCounts(r.counts);
     } catch {
@@ -118,7 +122,7 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform }) => {
     } finally {
       setLoading(false);
     }
-  }, [filter, platform]);
+  }, [filter, platform, postId]);
 
   useEffect(() => {
     void load();
@@ -224,7 +228,7 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform }) => {
       ) : null}
 
       {/* Luật tự động */}
-      {cfg ? (
+      {cfg && !hideAutoRules ? (
         <Card layoutClassName="space-y-3 p-4">
           <Box layoutClassName="flex items-center justify-between gap-2">
             <Typography size="xs" layoutClassName="font-bold uppercase tracking-wider" textClassName="text-slate-500 dark:text-slate-400">
