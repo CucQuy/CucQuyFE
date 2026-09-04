@@ -43,8 +43,12 @@ const LoginPage = lazy(() => import("./pages/Login/index"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback/index"));
 // Trang tra cứu đơn CÔNG KHAI cho khách (link trong tin Zalo) — ngoài ProtectedRoute/Layout.
 const PublicOrderPage = lazy(() => import("./pages/PublicOrder/index"));
-const ZaloChannelPage = lazy(() => import("./pages/Channels/ZaloChannelPage"));
-const FacebookChannelPage = lazy(() => import("./pages/Channels/FacebookChannelPage"));
+const ZaloGroupsScreen = lazy(() => import("./pages/Channels/ZaloGroupsScreen"));
+const ZaloOrdersScreen = lazy(() => import("./pages/Channels/ZaloOrdersScreen"));
+const ZaloLogScreen = lazy(() => import("./pages/Channels/ZaloLogScreen"));
+const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCustomersScreen"));
+const FacebookCommentsScreen = lazy(() => import("./pages/Channels/FacebookCommentsScreen"));
+const FacebookConnectionScreen = lazy(() => import("./pages/Channels/FacebookConnectionScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -100,7 +104,23 @@ const AppRoutes: React.FC = () => (
         path="channels/zalo"
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/zalo")?.roles}>
-            <ZaloChannelPage />
+            <ZaloGroupsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/zalo/orders"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/zalo/orders")?.roles}>
+            <ZaloOrdersScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/zalo/log"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/zalo/log")?.roles}>
+            <ZaloLogScreen />
           </RoleBasedRoute>
         }
       />
@@ -108,14 +128,30 @@ const AppRoutes: React.FC = () => (
         path="channels/facebook"
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook")?.roles}>
-            <FacebookChannelPage />
+            <FacebookCustomersScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/facebook/comments"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/comments")?.roles}>
+            <FacebookCommentsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/facebook/connection"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/connection")?.roles}>
+            <FacebookConnectionScreen />
           </RoleBasedRoute>
         }
       />
       {/* Các đường cũ (và /channels gộp) → screen tương ứng, giữ bookmark không vỡ. */}
       <Route path="channels" element={<Navigate to="/channels/zalo" replace />} />
       <Route path="facebook" element={<Navigate to="/channels/facebook" replace />} />
-      <Route path="order-notify" element={<Navigate to="/channels/zalo?sub=orders" replace />} />
+      <Route path="order-notify" element={<Navigate to="/channels/zalo/orders" replace />} />
       <Route path="settings/zalo" element={<Navigate to="/channels/zalo" replace />} />
       <Route
         path="shipping"

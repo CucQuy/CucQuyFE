@@ -18,6 +18,8 @@ import {
   Bell,
   Facebook,
   MessageCircle,
+  Plug,
+  ScrollText,
   Activity,
   ShieldCheck,
   Tag,
@@ -117,21 +119,48 @@ export const routes: RouteConfig[] = [
     icon: ShoppingCart,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
   },
+  // Kết nối đa kênh: mỗi việc là 1 screen riêng (không dùng tab) để phân quyền lẻ từng màn.
   {
-    // Kết nối đa kênh: mỗi kênh là 1 screen riêng, gom bằng navGroup "channels".
-    // (Trước đây nằm ở /settings/zalo, /facebook, /order-notify.)
     type: "page",
     path: "/channels/zalo",
-    labelKey: "nav.channelsZalo",
+    labelKey: "nav.chZaloGroups",
     icon: MessageCircle,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
     type: "page",
+    path: "/channels/zalo/orders",
+    labelKey: "nav.chZaloOrders",
+    icon: Bell,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/zalo/log",
+    labelKey: "nav.chZaloLog",
+    icon: ScrollText,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
     path: "/channels/facebook",
-    labelKey: "nav.channelsFacebook",
+    labelKey: "nav.chFbCustomers",
     icon: Facebook,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/facebook/comments",
+    labelKey: "nav.chFbComments",
+    icon: MessageSquare,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/facebook/connection",
+    labelKey: "nav.chFbConnection",
+    icon: Plug,
+    roles: [UserRole.SUPER_ADMIN],
   },
   {
     type: "page",
@@ -448,15 +477,20 @@ export const navGroups: NavGroupConfig[] = [
     icon: MessageCircle,
     childPaths: [
       "/channels/zalo",
+      "/channels/zalo/orders",
+      "/channels/zalo/log",
       "/channels/facebook",
+      "/channels/facebook/comments",
+      "/channels/facebook/connection",
     ],
   },
   {
-    // Bán hàng: vận chuyển + khuyến mãi (Đơn hàng để phẳng cho nhanh).
+    // Bán hàng: đơn hàng + vận chuyển + khuyến mãi.
     key: "sales",
     labelKey: "nav.salesGroup",
     icon: ShoppingBag,
     childPaths: [
+      "/orders",
       "/shipping",
       "/promotions",
     ],
