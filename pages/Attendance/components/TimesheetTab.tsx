@@ -5,9 +5,11 @@ import {
   ChevronRight,
   ChevronDown,
   Download,
+  Lock,
   Plus,
   Send,
   Trash2,
+  Unlock,
 } from 'lucide-react';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
@@ -88,7 +90,7 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
   const range = useMemo(() => monthRange(month), [month]);
   const { data: payroll, loading } = usePayroll(range, true);
   const { rows: adjustments } = useAdjustments(range, true);
-  const { addAdjustment, deleteAdjustment } = useAdjustmentMutations();
+  const { addAdjustment, deleteAdjustment, lockDay, unlockDay } = useAdjustmentMutations();
 
   const employees = payroll?.employees ?? [];
 
@@ -178,6 +180,30 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
       toast.error(e instanceof Error ? e.message : 'Bổ sung thất bại.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Chốt công 1 ngày: xác nhận số giờ hiện tại là số cuối (NV xin làm ít giờ). */
+  const handleLock = async (employeeId: string, name: string, date: string, hours: number) => {
+    const note = window.prompt(
+      `Chốt ${fmtHours(hours)} cho ${name} ngày ${fmtDay(date)}?\nGhi chú (tuỳ chọn):`,
+      'NV xin làm ít giờ',
+    );
+    if (note === null) return; // bấm Cancel
+    try {
+      await lockDay({ employeeId, workDate: date, note: note.trim() || undefined });
+      toast.success(`Đã chốt ${fmtHours(hours)} ngày ${fmtDay(date)}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Chốt công thất bại.');
+    }
+  };
+
+  const handleUnlock = async (employeeId: string, date: string) => {
+    try {
+      await unlockDay(employeeId, date);
+      toast.success(`Đã mở chốt ngày ${fmtDay(date)}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Mở chốt thất bại.');
     }
   };
 
@@ -315,6 +341,8 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
                     adjByKey={adjByKey}
                     onAdjust={(date) => openAdjust(r.employeeId, r.name, date)}
                     onRemoveAdjust={removeAdjust}
+                    onLock={(date, hours) => void handleLock(r.employeeId, r.name, date, hours)}
+                    onUnlock={(date) => void handleUnlock(r.employeeId, date)}
                   />
                 ))}
               </TableBody>
@@ -423,14 +451,17 @@ const EmpRow: React.FC<{
   adjByKey: Map<string, AttendanceAdjustment[]>;
   onAdjust: (date: string) => void;
   onRemoveAdjust: (a: AttendanceAdjustment) => void;
-}> = ({ row, open, onToggle, adjByKey, onAdjust, onRemoveAdjust }) => {
+  onLock: (date: string, hours: number) => void;
+  onUnlock: (date: string) => void;
+}> = ({ row, open, onToggle, adjByKey, onAdjust, onRemoveAdjust, onLock, onUnlock }) => {
   const td = 'px-4 py-3';
   const missingRate = row.days.some((d) => d.hours > 0 && d.rate == null);
   const today = todayStr();
   // Thiếu ca = ca đăng ký nhưng CHƯA làm và CHƯA bổ sung (còn cần xử lý).
   // Ngày CHƯA TỚI không tính (chưa đến hạn làm nên không thể "vắng").
+  // Ngày ĐÃ CHỐT cũng không tính — số giờ đó đã được xác nhận là số cuối.
   const missedShifts = row.days.reduce((n, d) => {
-    if (d.date > today) return n;
+    if (d.date > today || d.locked) return n;
     const adjs = adjByKey.get(`${row.employeeId}|${d.date}`) ?? [];
     const adjCodes = new Set(adjs.map((a) => a.shiftCode).filter(Boolean));
     const generalAdj = adjs.some((a) => !a.shiftCode && a.hours > 0);
@@ -493,7 +524,14 @@ const EmpRow: React.FC<{
       {open && (
         <TableRow backgroundClassName="bg-slate-50/60 dark:bg-slate-900/30">
           <TableCell layoutClassName="px-4 py-3" colSpan={8}>
-            <DayDetail row={row} adjByKey={adjByKey} onAdjust={onAdjust} onRemoveAdjust={onRemoveAdjust} />
+            <DayDetail
+              row={row}
+              adjByKey={adjByKey}
+              onAdjust={onAdjust}
+              onRemoveAdjust={onRemoveAdjust}
+              onLock={onLock}
+              onUnlock={onUnlock}
+            />
           </TableCell>
         </TableRow>
       )}
@@ -507,7 +545,9 @@ const DayDetail: React.FC<{
   adjByKey: Map<string, AttendanceAdjustment[]>;
   onAdjust: (date: string) => void;
   onRemoveAdjust: (a: AttendanceAdjustment) => void;
-}> = ({ row, adjByKey, onAdjust, onRemoveAdjust }) => {
+  onLock: (date: string, hours: number) => void;
+  onUnlock: (date: string) => void;
+}> = ({ row, adjByKey, onAdjust, onRemoveAdjust, onLock, onUnlock }) => {
   const td = 'px-3 py-2';
   if (row.days.length === 0) {
     return <Typography size="sm" textClassName="text-slate-500 dark:text-slate-400">Không có công/chấm công trong tháng.</Typography>;
@@ -533,6 +573,8 @@ const DayDetail: React.FC<{
               day={d}
               adjustments={adjByKey.get(`${row.employeeId}|${d.date}`) ?? []}
               onAdjust={() => onAdjust(d.date)}
+              onLock={() => onLock(d.date, d.hours)}
+              onUnlock={() => onUnlock(d.date)}
             />
           ))}
         </TableBody>
@@ -552,7 +594,9 @@ const todayStr = (): string => {
 const dayStatus = (
   day: PayrollDay,
   today: string,
-): 'off' | 'full' | 'short' | 'absent' | 'upcoming' => {
+): 'off' | 'full' | 'short' | 'absent' | 'upcoming' | 'locked' => {
+  // Đã CHỐT: số giờ hiện tại là số cuối → không coi là thiếu ca nữa.
+  if (day.locked) return 'locked';
   // Ngày CHƯA TỚI: không tính vắng/thiếu — chỉ là "sắp tới" nếu có đăng ký.
   if (day.date > today) return day.registered > 0 ? 'upcoming' : 'off';
   const reg = day.registered;
@@ -567,7 +611,9 @@ const DayRow: React.FC<{
   day: PayrollDay;
   adjustments: AttendanceAdjustment[];
   onAdjust: () => void;
-}> = ({ day, adjustments, onAdjust }) => {
+  onLock: () => void;
+  onUnlock: () => void;
+}> = ({ day, adjustments, onAdjust, onLock, onUnlock }) => {
   const td = 'px-3 py-2';
   const adjustedCodes = new Set(adjustments.map((a) => a.shiftCode).filter(Boolean));
   // Bổ sung CHUNG (không gắn ca, vd dữ liệu cũ / bổ sung cả ngày) → coi mọi ca đăng ký là đã bù.
@@ -628,7 +674,9 @@ const DayRow: React.FC<{
       </TableCell>
       {/* Trạng thái: đã bổ sung > đủ / thiếu / vắng */}
       <TableCell layoutClassName={`${td} text-center whitespace-nowrap`}>
-        {hasAdj ? (
+        {day.locked ? (
+          <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-indigo-50 dark:bg-indigo-900/20" textClassName="text-indigo-700 dark:text-indigo-300">Đã chốt</Badge>
+        ) : hasAdj ? (
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-sky-50 dark:bg-sky-900/20" textClassName="text-sky-700 dark:text-sky-300">Đã bổ sung</Badge>
         ) : status === 'full' ? (
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-emerald-50 dark:bg-emerald-900/20" textClassName="text-emerald-700 dark:text-emerald-300">Đủ công</Badge>
@@ -657,11 +705,41 @@ const DayRow: React.FC<{
           )}
         </Box>
       </TableCell>
-      {/* Bổ sung → nút Chỉnh sửa khi đã có bổ sung */}
+      {/* Bổ sung + chốt công. Ngày đã chốt thì chỉ còn nút Mở chốt. */}
       <TableCell layoutClassName={`${td} text-right whitespace-nowrap`}>
-        <Button type="button" variant={hasAdj ? 'secondary' : 'ghost'} size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={onAdjust}>
-          {hasAdj ? 'Chỉnh sửa' : 'Bổ sung'}
-        </Button>
+        <Box layoutClassName="inline-flex items-center gap-1">
+          {day.locked ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              leftIcon={<Unlock className="h-3.5 w-3.5" />}
+              onClick={onUnlock}
+              title={day.lockNote || 'Mở chốt để sửa lại ngày này'}
+            >
+              Mở chốt
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant={hasAdj ? 'secondary' : 'ghost'} size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={onAdjust}>
+                {hasAdj ? 'Chỉnh sửa' : 'Bổ sung'}
+              </Button>
+              {/* Chỉ chốt ngày ĐÃ có giờ (chốt ngày trắng thì vô nghĩa). */}
+              {day.hours > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<Lock className="h-3.5 w-3.5" />}
+                  onClick={onLock}
+                  title={`Chốt ${fmtHours(day.hours)} — không cần bù cho đủ ca`}
+                >
+                  Chốt công
+                </Button>
+              )}
+            </>
+          )}
+        </Box>
       </TableCell>
     </TableRow>
   );

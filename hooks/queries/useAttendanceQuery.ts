@@ -19,6 +19,8 @@ import {
   fetchPayroll,
   registerFace,
   upsertNetwork,
+  lockDay,
+  unlockDay,
 } from '@/services/attendanceService';
 import { AttendanceKind } from '@/types/attendance';
 
@@ -146,6 +148,12 @@ export const useAdjustmentMutations = () => {
   };
 
   const addM = useMutation({ mutationFn: addAdjustment, onSuccess: invalidate });
+  const lockM = useMutation({ mutationFn: lockDay, onSuccess: invalidate });
+  const unlockM = useMutation({
+    mutationFn: ({ employeeId, workDate }: { employeeId: string; workDate: string }) =>
+      unlockDay(employeeId, workDate),
+    onSuccess: invalidate,
+  });
   const removeM = useMutation({
     mutationFn: (id: string) => deleteAdjustment(id),
     onSuccess: invalidate,
@@ -154,5 +162,8 @@ export const useAdjustmentMutations = () => {
   return {
     addAdjustment: addM.mutateAsync,
     deleteAdjustment: (id: string) => removeM.mutateAsync(id),
+    lockDay: lockM.mutateAsync,
+    unlockDay: (employeeId: string, workDate: string) =>
+      unlockM.mutateAsync({ employeeId, workDate }),
   };
 };

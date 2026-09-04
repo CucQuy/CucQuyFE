@@ -102,6 +102,9 @@ export interface PayrollDay {
   in: string | null; // giờ chấm vào (ISO) — null nếu không chấm
   out: string | null; // giờ chấm ra (ISO)
   shifts: AttendanceDayShift[]; // chi tiết từng ca (đăng ký/làm/hợp lệ)
+  /** Đã CHỐT công: số giờ hiện tại là số cuối (NV chỉ xin làm ít giờ) → không coi là thiếu ca. */
+  locked: boolean;
+  lockNote: string;
 }
 
 /** Tổng hợp công/giờ/lương của 1 NV trong kỳ. */

@@ -713,6 +713,14 @@ export const buildNavTree = (
       .filter((r): r is RouteConfig => Boolean(r));
     if (children.length === 0) continue;
 
+    // Nhóm cha VỪA có màn riêng VỪA có nhóm con (vd "Kết nối đa kênh" có màn Đăng bài
+    // + 3 nhóm con): nhóm con có thể đã tạo mục cha trước → dùng lại, đừng tạo mục thứ 2.
+    const alreadyCreated = group.parentKey ? undefined : parentNodes.get(group.key);
+    if (alreadyCreated) {
+      alreadyCreated.children = children;
+      continue;
+    }
+
     const node: NavGroupNode = { type: "group", group, children, subGroups: [] };
 
     // Nhóm con → gắn vào nhóm cha (tạo mục cha ở vị trí xuất hiện đầu tiên).
@@ -732,6 +740,7 @@ export const buildNavTree = (
       continue;
     }
 
+    parentNodes.set(group.key, node);
     nodes.push(node);
   }
 

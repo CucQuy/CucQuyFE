@@ -341,6 +341,8 @@ function toPayrollDay(d: any): PayrollDay {
     in: toIso(d?.in),
     out: toIso(d?.out),
     shifts: Array.isArray(d?.shifts) ? d.shifts.map(toDayShift) : [],
+    locked: d?.locked === true,
+    lockNote: str(d?.lockNote) ?? '',
   };
 }
 
@@ -456,6 +458,24 @@ export async function addAdjustment(input: {
   const res = await apiClient.post<any>(`${BASE}/adjustments`, input);
   // Ca đã đủ giờ → BE trả null, không tạo bản ghi.
   return res.data ? toAdjustment(res.data) : null;
+}
+
+/** Chốt công 1 ngày — số giờ hiện tại là số cuối, khỏi bù đủ ca. */
+export async function lockDay(input: {
+  employeeId: string;
+  workDate: string;
+  note?: string;
+}): Promise<{ ok: boolean }> {
+  await apiClient.post(`${BASE}/day-lock`, input);
+  return { ok: true };
+}
+
+/** Mở chốt để sửa lại ngày. */
+export async function unlockDay(employeeId: string, workDate: string): Promise<{ ok: boolean }> {
+  const res = await apiClient.delete<{ ok: boolean }>(
+    `${BASE}/day-lock/${encodeURIComponent(employeeId)}/${workDate}`,
+  );
+  return res.data ?? { ok: false };
 }
 
 export async function deleteAdjustment(id: string): Promise<{ ok: boolean }> {
