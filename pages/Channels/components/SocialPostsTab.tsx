@@ -23,6 +23,7 @@ import Label from '@/components/ui/Label';
 import Image from '@/components/ui/Image';
 import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const at = (iso?: string | null): string => {
   if (!iso) return '';
@@ -56,6 +57,8 @@ const SocialPostsTab: React.FC = () => {
   const [scheduledAt, setScheduledAt] = useState('');
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** Bài chờ xác nhận xoá — dùng ConfirmModal của app, không dùng confirm() trình duyệt. */
+  const [delPost, setDelPost] = useState<SocialPost | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -336,11 +339,7 @@ const SocialPostsTab: React.FC = () => {
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(t('channels.postConfirmDelete'))) {
-                        void act(p.id, () => deleteSocialPost(p.id), t('channels.postDeleted'));
-                      }
-                    }}
+                    onClick={() => setDelPost(p)}
                     disabled={busyId === p.id}
                     variant="ghost"
                     leftIcon={<Trash2 className="h-3.5 w-3.5" />}
@@ -356,6 +355,18 @@ const SocialPostsTab: React.FC = () => {
           ))}
         </Box>
       )}
+
+      <ConfirmModal
+        isOpen={!!delPost}
+        title={t('channels.cmtDelete')}
+        message={t('channels.postConfirmDelete')}
+        onConfirm={() => {
+          const p = delPost;
+          setDelPost(null);
+          if (p) void act(p.id, () => deleteSocialPost(p.id), t('channels.postDeleted'));
+        }}
+        onCancel={() => setDelPost(null)}
+      />
     </Box>
   );
 };

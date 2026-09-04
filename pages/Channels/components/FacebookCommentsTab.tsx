@@ -35,6 +35,7 @@ import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
 import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmModal from '@/components/ConfirmModal';
 
 type Filter = '' | 'pending' | 'hidden' | 'replied';
 
@@ -106,6 +107,8 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
   const [replyFor, setReplyFor] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyPrivate, setReplyPrivate] = useState(false);
+  /** Bình luận chờ xác nhận xoá (xoá trên Facebook/Instagram là KHÔNG hoàn tác được). */
+  const [delCmt, setDelCmt] = useState<FacebookComment | null>(null);
 
   const [cfg, setCfg] = useState<FacebookCommentConfig | null>(null);
   const [keywordText, setKeywordText] = useState('');
@@ -483,11 +486,7 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm(t('channels.cmtConfirmDelete'))) {
-                      void act(c.id, () => deleteFacebookComment(c.id), t('channels.cmtDeleted'));
-                    }
-                  }}
+                  onClick={() => setDelCmt(c)}
                   disabled={busyId === c.id}
                   leftIcon={<Trash2 className="h-3.5 w-3.5" />}
                   variant="secondary"
@@ -542,6 +541,17 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
           ))}
         </Box>
       )}
+      <ConfirmModal
+        isOpen={!!delCmt}
+        title={t('channels.cmtDelete')}
+        message={t('channels.cmtConfirmDelete')}
+        onConfirm={() => {
+          const c = delCmt;
+          setDelCmt(null);
+          if (c) void act(c.id, () => deleteFacebookComment(c.id), t('channels.cmtDeleted'));
+        }}
+        onCancel={() => setDelCmt(null)}
+      />
     </Box>
   );
 };

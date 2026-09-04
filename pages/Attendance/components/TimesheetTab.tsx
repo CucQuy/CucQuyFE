@@ -23,6 +23,7 @@ import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
 import BaseModal from '@/components/BaseModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import {
   Table,
   TableBody,
@@ -80,6 +81,15 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
   // (1) state
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [adjTarget, setAdjTarget] = useState<AdjTarget | null>(null);
+  /** Ngày cần hỏi ghi chú trước khi chốt (ngày đủ giờ thì chốt luôn, không hỏi). */
+  const [lockTarget, setLockTarget] = useState<
+    { employeeId: string; name: string; date: string; hours: number } | null
+  >(null);
+  const [lockNote, setLockNote] = useState('');
+  const [locking, setLocking] = useState(false);
+  /** Xác nhận xoá 1 bổ sung + xác nhận gửi bảng lương — dùng ConfirmModal, không dùng confirm() của trình duyệt. */
+  const [delAdj, setDelAdj] = useState<AttendanceAdjustment | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
   const [selectedShifts, setSelectedShifts] = useState<Set<AttendanceShift>>(new Set()); // ca cần bổ sung
   const [reasonChoice, setReasonChoice] = useState(''); // lý do chọn sẵn ('' | preset | 'Khác')
   const [reasonOther, setReasonOther] = useState(''); // nhập tay khi chọn "Khác"
@@ -183,19 +193,43 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
     }
   };
 
-  /** Chốt công 1 ngày: xác nhận số giờ hiện tại là số cuối (NV xin làm ít giờ). */
-  const handleLock = async (employeeId: string, name: string, date: string, hours: number) => {
-    const note = window.prompt(
-      `Chốt ${fmtHours(hours)} cho ${name} ngày ${fmtDay(date)}?\nGhi chú (tuỳ chọn):`,
-      'NV xin làm ít giờ',
-    );
-    if (note === null) return; // bấm Cancel
+  /** Gọi API chốt 1 ngày. */
+  const doLock = async (employeeId: string, date: string, hours: number, note?: string) => {
     try {
-      await lockDay({ employeeId, workDate: date, note: note.trim() || undefined });
+      await lockDay({ employeeId, workDate: date, note: note?.trim() || undefined });
       toast.success(`Đã chốt ${fmtHours(hours)} ngày ${fmtDay(date)}.`);
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Chốt công thất bại.');
+      return false;
     }
+  };
+
+  /**
+   * Chốt công 1 ngày. Ngày ĐỦ giờ (làm đúng ca đăng ký) thì chốt luôn — không hỏi gì,
+   * vì chẳng có gì phải giải thích. Ngày THIẾU giờ mới mở modal xin ghi chú lý do.
+   */
+  const handleLock = async (
+    employeeId: string,
+    name: string,
+    date: string,
+    hours: number,
+    isFull: boolean,
+  ) => {
+    if (isFull) {
+      await doLock(employeeId, date, hours);
+      return;
+    }
+    setLockNote('NV xin làm ít giờ');
+    setLockTarget({ employeeId, name, date, hours });
+  };
+
+  const submitLock = async () => {
+    if (!lockTarget) return;
+    setLocking(true);
+    const ok = await doLock(lockTarget.employeeId, lockTarget.date, lockTarget.hours, lockNote);
+    setLocking(false);
+    if (ok) setLockTarget(null);
   };
 
   const handleUnlock = async (employeeId: string, date: string) => {
@@ -208,10 +242,10 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
   };
 
   const removeAdjust = async (a: AttendanceAdjustment) => {
-    if (!window.confirm(`Xoá bổ sung ${fmtHours(a.hours)}?`)) return;
     try {
       await deleteAdjustment(a.id);
       toast.success('Đã xoá bổ sung.');
+      setDelAdj(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Xoá thất bại.');
     }
@@ -244,16 +278,11 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
       toast.error('Chưa có dữ liệu công trong kỳ.');
       return;
     }
-    if (
-      !window.confirm(
-        `Chốt công kỳ này và GỬI bảng lương Excel qua Zalo?\n\n` +
-          `• Mỗi nhân viên (có SĐT) nhận link file lương RIÊNG của mình.\n` +
-          `• Chỉ gửi cho từng nhân viên — không gửi vào nhóm.\n\n` +
-          `Tin nhắn sẽ gửi ngay — hãy chắc chắn số liệu đã đúng.`,
-      )
-    ) {
-      return;
-    }
+    setConfirmClose(true);
+  };
+
+  const doClosePayroll = async () => {
+    setConfirmClose(false);
     setClosing(true);
     try {
       const r = await closePayroll({ from: range.from, to: range.to });
@@ -341,7 +370,9 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
                     adjByKey={adjByKey}
                     onAdjust={(date) => openAdjust(r.employeeId, r.name, date)}
                     onRemoveAdjust={removeAdjust}
-                    onLock={(date, hours) => void handleLock(r.employeeId, r.name, date, hours)}
+                    onLock={(date, hours, isFull) =>
+                      void handleLock(r.employeeId, r.name, date, hours, isFull)
+                    }
                     onUnlock={(date) => void handleUnlock(r.employeeId, date)}
                   />
                 ))}
@@ -375,7 +406,7 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
                       </Badge>
                       {a.reason && <Typography as="span" size="xs" textClassName="text-slate-500 dark:text-slate-400">{a.reason}</Typography>}
                     </Box>
-                    <IconButton label="Xoá" size="sm" variant="ghost" onClick={() => removeAdjust(a)}>
+                    <IconButton label="Xoá" size="sm" variant="ghost" onClick={() => setDelAdj(a)}>
                       <Trash2 className="h-3.5 w-3.5 text-rose-500" />
                     </IconButton>
                   </Box>
@@ -439,6 +470,69 @@ const TimesheetTab: React.FC<Props> = ({ month, onMonthChange }) => {
           </Box>
         )}
       </BaseModal>
+
+      {/* Chốt công ngày THIẾU giờ — xin ghi chú lý do (ngày đủ giờ chốt luôn, không hỏi) */}
+      <BaseModal
+        isOpen={!!lockTarget}
+        onClose={() => setLockTarget(null)}
+        title={`Chốt công — ${lockTarget?.name ?? ''}`}
+        size="sm"
+        footer={
+          <Box layoutClassName="flex justify-end gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => setLockTarget(null)}>
+              Huỷ
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={locking}
+              leftIcon={locking ? <Spinner size="sm" /> : <Lock className="h-3.5 w-3.5" />}
+              onClick={() => void submitLock()}
+            >
+              Chốt {lockTarget ? fmtHours(lockTarget.hours) : ''}
+            </Button>
+          </Box>
+        }
+      >
+        {lockTarget && (
+          <Box layoutClassName="space-y-3">
+            <Typography size="sm" textClassName="text-slate-600 dark:text-slate-300">
+              Chốt <b>{fmtHours(lockTarget.hours)}</b> cho ngày <b>{fmtDay(lockTarget.date)}</b> —
+              ngày này sẽ không bị coi là thiếu ca và không bù giờ được nữa.
+            </Typography>
+            <Field label="Ghi chú (tuỳ chọn)" htmlFor="ts-lock-note">
+              <Input
+                id="ts-lock-note"
+                value={lockNote}
+                onChange={(e) => setLockNote(e.target.value)}
+                placeholder="vd: NV xin về sớm"
+              />
+            </Field>
+          </Box>
+        )}
+      </BaseModal>
+
+      {/* Xác nhận xoá 1 bổ sung */}
+      <ConfirmModal
+        isOpen={!!delAdj}
+        title="Xoá bổ sung công"
+        message={delAdj ? `Xoá bổ sung ${fmtHours(delAdj.hours)}?` : ''}
+        onConfirm={() => delAdj && void removeAdjust(delAdj)}
+        onCancel={() => setDelAdj(null)}
+      />
+
+      {/* Xác nhận gửi bảng lương qua Zalo */}
+      <ConfirmModal
+        isOpen={confirmClose}
+        title="Gửi bảng lương qua Zalo"
+        message={
+          'Mỗi nhân viên (có SĐT) nhận link file lương RIÊNG của mình, không gửi vào nhóm. ' +
+          'Tin nhắn gửi ngay — hãy chắc chắn số liệu đã đúng.'
+        }
+        isLoading={closing}
+        onConfirm={() => void doClosePayroll()}
+        onCancel={() => setConfirmClose(false)}
+      />
     </Box>
   );
 };
@@ -451,7 +545,7 @@ const EmpRow: React.FC<{
   adjByKey: Map<string, AttendanceAdjustment[]>;
   onAdjust: (date: string) => void;
   onRemoveAdjust: (a: AttendanceAdjustment) => void;
-  onLock: (date: string, hours: number) => void;
+  onLock: (date: string, hours: number, isFull: boolean) => void;
   onUnlock: (date: string) => void;
 }> = ({ row, open, onToggle, adjByKey, onAdjust, onRemoveAdjust, onLock, onUnlock }) => {
   const td = 'px-4 py-3';
@@ -545,7 +639,7 @@ const DayDetail: React.FC<{
   adjByKey: Map<string, AttendanceAdjustment[]>;
   onAdjust: (date: string) => void;
   onRemoveAdjust: (a: AttendanceAdjustment) => void;
-  onLock: (date: string, hours: number) => void;
+  onLock: (date: string, hours: number, isFull: boolean) => void;
   onUnlock: (date: string) => void;
 }> = ({ row, adjByKey, onAdjust, onRemoveAdjust, onLock, onUnlock }) => {
   const td = 'px-3 py-2';
@@ -573,7 +667,7 @@ const DayDetail: React.FC<{
               day={d}
               adjustments={adjByKey.get(`${row.employeeId}|${d.date}`) ?? []}
               onAdjust={() => onAdjust(d.date)}
-              onLock={() => onLock(d.date, d.hours)}
+              onLock={() => onLock(d.date, d.hours, dayStatus(d, todayStr()) === 'full')}
               onUnlock={() => onUnlock(d.date)}
             />
           ))}

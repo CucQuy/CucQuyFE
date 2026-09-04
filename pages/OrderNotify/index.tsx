@@ -17,6 +17,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmModal from '@/components/ConfirmModal';
 import PageContainer from '@/components/ui/PageContainer';
 import {
   Table,
@@ -108,6 +109,8 @@ const OrderNotifyPage: React.FC = () => {
   const [counts, setCounts] = useState({ total: 0, sent: 0, failed: 0, none: 0 });
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  /** Đơn chờ xác nhận GỬI LẠI (đã gửi rồi) — ConfirmModal của app. */
+  const [resendRow, setResendRow] = useState<OrderNotifyRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,7 +130,15 @@ const OrderNotifyPage: React.FC = () => {
   }, [load]);
 
   const handleSend = async (row: OrderNotifyRow) => {
-    if (row.zaloOrder.status === 'sent' && !window.confirm(t('channels.notifyConfirmResend').replace('{n}', row.orderNumber))) return;
+    if (row.zaloOrder.status === 'sent') {
+      // Đã gửi rồi → hỏi lại bằng modal của app trước khi gửi trùng cho khách.
+      setResendRow(row);
+      return;
+    }
+    await doSend(row);
+  };
+
+  const doSend = async (row: OrderNotifyRow) => {
     setSendingId(row.id);
     try {
       const r = await notifyCustomerZalo(row.id, true);
@@ -308,6 +319,21 @@ const OrderNotifyPage: React.FC = () => {
           </Box>
         </Card>
       )}
+      <ConfirmModal
+        isOpen={!!resendRow}
+        title={t('channels.resend')}
+        message={
+          resendRow
+            ? t('channels.notifyConfirmResend').replace('{n}', resendRow.orderNumber)
+            : ''
+        }
+        onConfirm={() => {
+          const r = resendRow;
+          setResendRow(null);
+          if (r) void doSend(r);
+        }}
+        onCancel={() => setResendRow(null)}
+      />
     </PageContainer>
   );
 };

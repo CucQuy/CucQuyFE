@@ -12,6 +12,7 @@ import {
 } from '@/services/facebookService';
 import { uploadImage } from '@/services/imageService';
 import ConversationModal from '@/pages/Channels/components/ConversationModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
@@ -89,6 +90,8 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
   const [buttonTitle, setButtonTitle] = useState('');
   const [buttonUrl, setButtonUrl] = useState('');
   const [sending, setSending] = useState(false);
+  /** Xác nhận gửi hàng loạt — ConfirmModal của app thay confirm() trình duyệt. */
+  const [confirmBulk, setConfirmBulk] = useState(false);
   const [results, setResults] = useState<FacebookSendResult[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -200,7 +203,12 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
       toast.error(t('channels.noContent'));
       return;
     }
-    if (!window.confirm(t('channels.confirmSend').replace('{n}', String(psids.length)))) return;
+    setConfirmBulk(true);
+  };
+
+  const doSend = async () => {
+    setConfirmBulk(false);
+    const psids = [...selected];
 
     setSending(true);
     setResults(null);
@@ -522,6 +530,15 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
           </Box>
         </Card>
       )}
+      <ConfirmModal
+        isOpen={confirmBulk}
+        title={t('channels.sendToN').replace('{n}', String(selected.size))}
+        message={t('channels.confirmSend').replace('{n}', String(selected.size))}
+        isLoading={sending}
+        onConfirm={() => void doSend()}
+        onCancel={() => setConfirmBulk(false)}
+      />
+
       {openChat ? (
         <ConversationModal
           psid={openChat.psid}
