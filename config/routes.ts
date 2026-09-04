@@ -467,18 +467,35 @@ export interface NavGroupConfig {
   labelKey: string;
   icon: LucideIcon;
   childPaths: string[];
+  /** Nhóm CHA (nếu có) → sidebar 3 cấp: nhóm cha › nhóm con › màn. */
+  parentKey?: string;
 }
 
 export const navGroups: NavGroupConfig[] = [
   {
-    // Kết nối đa kênh: mỗi kênh 1 screen con (Zalo / Facebook).
+    // Kết nối đa kênh (cha) › Zalo / Facebook (con) › từng màn.
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
+    childPaths: [],
+  },
+  {
+    key: "channelsZalo",
+    labelKey: "nav.channelsZalo",
+    icon: MessageCircle,
+    parentKey: "channels",
     childPaths: [
       "/channels/zalo",
       "/channels/zalo/orders",
       "/channels/zalo/log",
+    ],
+  },
+  {
+    key: "channelsFacebook",
+    labelKey: "nav.channelsFacebook",
+    icon: Facebook,
+    parentKey: "channels",
+    childPaths: [
       "/channels/facebook",
       "/channels/facebook/comments",
       "/channels/facebook/connection",
@@ -586,9 +603,15 @@ export const navGroups: NavGroupConfig[] = [
   },
 ];
 
-export type NavNode =
-  | { type: "route"; route: RouteConfig }
-  | { type: "group"; group: NavGroupConfig; children: RouteConfig[] };
+export interface NavGroupNode {
+  type: "group";
+  group: NavGroupConfig;
+  children: RouteConfig[];
+  /** Nhóm con (sidebar 3 cấp) — rỗng với nhóm thường. */
+  subGroups: NavGroupNode[];
+}
+
+export type NavNode = { type: "route"; route: RouteConfig } | NavGroupNode;
 
 /**
  * Dựng cây điều hướng: route thường giữ nguyên, các route thuộc 1 nhóm
@@ -605,6 +628,8 @@ export const buildNavTree = (
 
   const nodes: NavNode[] = [];
   const emitted = new Set<string>();
+  // Nhóm cha đã đưa vào cây → để nhóm con thứ 2 nối vào đúng chỗ thay vì tạo mục mới.
+  const parentNodes = new Map<string, NavGroupNode>();
 
   for (const route of accessible) {
     const group = pathToGroup.get(route.path);
@@ -614,12 +639,32 @@ export const buildNavTree = (
     }
     if (emitted.has(group.key)) continue;
     emitted.add(group.key);
+
     const children = group.childPaths
       .map((p) => accessible.find((r) => r.path === p))
       .filter((r): r is RouteConfig => Boolean(r));
-    if (children.length > 0) {
-      nodes.push({ type: "group", group, children });
+    if (children.length === 0) continue;
+
+    const node: NavGroupNode = { type: "group", group, children, subGroups: [] };
+
+    // Nhóm con → gắn vào nhóm cha (tạo mục cha ở vị trí xuất hiện đầu tiên).
+    if (group.parentKey) {
+      let parent = parentNodes.get(group.parentKey);
+      if (!parent) {
+        const parentCfg = navGroups.find((g) => g.key === group.parentKey);
+        if (!parentCfg) {
+          nodes.push(node);
+          continue;
+        }
+        parent = { type: "group", group: parentCfg, children: [], subGroups: [] };
+        parentNodes.set(group.parentKey, parent);
+        nodes.push(parent);
+      }
+      parent.subGroups.push(node);
+      continue;
     }
+
+    nodes.push(node);
   }
 
   return nodes;
