@@ -18,6 +18,7 @@ import {
   replyFacebookComment,
   saveFacebookCommentConfig,
   syncFacebookComments,
+  syncInstagramComments,
   type FacebookComment,
   type FacebookCommentConfig,
   type SocialPlatform,
@@ -76,10 +77,15 @@ const isPermissionError = (e: any): boolean =>
  * người bình luận (mở cửa sổ 24h), ẩn/bỏ ẩn, xoá; kèm các luật tự động.
  * Abit không có API cho phần này nên mọi thao tác đi thẳng Graph API của Meta.
  */
-const FacebookCommentsTab: React.FC = () => {
+interface Props {
+  /** Khoá màn theo 1 nền tảng; bỏ trống = hiện cả hai kèm hàng chọn nguồn. */
+  lockPlatform?: SocialPlatform;
+}
+
+const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform }) => {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('pending');
-  const [platform, setPlatform] = useState<'' | SocialPlatform>('');
+  const [platform, setPlatform] = useState<'' | SocialPlatform>(lockPlatform ?? '');
   const [items, setItems] = useState<FacebookComment[]>([]);
   const [counts, setCounts] = useState({
     total: 0,
@@ -133,7 +139,9 @@ const FacebookCommentsTab: React.FC = () => {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const r = await syncFacebookComments();
+      const r = lockPlatform === 'instagram'
+        ? await syncInstagramComments()
+        : await syncFacebookComments();
       toast.success(t('channels.cmtSynced').replace('{c}', String(r.comments)).replace('{p}', String(r.posts)));
       setNoPermission(false);
       await load();
@@ -298,7 +306,7 @@ const FacebookCommentsTab: React.FC = () => {
           </Typography>
         </Box>
         <Box layoutClassName="ml-auto flex flex-wrap items-center gap-2">
-          {PLATFORMS.map((p) => (
+          {(lockPlatform ? [] : PLATFORMS).map((p) => (
             <Button
               key={p.id || 'both'}
               type="button"
@@ -315,7 +323,9 @@ const FacebookCommentsTab: React.FC = () => {
               {t(p.labelKey)}
             </Button>
           ))}
-          <Box layoutClassName="h-4 w-px" backgroundClassName="bg-slate-200 dark:bg-slate-600" />
+          {lockPlatform ? null : (
+            <Box layoutClassName="h-4 w-px" backgroundClassName="bg-slate-200 dark:bg-slate-600" />
+          )}
           {FILTERS.map((f) => (
             <Button
               key={f.id || 'all'}
@@ -370,6 +380,7 @@ const FacebookCommentsTab: React.FC = () => {
           {items.map((c) => (
             <Card key={c.id} layoutClassName="space-y-2 p-3">
               <Box layoutClassName="flex flex-wrap items-center gap-2">
+                {lockPlatform ? null : (
                 <Badge
                   backgroundClassName={c.platform === 'instagram' ? 'bg-pink-50 dark:bg-pink-900/30' : 'bg-sky-50 dark:bg-sky-900/30'}
                   textClassName={c.platform === 'instagram' ? 'text-pink-700 dark:text-pink-300' : 'text-sky-700 dark:text-sky-300'}
@@ -377,6 +388,7 @@ const FacebookCommentsTab: React.FC = () => {
                 >
                   {c.platform === 'instagram' ? t('channels.srcInstagram') : t('channels.srcFacebook')}
                 </Badge>
+                )}
                 <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-800 dark:text-slate-100">
                   {c.fromName || t('channels.cmtUnknownName')}
                 </Typography>

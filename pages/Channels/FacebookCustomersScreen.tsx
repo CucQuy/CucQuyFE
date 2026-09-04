@@ -11,7 +11,7 @@ const FacebookCustomersScreen: React.FC = () => {
     title={t('channels.fbCustomersTitle')}
     desc={t('channels.fbCustomersDesc')}
   >
-    <FacebookCustomers />
+    <FacebookCustomers platform="facebook" />
   </ChannelScreen>
   );
 };

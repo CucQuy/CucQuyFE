@@ -11,7 +11,7 @@ const FacebookCommentsScreen: React.FC = () => {
     title={t('channels.fbCommentsTitle')}
     desc={t('channels.fbCommentsDesc')}
   >
-    <FacebookCommentsTab />
+    <FacebookCommentsTab lockPlatform="facebook" />
   </ChannelScreen>
   );
 };

@@ -19,6 +19,7 @@ import {
   Facebook,
   MessageCircle,
   Plug,
+  Instagram,
   Send,
   Star,
   ScrollText,
@@ -159,7 +160,7 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/facebook/posts",
+    path: "/channels/posts",
     labelKey: "nav.chSocialPosts",
     icon: Send,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
@@ -175,6 +176,27 @@ export const routes: RouteConfig[] = [
     type: "page",
     path: "/channels/facebook/connection",
     labelKey: "nav.chFbConnection",
+    icon: Plug,
+    roles: [UserRole.SUPER_ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/instagram",
+    labelKey: "nav.chIgCustomers",
+    icon: Instagram,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/instagram/comments",
+    labelKey: "nav.chIgComments",
+    icon: MessageSquare,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/channels/instagram/connection",
+    labelKey: "nav.chIgConnection",
     icon: Plug,
     roles: [UserRole.SUPER_ADMIN],
   },
@@ -493,7 +515,9 @@ export const navGroups: NavGroupConfig[] = [
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
-    childPaths: [],
+    // Đăng bài dùng chung cho Facebook + Instagram nên nằm ở cấp nhóm cha,
+    // không thuộc riêng kênh nào.
+    childPaths: ["/channels/posts"],
   },
   {
     key: "channelsZalo",
@@ -514,9 +538,19 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: [
       "/channels/facebook",
       "/channels/facebook/comments",
-      "/channels/facebook/posts",
       "/channels/facebook/feedback",
       "/channels/facebook/connection",
+    ],
+  },
+  {
+    key: "channelsInstagram",
+    labelKey: "nav.channelsInstagram",
+    icon: Instagram,
+    parentKey: "channels",
+    childPaths: [
+      "/channels/instagram",
+      "/channels/instagram/comments",
+      "/channels/instagram/connection",
     ],
   },
   {

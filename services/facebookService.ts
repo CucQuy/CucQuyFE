@@ -38,9 +38,10 @@ const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v)
 export const fetchFacebookContacts = async (
   filter: '' | 'window' | 'optin' = '',
   limit = 300,
+  platform: '' | SocialPlatform = '',
 ): Promise<FacebookContactList> => {
   const res = await apiClient.get('/facebook/contacts', {
-    params: { filter: filter || undefined, limit },
+    params: { filter: filter || undefined, limit, platform: platform || undefined },
   });
   const d = (res.data ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
@@ -353,6 +354,13 @@ export const fetchInstagramProfile = async (): Promise<InstagramProfile | null> 
     mediaCount: num(d.mediaCount),
     avatar: str(d.avatar),
   };
+};
+
+/** Kéo riêng bài + bình luận Instagram. */
+export const syncInstagramComments = async (): Promise<{ posts: number; comments: number }> => {
+  const res = await apiClient.post('/facebook/instagram/comments/sync', {});
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  return { posts: num(d.posts), comments: num(d.comments) };
 };
 
 /** Kéo hội thoại Instagram Direct về danh sách khách. */

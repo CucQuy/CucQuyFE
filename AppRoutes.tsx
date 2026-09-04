@@ -50,6 +50,9 @@ const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCust
 const FacebookCommentsScreen = lazy(() => import("./pages/Channels/FacebookCommentsScreen"));
 const SocialPostsScreen = lazy(() => import("./pages/Channels/SocialPostsScreen"));
 const FeedbackScreen = lazy(() => import("./pages/Channels/FeedbackScreen"));
+const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
+const InstagramCommentsScreen = lazy(() => import("./pages/Channels/InstagramCommentsScreen"));
+const InstagramConnectionScreen = lazy(() => import("./pages/Channels/InstagramConnectionScreen"));
 const FacebookConnectionScreen = lazy(() => import("./pages/Channels/FacebookConnectionScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
@@ -143,9 +146,9 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/facebook/posts"
+        path="channels/posts"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts")?.roles}>
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/posts")?.roles}>
             <SocialPostsScreen />
           </RoleBasedRoute>
         }
@@ -163,6 +166,30 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/connection")?.roles}>
             <FacebookConnectionScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/instagram"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram")?.roles}>
+            <InstagramCustomersScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/instagram/comments"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/comments")?.roles}>
+            <InstagramCommentsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/instagram/connection"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/connection")?.roles}>
+            <InstagramConnectionScreen />
           </RoleBasedRoute>
         }
       />

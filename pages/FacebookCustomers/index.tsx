@@ -7,6 +7,7 @@ import {
   syncFacebookContacts,
   syncInstagramConversations,
   type FacebookContact,
+  type SocialPlatform,
   type FacebookSendResult,
 } from '@/services/facebookService';
 import { uploadImage } from '@/services/imageService';
@@ -62,7 +63,12 @@ const left = (minutes: number, t: (k: string) => string): string => {
  * Recurring Notifications ở VN và đang khai tử message tags), nên màn này mặc định
  * lọc nhóm "còn nhắn được" — gửi cho người ngoài 24h sẽ bị Meta từ chối và BE trả lý do.
  */
-const FacebookCustomersPage: React.FC = () => {
+interface Props {
+  /** Khoá màn theo 1 nền tảng (Facebook / Instagram); bỏ trống = cả hai. */
+  platform?: SocialPlatform;
+}
+
+const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
   const { t } = useLanguage();
   const [onlyWindow, setOnlyWindow] = useState(true);
   const [contacts, setContacts] = useState<FacebookContact[]>([]);
@@ -85,7 +91,7 @@ const FacebookCustomersPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetchFacebookContacts(onlyWindow ? 'window' : '', 300);
+      const r = await fetchFacebookContacts(onlyWindow ? 'window' : '', 300, platform ?? '');
       setContacts(r.items);
       setCounts(r.counts);
       setSelected((prev) => new Set([...prev].filter((p) => r.items.some((c) => c.psid === p))));
@@ -94,7 +100,7 @@ const FacebookCustomersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [onlyWindow]);
+  }, [onlyWindow, platform]);
 
   useEffect(() => {
     void load();
@@ -123,16 +129,23 @@ const FacebookCustomersPage: React.FC = () => {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const r = await syncFacebookContacts();
-      toast.success(t('channels.syncedConversations').replace('{n}', String(r.synced)));
-      // Instagram Direct dùng chung page token; lỗi bên IG không làm hỏng phần Facebook.
-      try {
+      if (platform === 'instagram') {
         const ig = await syncInstagramConversations();
-        if (ig.contacts > 0) {
-          toast.success(t('channels.igSynced').replace('{n}', String(ig.contacts)));
+        toast.success(t('channels.igSynced').replace('{n}', String(ig.contacts)));
+      } else {
+        const r = await syncFacebookContacts();
+        toast.success(t('channels.syncedConversations').replace('{n}', String(r.synced)));
+        // Màn "cả hai nguồn" kéo luôn Instagram; lỗi bên IG không làm hỏng phần Facebook.
+        if (!platform) {
+          try {
+            const ig = await syncInstagramConversations();
+            if (ig.contacts > 0) {
+              toast.success(t('channels.igSynced').replace('{n}', String(ig.contacts)));
+            }
+          } catch {
+            // fanpage chưa nối Instagram — bỏ qua
+          }
         }
-      } catch {
-        // fanpage chưa nối Instagram — bỏ qua
       }
       await load();
     } catch {
@@ -430,6 +443,7 @@ const FacebookCustomersPage: React.FC = () => {
                     </TableCell>
                     <TableCell layoutClassName="px-4 py-3" textClassName="text-sm text-slate-800 dark:text-slate-100">
                       <Box layoutClassName="flex items-center gap-1.5">
+                        {platform ? null : (
                         <Badge
                           size="sm"
                           backgroundClassName={c.platform === 'instagram' ? 'bg-pink-50 dark:bg-pink-900/30' : 'bg-sky-50 dark:bg-sky-900/30'}
@@ -437,6 +451,7 @@ const FacebookCustomersPage: React.FC = () => {
                         >
                           {c.platform === 'instagram' ? t('channels.srcInstagram') : t('channels.srcFacebook')}
                         </Badge>
+                        )}
                         <Typography as="span" size="sm" textClassName="text-slate-800 dark:text-slate-100">
                           {c.name || t('channels.cmtUnknownName')}
                         </Typography>
