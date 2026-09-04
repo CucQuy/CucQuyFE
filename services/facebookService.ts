@@ -17,6 +17,8 @@ export interface FacebookContact {
   inWindow: boolean;
   minutesLeft: number;
   platform: SocialPlatform;
+  /** Tin nhắn cuối (để hộp thư hiện trích đoạn) — null nếu chưa có tin nào trong app. */
+  lastMessage: { text: string; direction: 'in' | 'out'; createdAt: string | null } | null;
 }
 
 export interface FacebookContactList {
@@ -59,6 +61,15 @@ export const fetchFacebookContacts = async (
       inWindow: r.inWindow === true,
       minutesLeft: num(r.minutesLeft),
       platform: r.platform === 'instagram' ? 'instagram' : 'facebook',
+      lastMessage: (() => {
+        const m = r.lastMessage as Record<string, unknown> | null;
+        if (!m) return null;
+        return {
+          text: str(m.text),
+          direction: m.direction === 'out' ? ('out' as const) : ('in' as const),
+          createdAt: typeof m.createdAt === 'string' ? m.createdAt : null,
+        };
+      })(),
     })),
     counts: { total: num(c.total), inWindow: num(c.inWindow), optIn: num(c.optIn) },
   };
