@@ -11,16 +11,13 @@ import {
 } from 'lucide-react';
 import {
   deleteFacebookComment,
-  fetchFacebookCommentConfig,
   fetchFacebookComments,
   hideFacebookComment,
   privateReplyFacebookComment,
   replyFacebookComment,
-  saveFacebookCommentConfig,
   syncFacebookComments,
   syncInstagramComments,
   type FacebookComment,
-  type FacebookCommentConfig,
   type SocialPlatform,
 } from '@/services/facebookService';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -32,7 +29,6 @@ import Badge from '@/components/ui/Badge';
 import Checkbox from '@/components/ui/Checkbox';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
-import Label from '@/components/ui/Label';
 import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -83,11 +79,9 @@ interface Props {
   lockPlatform?: SocialPlatform;
   /** Chỉ bình luận của 1 bài (dùng khi mở từ màn Bài viết). */
   postId?: string;
-  /** Ẩn thẻ luật tự động — không cần lặp lại khi nhúng trong cửa sổ 1 bài. */
-  hideAutoRules?: boolean;
 }
 
-const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRules }) => {
+const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId }) => {
   const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('pending');
   const [platform, setPlatform] = useState<'' | SocialPlatform>(lockPlatform ?? '');
@@ -110,9 +104,6 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
   /** Bình luận chờ xác nhận xoá (xoá trên Facebook/Instagram là KHÔNG hoàn tác được). */
   const [delCmt, setDelCmt] = useState<FacebookComment | null>(null);
 
-  const [cfg, setCfg] = useState<FacebookCommentConfig | null>(null);
-  const [keywordText, setKeywordText] = useState('');
-  const [savingCfg, setSavingCfg] = useState(false);
   /** Chỉ tự kéo 1 lần mỗi lượt mở màn. */
   const autoSynced = useRef(false);
 
@@ -150,18 +141,6 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
       }
     })();
   }, [load, lockPlatform, postId]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const c = await fetchFacebookCommentConfig();
-        setCfg(c);
-        setKeywordText(c.autoHideKeywords.join(', '));
-      } catch {
-        // cấu hình lỗi không chặn danh sách
-      }
-    })();
-  }, []);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -216,20 +195,6 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
     setReplyText('');
   };
 
-  const saveCfg = async (patch: Partial<FacebookCommentConfig>) => {
-    if (!cfg) return;
-    const next = { ...cfg, ...patch };
-    setCfg(next);
-    setSavingCfg(true);
-    try {
-      await saveFacebookCommentConfig(patch);
-    } catch {
-      toast.error(t('channels.autoSaveFailed'));
-    } finally {
-      setSavingCfg(false);
-    }
-  };
-
   return (
     <Box layoutClassName="space-y-4">
       {noPermission ? (
@@ -246,75 +211,6 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
             <Typography as="p" size="xs" textClassName="text-amber-700 dark:text-amber-300">
               {t('channels.permDesc')}
             </Typography>
-          </Box>
-        </Card>
-      ) : null}
-
-      {/* Luật tự động */}
-      {cfg && !hideAutoRules ? (
-        <Card layoutClassName="space-y-3 p-4">
-          <Box layoutClassName="flex items-center justify-between gap-2">
-            <Typography size="xs" layoutClassName="font-bold uppercase tracking-wider" textClassName="text-slate-500 dark:text-slate-400">
-              {t('channels.autoTitle')}
-            </Typography>
-            {savingCfg ? <Spinner size="sm" /> : null}
-          </Box>
-
-          <Box layoutClassName="grid gap-3 sm:grid-cols-2">
-            <Box layoutClassName="space-y-2">
-              <Checkbox
-                checked={cfg.autoHidePhone}
-                onChange={(e) => void saveCfg({ autoHidePhone: e.target.checked })}
-                label={t('channels.autoHidePhone')}
-                labelClassName="text-sm text-slate-700 dark:text-slate-200"
-              />
-              <Box layoutClassName="space-y-1">
-                <Label className="mb-0">{t('channels.autoHideKeywords')}</Label>
-                <Input
-                  value={keywordText}
-                  onChange={(e) => setKeywordText(e.target.value)}
-                  onBlur={() =>
-                    void saveCfg({
-                      autoHideKeywords: keywordText
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder={t('channels.autoHideKeywordsPh')}
-                  containerClassName="w-full"
-                />
-              </Box>
-            </Box>
-
-            <Box layoutClassName="space-y-2">
-              <Checkbox
-                checked={cfg.autoReplyEnabled}
-                onChange={(e) => void saveCfg({ autoReplyEnabled: e.target.checked })}
-                label={t('channels.autoReply')}
-                labelClassName="text-sm text-slate-700 dark:text-slate-200"
-              />
-              <Input
-                value={cfg.autoReplyText}
-                onChange={(e) => setCfg({ ...cfg, autoReplyText: e.target.value })}
-                onBlur={() => void saveCfg({ autoReplyText: cfg.autoReplyText })}
-                placeholder={t('channels.autoReplyPh')}
-                containerClassName="w-full"
-              />
-              <Checkbox
-                checked={cfg.autoPrivateReply}
-                onChange={(e) => void saveCfg({ autoPrivateReply: e.target.checked })}
-                label={t('channels.autoPrivateReply')}
-                labelClassName="text-sm text-slate-700 dark:text-slate-200"
-              />
-              <Input
-                value={cfg.privateReplyText}
-                onChange={(e) => setCfg({ ...cfg, privateReplyText: e.target.value })}
-                onBlur={() => void saveCfg({ privateReplyText: cfg.privateReplyText })}
-                placeholder={t('channels.autoPrivateReplyPh')}
-                containerClassName="w-full"
-              />
-            </Box>
           </Box>
         </Card>
       ) : null}

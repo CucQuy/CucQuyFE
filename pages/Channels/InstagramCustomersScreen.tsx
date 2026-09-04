@@ -7,7 +7,7 @@ import FacebookCustomers from '@/pages/FacebookCustomers/index';
 const InstagramCustomersScreen: React.FC = () => {
   const { t } = useLanguage();
   return (
-    <ChannelScreen title={t('channels.igCustomersTitle')} desc={t('channels.igCustomersDesc')}>
+    <ChannelScreen title={t('channels.igMessagesTitle')} desc={t('channels.igMessagesDesc')}>
       <FacebookCustomers platform="instagram" />
     </ChannelScreen>
   );

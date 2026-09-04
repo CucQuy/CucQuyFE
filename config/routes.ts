@@ -147,7 +147,7 @@ export const routes: RouteConfig[] = [
   {
     type: "page",
     path: "/channels/facebook",
-    labelKey: "nav.chFbCustomers",
+    labelKey: "nav.chFbMessages",
     icon: Facebook,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
@@ -167,7 +167,7 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/facebook/posts-list",
+    path: "/channels/facebook/posts",
     labelKey: "nav.chFbPosts",
     icon: FileText,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
@@ -181,15 +181,15 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/facebook/connection",
-    labelKey: "nav.chFbConnection",
+    path: "/channels/facebook/settings",
+    labelKey: "nav.chFbSettings",
     icon: Plug,
-    roles: [UserRole.SUPER_ADMIN],
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
     type: "page",
     path: "/channels/instagram",
-    labelKey: "nav.chIgCustomers",
+    labelKey: "nav.chIgMessages",
     icon: Instagram,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
@@ -209,10 +209,10 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/instagram/connection",
-    labelKey: "nav.chIgConnection",
+    path: "/channels/instagram/settings",
+    labelKey: "nav.chIgSettings",
     icon: Plug,
-    roles: [UserRole.SUPER_ADMIN],
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
     type: "page",
@@ -550,11 +550,11 @@ export const navGroups: NavGroupConfig[] = [
     icon: Facebook,
     parentKey: "channels",
     childPaths: [
-      "/channels/facebook",
+      "/channels/facebook/posts",
       "/channels/facebook/comments",
-      "/channels/facebook/posts-list",
+      "/channels/facebook",
       "/channels/facebook/feedback",
-      "/channels/facebook/connection",
+      "/channels/facebook/settings",
     ],
   },
   {
@@ -563,10 +563,10 @@ export const navGroups: NavGroupConfig[] = [
     icon: Instagram,
     parentKey: "channels",
     childPaths: [
-      "/channels/instagram",
-      "/channels/instagram/comments",
       "/channels/instagram/posts",
-      "/channels/instagram/connection",
+      "/channels/instagram/comments",
+      "/channels/instagram",
+      "/channels/instagram/settings",
     ],
   },
   {

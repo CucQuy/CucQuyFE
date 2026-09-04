@@ -52,10 +52,10 @@ const SocialPostsScreen = lazy(() => import("./pages/Channels/SocialPostsScreen"
 const FeedbackScreen = lazy(() => import("./pages/Channels/FeedbackScreen"));
 const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
 const InstagramCommentsScreen = lazy(() => import("./pages/Channels/InstagramCommentsScreen"));
-const InstagramConnectionScreen = lazy(() => import("./pages/Channels/InstagramConnectionScreen"));
+const InstagramSettingsScreen = lazy(() => import("./pages/Channels/InstagramSettingsScreen"));
 const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
 const InstagramPostsScreen = lazy(() => import("./pages/Channels/InstagramPostsScreen"));
-const FacebookConnectionScreen = lazy(() => import("./pages/Channels/FacebookConnectionScreen"));
+const FacebookSettingsScreen = lazy(() => import("./pages/Channels/FacebookSettingsScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -156,9 +156,9 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/facebook/posts-list"
+        path="channels/facebook/posts"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts-list")?.roles}>
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts")?.roles}>
             <FacebookPostsScreen />
           </RoleBasedRoute>
         }
@@ -172,10 +172,10 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/facebook/connection"
+        path="channels/facebook/settings"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/connection")?.roles}>
-            <FacebookConnectionScreen />
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/settings")?.roles}>
+            <FacebookSettingsScreen />
           </RoleBasedRoute>
         }
       />
@@ -204,10 +204,10 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/instagram/connection"
+        path="channels/instagram/settings"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/connection")?.roles}>
-            <InstagramConnectionScreen />
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/settings")?.roles}>
+            <InstagramSettingsScreen />
           </RoleBasedRoute>
         }
       />

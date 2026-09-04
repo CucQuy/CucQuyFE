@@ -8,8 +8,8 @@ const FacebookCustomersScreen: React.FC = () => {
   const { t } = useLanguage();
   return (
   <ChannelScreen
-    title={t('channels.fbCustomersTitle')}
-    desc={t('channels.fbCustomersDesc')}
+    title={t('channels.fbMessagesTitle')}
+    desc={t('channels.fbMessagesDesc')}
   >
     <FacebookCustomers platform="facebook" />
   </ChannelScreen>

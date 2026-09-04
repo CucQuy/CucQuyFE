@@ -236,11 +236,7 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
           title={openPost.message.slice(0, 60) || t('channels.postsCommentsTitle')}
           size="xl"
         >
-          <FacebookCommentsTab
-            lockPlatform={openPost.platform}
-            postId={openPost.id}
-            hideAutoRules
-          />
+          <FacebookCommentsTab lockPlatform={openPost.platform} postId={openPost.id} />
         </BaseModal>
       ) : null}
     </Box>
