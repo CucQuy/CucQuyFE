@@ -212,3 +212,34 @@ export const deletePaymentAccount = async (id: string): Promise<PaymentAccount[]
   );
   return Array.isArray(data) ? data : [];
 };
+
+/** Mục tiêu doanh thu dùng chung cho cả tiệm (lưu ở BE, không còn localStorage). */
+export interface RevenueGoals {
+  /** Mục tiêu doanh thu CẢ THÁNG (VND). 0 = chưa đặt. */
+  monthlyTarget: number;
+  dailyMin: number;
+  dailyExpected: number;
+  updatedAt: string | null;
+  updatedBy: string;
+}
+
+const numOr0 = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+
+export const fetchRevenueGoals = async (): Promise<RevenueGoals> => {
+  const res = await apiClient.get('/configurations/revenue-goals');
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  return {
+    monthlyTarget: numOr0(d.monthlyTarget),
+    dailyMin: numOr0(d.dailyMin),
+    dailyExpected: numOr0(d.dailyExpected),
+    updatedAt: typeof d.updatedAt === 'string' ? d.updatedAt : null,
+    updatedBy: typeof d.updatedBy === 'string' ? d.updatedBy : '',
+  };
+};
+
+/** Patch: gửi field nào ghi field đó. */
+export const saveRevenueGoals = async (
+  patch: Partial<Pick<RevenueGoals, 'monthlyTarget' | 'dailyMin' | 'dailyExpected'>>,
+): Promise<void> => {
+  await apiClient.put('/configurations/revenue-goals', patch);
+};

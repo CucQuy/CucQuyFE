@@ -3,7 +3,9 @@ import { Target, Pencil, Check, X, TrendingUp, CalendarCheck, Gauge } from 'luci
 import { Order, OrderStatus, PaymentStatus } from '@/types';
 import { useOrders } from '@/hooks/useOrders';
 import { getOrderRevenueDate, getOrderTotal } from '@/utils/order/orderUtils';
+import toast from 'react-hot-toast';
 import { formatVND } from '@/utils/format/currencyUtil';
+import { fetchRevenueGoals, saveRevenueGoals } from '@/services/configurationService';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -13,6 +15,7 @@ import Label from '@/components/ui/Label';
 import Typography from '@/components/ui/Typography';
 import { MetricCard, TrendChart } from '@/components/ui/stats';
 
+/** Chìa localStorage CŨ — chỉ còn dùng để nạp 1 lần rồi đẩy lên BE (xem migrateLocal). */
 const LS_MIN = 'goals.dailyMin';
 const LS_EXP = 'goals.dailyExpected';
 
@@ -36,28 +39,72 @@ const GoalsPage: React.FC = () => {
   const { orders } = useOrders();
   const [minDaily, setMinDaily] = useState(0);
   const [expectedDaily, setExpectedDaily] = useState(0);
+  const [monthlyTarget, setMonthlyTarget] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [draftMin, setDraftMin] = useState('');
   const [draftExp, setDraftExp] = useState('');
+  const [draftMonth, setDraftMonth] = useState('');
 
+  // Mục tiêu lưu ở BE để mọi máy (POS, laptop, điện thoại) thấy CÙNG một số.
+  // Máy nào còn số cũ trong localStorage thì đẩy lên BE 1 lần rồi xoá chìa.
   useEffect(() => {
-    try {
-      setMinDaily(Number(localStorage.getItem(LS_MIN)) || 0);
-      setExpectedDaily(Number(localStorage.getItem(LS_EXP)) || 0);
-    } catch { /* ignore */ }
+    void (async () => {
+      try {
+        const g = await fetchRevenueGoals();
+        let { dailyMin, dailyExpected } = g;
+        if (!dailyMin && !dailyExpected) {
+          const oldMin = Number(localStorage.getItem(LS_MIN)) || 0;
+          const oldExp = Number(localStorage.getItem(LS_EXP)) || 0;
+          if (oldMin || oldExp) {
+            await saveRevenueGoals({ dailyMin: oldMin, dailyExpected: oldExp });
+            dailyMin = oldMin;
+            dailyExpected = oldExp;
+            localStorage.removeItem(LS_MIN);
+            localStorage.removeItem(LS_EXP);
+          }
+        }
+        setMinDaily(dailyMin);
+        setExpectedDaily(dailyExpected);
+        setMonthlyTarget(g.monthlyTarget);
+      } catch {
+        toast.error('Không tải được mục tiêu doanh thu.');
+      }
+    })();
   }, []);
 
   const startEdit = () => {
     setDraftMin(minDaily ? String(minDaily) : '');
     setDraftExp(expectedDaily ? String(expectedDaily) : '');
+    setDraftMonth(monthlyTarget ? String(monthlyTarget) : '');
     setEditing(true);
   };
-  const save = () => {
+  const save = async () => {
     const mn = Number(draftMin.replace(/[^\d]/g, '')) || 0;
     const ex = Number(draftExp.replace(/[^\d]/g, '')) || 0;
-    setMinDaily(mn); setExpectedDaily(ex);
-    try { localStorage.setItem(LS_MIN, String(mn)); localStorage.setItem(LS_EXP, String(ex)); } catch { /* ignore */ }
-    setEditing(false);
+    const mt = Number(draftMonth.replace(/[^\d]/g, '')) || 0;
+    setSaving(true);
+    try {
+      await saveRevenueGoals({ dailyMin: mn, dailyExpected: ex, monthlyTarget: mt });
+      setMinDaily(mn);
+      setExpectedDaily(ex);
+      setMonthlyTarget(mt);
+      setEditing(false);
+      toast.success('Đã lưu mục tiêu.');
+    } catch {
+      toast.error('Lưu mục tiêu thất bại.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Gợi ý: mục tiêu tháng ÷ số ngày trong tháng → mức mỗi ngày. */
+  const suggestDailyFromMonth = () => {
+    const mt = Number(draftMonth.replace(/[^\d]/g, '')) || 0;
+    if (!mt) return;
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    setDraftExp(String(Math.round(mt / daysInMonth)));
   };
 
   const stats = useMemo(() => {
@@ -80,10 +127,22 @@ const GoalsPage: React.FC = () => {
     const hitMin = minDaily > 0 ? chart.filter((c) => c.revenue >= minDaily).length : 0;
     const belowMin = minDaily > 0 ? chart.filter((c) => c.revenue < minDaily).length : 0;
     const avg = todayDay > 0 ? total / todayDay : 0;
-    return { chart, todayRevenue, total, hitExpected, hitMin, belowMin, avg, todayDay };
-  }, [orders, minDaily, expectedDaily]);
+    // Tiến độ tháng: đã đạt bao nhiêu %, còn thiếu bao nhiêu, và những ngày còn lại
+    // cần bán trung bình bao nhiêu mỗi ngày để kịp mục tiêu.
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = Math.max(0, daysInMonth - todayDay);
+    const remain = Math.max(0, monthlyTarget - total);
+    const pace = daysLeft > 0 ? remain / daysLeft : remain;
+    const progress = monthlyTarget > 0 ? Math.min(100, Math.round((total / monthlyTarget) * 100)) : 0;
+    // Theo nhịp hiện tại thì hết tháng sẽ được bao nhiêu (dự phóng).
+    const projected = todayDay > 0 ? (total / todayDay) * daysInMonth : 0;
+    return {
+      chart, todayRevenue, total, hitExpected, hitMin, belowMin, avg, todayDay,
+      daysInMonth, daysLeft, remain, pace, progress, projected,
+    };
+  }, [orders, minDaily, expectedDaily, monthlyTarget]);
 
-  const configured = minDaily > 0 || expectedDaily > 0;
+  const configured = minDaily > 0 || expectedDaily > 0 || monthlyTarget > 0;
   const todayVsMin = stats.todayRevenue - minDaily;
   const todayVsExp = stats.todayRevenue - expectedDaily;
 
@@ -97,7 +156,7 @@ const GoalsPage: React.FC = () => {
           </Box>
           <Box>
             <Heading level={1} textClassName="text-lg font-bold text-slate-900 dark:text-white">Mục tiêu doanh thu</Heading>
-            <Typography as="p" size="xs" variant="muted">Đặt mức tối thiểu &amp; kỳ vọng mỗi ngày, theo dõi thực tế trong tháng.</Typography>
+            <Typography as="p" size="xs" variant="muted">Đặt mục tiêu cả tháng + mức mỗi ngày, theo dõi tiến độ thực tế.</Typography>
           </Box>
         </Box>
       </Box>
@@ -112,6 +171,15 @@ const GoalsPage: React.FC = () => {
         </Box>
         {editing ? (
           <Box layoutClassName="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Box layoutClassName="space-y-1.5 sm:col-span-2">
+              <Label className="mb-0">Mục tiêu cả tháng (VND)</Label>
+              <Box layoutClassName="flex gap-2">
+                <Input type="number" value={draftMonth} onChange={(e) => setDraftMonth(e.target.value)} placeholder="vd 40.000.000" fullWidth />
+                <Button type="button" onClick={suggestDailyFromMonth} variant="secondary" sizeClassName="shrink-0 px-3 py-2 text-xs" roundedClassName="rounded-lg" borderClassName="border border-slate-200 dark:border-slate-600" backgroundClassName="bg-white dark:bg-slate-800" textClassName="text-slate-600 dark:text-slate-300" title="Chia mục tiêu tháng cho số ngày → điền vào ô kỳ vọng/ngày">
+                  Chia theo ngày
+                </Button>
+              </Box>
+            </Box>
             <Box layoutClassName="space-y-1.5">
               <Label className="mb-0">Tối thiểu / ngày (VND)</Label>
               <Input type="number" value={draftMin} onChange={(e) => setDraftMin(e.target.value)} placeholder="vd 1.000.000" fullWidth />
@@ -121,12 +189,16 @@ const GoalsPage: React.FC = () => {
               <Input type="number" value={draftExp} onChange={(e) => setDraftExp(e.target.value)} placeholder="vd 2.500.000" fullWidth />
             </Box>
             <Box layoutClassName="flex gap-2 sm:col-span-2">
-              <Button type="button" onClick={save} variant="primary" leftIcon={<Check />} iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4" sizeClassName="px-3.5 py-2 text-sm" roundedClassName="rounded-lg" backgroundClassName="bg-primary-600" hoverClassName="hover:bg-primary-700" textClassName="font-medium text-white" layoutClassName="inline-flex items-center gap-1.5" disableVariantHover>Lưu</Button>
+              <Button type="button" onClick={() => void save()} disabled={saving} variant="primary" leftIcon={<Check />} iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4" sizeClassName="px-3.5 py-2 text-sm" roundedClassName="rounded-lg" backgroundClassName="bg-primary-600" hoverClassName="hover:bg-primary-700" textClassName="font-medium text-white" layoutClassName="inline-flex items-center gap-1.5" disableVariantHover>Lưu</Button>
               <Button type="button" onClick={() => setEditing(false)} variant="secondary" leftIcon={<X />} iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4" sizeClassName="px-3.5 py-2 text-sm" roundedClassName="rounded-lg" borderClassName="border border-slate-200 dark:border-slate-600" backgroundClassName="bg-white dark:bg-slate-800" textClassName="text-slate-600 dark:text-slate-300" layoutClassName="inline-flex items-center gap-1.5">Huỷ</Button>
             </Box>
           </Box>
         ) : (
           <Box layoutClassName="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Box layoutClassName="flex items-center justify-between rounded-lg px-3 py-2.5 sm:col-span-2" backgroundClassName="bg-primary-50 dark:bg-primary-900/15">
+              <Typography size="sm" textClassName="text-primary-700 dark:text-primary-300">Mục tiêu cả tháng</Typography>
+              <Typography size="sm" layoutClassName="font-bold" textClassName="text-primary-700 dark:text-primary-300">{monthlyTarget > 0 ? formatVND(monthlyTarget) : '—'}</Typography>
+            </Box>
             <Box layoutClassName="flex items-center justify-between rounded-lg px-3 py-2.5" backgroundClassName="bg-rose-50 dark:bg-rose-900/15">
               <Typography size="sm" textClassName="text-rose-700 dark:text-rose-300">Tối thiểu / ngày</Typography>
               <Typography size="sm" layoutClassName="font-bold" textClassName="text-rose-700 dark:text-rose-300">{minDaily > 0 ? formatVND(minDaily) : '—'}</Typography>
@@ -141,7 +213,56 @@ const GoalsPage: React.FC = () => {
 
       {!configured ? (
         <Card padding="md" backgroundClassName="bg-amber-50 dark:bg-amber-900/15" borderClassName="border-amber-200 dark:border-amber-800">
-          <Typography size="sm" textClassName="text-amber-700 dark:text-amber-300">Chưa đặt mục tiêu — bấm "Sửa" để nhập mức tối thiểu &amp; kỳ vọng mỗi ngày.</Typography>
+          <Typography size="sm" textClassName="text-amber-700 dark:text-amber-300">Chưa đặt mục tiêu — bấm "Sửa" để nhập mục tiêu cả tháng và mức tối thiểu &amp; kỳ vọng mỗi ngày.</Typography>
+        </Card>
+      ) : null}
+
+      {/* Tiến độ THÁNG (chỉ hiện khi đã đặt mục tiêu tháng) */}
+      {monthlyTarget > 0 ? (
+        <Card padding="md" backgroundClassName="bg-white dark:bg-slate-800" borderClassName="border-slate-100 dark:border-slate-700">
+          <Box layoutClassName="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <Typography size="xs" variant="muted" layoutClassName="font-semibold uppercase tracking-wide">Tiến độ tháng này</Typography>
+            <Typography size="sm" textClassName="text-slate-600 dark:text-slate-300">
+              {formatVND(stats.total)} / <b>{formatVND(monthlyTarget)}</b> · {stats.progress}%
+            </Typography>
+          </Box>
+
+          {/* Thanh tiến độ: xanh khi đã đạt, hổ phách khi còn thiếu */}
+          <Box layoutClassName="h-2.5 w-full overflow-hidden" backgroundClassName="bg-slate-100 dark:bg-slate-700" roundedClassName="rounded-full">
+            <Box
+              layoutClassName="h-full"
+              style={{ width: `${stats.progress}%` }}
+              backgroundClassName={stats.progress >= 100 ? 'bg-emerald-500' : 'bg-primary-500'}
+              roundedClassName="rounded-full"
+            />
+          </Box>
+
+          <Box layoutClassName="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Box layoutClassName="rounded-lg px-3 py-2" backgroundClassName="bg-slate-50 dark:bg-slate-700/30">
+              <Typography size="xs" variant="muted">Còn thiếu</Typography>
+              <Typography size="sm" layoutClassName="font-bold tabular-nums" textClassName={stats.remain > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                {stats.remain > 0 ? formatVND(stats.remain) : 'Đã đạt'}
+              </Typography>
+            </Box>
+            <Box layoutClassName="rounded-lg px-3 py-2" backgroundClassName="bg-slate-50 dark:bg-slate-700/30">
+              <Typography size="xs" variant="muted">Còn lại {stats.daysLeft} ngày · cần/ngày</Typography>
+              <Typography size="sm" layoutClassName="font-bold tabular-nums" textClassName="text-slate-800 dark:text-slate-100">
+                {stats.remain > 0 ? formatVND(stats.pace) : '—'}
+              </Typography>
+            </Box>
+            <Box layoutClassName="rounded-lg px-3 py-2" backgroundClassName="bg-slate-50 dark:bg-slate-700/30">
+              <Typography size="xs" variant="muted">Theo nhịp này hết tháng</Typography>
+              <Typography size="sm" layoutClassName="font-bold tabular-nums" textClassName={stats.projected >= monthlyTarget ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                {formatVND(stats.projected)}
+              </Typography>
+            </Box>
+            <Box layoutClassName="rounded-lg px-3 py-2" backgroundClassName="bg-slate-50 dark:bg-slate-700/30">
+              <Typography size="xs" variant="muted">TB / ngày cần cả tháng</Typography>
+              <Typography size="sm" layoutClassName="font-bold tabular-nums" textClassName="text-slate-800 dark:text-slate-100">
+                {formatVND(monthlyTarget / stats.daysInMonth)}
+              </Typography>
+            </Box>
+          </Box>
         </Card>
       ) : null}
 
