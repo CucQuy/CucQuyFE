@@ -16,6 +16,7 @@ import {
   UserCog,
   IdCard,
   Bell,
+  MessageCircle,
   Activity,
   ShieldCheck,
   Tag,
@@ -120,6 +121,13 @@ export const routes: RouteConfig[] = [
     path: "/order-notify",
     labelKey: "nav.orderNotify",
     icon: Bell,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/facebook",
+    labelKey: "nav.facebookCustomers",
+    icon: MessageCircle,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -444,6 +452,7 @@ export const navGroups: NavGroupConfig[] = [
     icon: ShoppingBag,
     childPaths: [
       "/order-notify",
+      "/facebook",
       "/shipping",
       "/promotions",
     ],
