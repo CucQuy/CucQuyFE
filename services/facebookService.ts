@@ -87,3 +87,38 @@ export const sendFacebookMessage = async (payload: {
     })),
   };
 };
+
+/** Trạng thái kết nối fanpage (cho tab "Kết nối"). */
+export interface FacebookStatus {
+  configured: boolean;
+  pageId?: string;
+  pageName?: string;
+  tokenValid?: boolean;
+  tokenError?: string;
+  scopes?: string[];
+  /** 0 = token không hết hạn. */
+  expiresAt?: number;
+  webhookFields?: string[];
+  can?: { messaging: boolean; readComments: boolean; manageComments: boolean };
+}
+
+export const fetchFacebookStatus = async (): Promise<FacebookStatus> => {
+  const res = await apiClient.get('/facebook/status');
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const can = (d.can ?? {}) as Record<string, unknown>;
+  return {
+    configured: d.configured === true,
+    pageId: str(d.pageId),
+    pageName: str(d.pageName),
+    tokenValid: d.tokenValid === true,
+    tokenError: str(d.tokenError),
+    scopes: Array.isArray(d.scopes) ? (d.scopes as string[]) : [],
+    expiresAt: num(d.expiresAt),
+    webhookFields: Array.isArray(d.webhookFields) ? (d.webhookFields as string[]) : [],
+    can: {
+      messaging: can.messaging === true,
+      readComments: can.readComments === true,
+      manageComments: can.manageComments === true,
+    },
+  };
+};

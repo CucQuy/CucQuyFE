@@ -117,16 +117,10 @@ export const routes: RouteConfig[] = [
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
   },
   {
+    // Gom Zalo + Facebook về 1 màn (trước ở /settings/zalo, /facebook, /order-notify).
     type: "page",
-    path: "/order-notify",
-    labelKey: "nav.orderNotify",
-    icon: Bell,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/facebook",
-    labelKey: "nav.facebookCustomers",
+    path: "/channels",
+    labelKey: "nav.channels",
     icon: MessageCircle,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
@@ -330,13 +324,6 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/settings/zalo",
-    labelKey: "nav.settingsZalo",
-    icon: ZaloIcon as unknown as LucideIcon,
-    roles: [UserRole.SUPER_ADMIN],
-  },
-  {
-    type: "page",
     path: "/settings/screens",
     labelKey: "nav.settingsScreens",
     icon: Monitor,
@@ -451,8 +438,7 @@ export const navGroups: NavGroupConfig[] = [
     labelKey: "nav.salesGroup",
     icon: ShoppingBag,
     childPaths: [
-      "/order-notify",
-      "/facebook",
+      "/channels",
       "/shipping",
       "/promotions",
     ],
@@ -542,7 +528,6 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: [
       "/settings/sepay",
       "/settings/speaker",
-      "/settings/zalo",
       "/settings/screens",
       "/settings/roles",
     ],

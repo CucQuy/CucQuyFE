@@ -36,7 +36,6 @@ const SystemLogsPage = lazy(() => import("./pages/System/Requests/index"));
 const NotificationsPage = lazy(() => import("./pages/Notifications/index"));
 const SepaySettingsTab = lazy(() => import("./pages/Settings/SepaySettingsTab"));
 const SpeakerSettingsTab = lazy(() => import("./pages/Settings/SpeakerSettingsTab"));
-const ZaloSettingsTab = lazy(() => import("./pages/Settings/ZaloSettingsTab"));
 const ScreenVisibilityTab = lazy(() => import("./pages/Settings/ScreenVisibilityTab"));
 const RolesPage = lazy(() => import("./pages/Settings/RolesPage"));
 const ProductSettings = lazy(() => import("./pages/Settings/ProductSettings"));
@@ -44,8 +43,7 @@ const LoginPage = lazy(() => import("./pages/Login/index"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback/index"));
 // Trang tra cứu đơn CÔNG KHAI cho khách (link trong tin Zalo) — ngoài ProtectedRoute/Layout.
 const PublicOrderPage = lazy(() => import("./pages/PublicOrder/index"));
-const OrderNotifyPage = lazy(() => import("./pages/OrderNotify/index"));
-const FacebookCustomersPage = lazy(() => import("./pages/FacebookCustomers/index"));
+const ChannelsPage = lazy(() => import("./pages/Channels/index"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -98,21 +96,17 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="order-notify"
+        path="channels"
         element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/order-notify")?.roles}>
-            <OrderNotifyPage />
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels")?.roles}>
+            <ChannelsPage />
           </RoleBasedRoute>
         }
       />
-      <Route
-        path="facebook"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/facebook")?.roles}>
-            <FacebookCustomersPage />
-          </RoleBasedRoute>
-        }
-      />
+      {/* 3 màn cũ đã gộp vào /channels — giữ redirect để bookmark/link cũ không vỡ. */}
+      <Route path="facebook" element={<Navigate to="/channels?tab=facebook" replace />} />
+      <Route path="order-notify" element={<Navigate to="/channels?tab=zalo&sub=orders" replace />} />
+      <Route path="settings/zalo" element={<Navigate to="/channels?tab=zalo" replace />} />
       <Route
         path="shipping"
         element={
@@ -325,14 +319,6 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/settings/speaker")?.roles}>
             <SpeakerSettingsTab />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="settings/zalo"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/settings/zalo")?.roles}>
-            <ZaloSettingsTab />
           </RoleBasedRoute>
         }
       />
