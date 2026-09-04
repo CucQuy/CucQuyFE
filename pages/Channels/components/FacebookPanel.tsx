@@ -3,6 +3,7 @@ import Box from '@/components/ui/Box';
 import Tabs from '@/components/ui/Tabs';
 import FacebookCustomers from '@/pages/FacebookCustomers/index';
 import FacebookConnectionCard from './FacebookConnectionCard';
+import FacebookCommentsTab from './FacebookCommentsTab';
 
 interface Props {
   sub: string;
@@ -27,14 +28,11 @@ const FacebookPanel: React.FC<Props> = ({ sub, onSubChange }) => {
       <Tabs items={SUBS} value={active} onChange={onSubChange} />
       <Box layoutClassName="min-h-0 flex-1 overflow-auto">
         {active === 'customers' ? <FacebookCustomers /> : null}
-        {active === 'comments' ? <FacebookCommentsTabPlaceholder /> : null}
+        {active === 'comments' ? <FacebookCommentsTab /> : null}
         {active === 'connection' ? <FacebookConnectionCard /> : null}
       </Box>
     </Box>
   );
 };
-
-/** Tạm thời cho tới khi phần bình luận (giai đoạn 2) xong. */
-const FacebookCommentsTabPlaceholder: React.FC = () => null;
 
 export default FacebookPanel;

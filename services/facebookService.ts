@@ -122,3 +122,104 @@ export const fetchFacebookStatus = async (): Promise<FacebookStatus> => {
     },
   };
 };
+
+// ── Bình luận fanpage ────────────────────────────────────────
+export interface FacebookComment {
+  id: string;
+  postId: string;
+  postMessage: string;
+  postPermalink: string;
+  psid: string;
+  fromName: string;
+  message: string;
+  isHidden: boolean;
+  repliedAt: string | null;
+  /** Luật tự động đã chạy: hide_phone | hide_keyword | reply | private_reply */
+  autoAction: string;
+  createdTime: string | null;
+}
+
+export interface FacebookCommentList {
+  items: FacebookComment[];
+  counts: { total: number; pending: number; hidden: number; replied: number };
+}
+
+/** Cấu hình luật tự động cho bình luận. */
+export interface FacebookCommentConfig {
+  autoHidePhone: boolean;
+  autoHideKeywords: string[];
+  autoReplyEnabled: boolean;
+  autoReplyText: string;
+  autoPrivateReply: boolean;
+  privateReplyText: string;
+}
+
+/** Mã lỗi BE trả khi token thiếu quyền đọc/quản lý bình luận. */
+export const FB_MISSING_PERMISSION = 'FB_MISSING_PERMISSION';
+
+export const fetchFacebookComments = async (
+  filter: '' | 'pending' | 'hidden' | 'replied' = '',
+  limit = 50,
+): Promise<FacebookCommentList> => {
+  const res = await apiClient.get('/facebook/comments', {
+    params: { filter: filter || undefined, limit },
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+  const c = (d.counts ?? {}) as Record<string, unknown>;
+  return {
+    items: rows.map((r) => ({
+      id: str(r.id),
+      postId: str(r.postId),
+      postMessage: str(r.postMessage),
+      postPermalink: str(r.postPermalink),
+      psid: str(r.psid),
+      fromName: str(r.fromName),
+      message: str(r.message),
+      isHidden: r.isHidden === true,
+      repliedAt: typeof r.repliedAt === 'string' ? r.repliedAt : null,
+      autoAction: str(r.autoAction),
+      createdTime: typeof r.createdTime === 'string' ? r.createdTime : null,
+    })),
+    counts: {
+      total: num(c.total),
+      pending: num(c.pending),
+      hidden: num(c.hidden),
+      replied: num(c.replied),
+    },
+  };
+};
+
+export const syncFacebookComments = async (): Promise<{ posts: number; comments: number }> => {
+  const res = await apiClient.post('/facebook/comments/sync', {});
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  return { posts: num(d.posts), comments: num(d.comments) };
+};
+
+export const replyFacebookComment = (id: string, message: string) =>
+  apiClient.post(`/facebook/comments/${encodeURIComponent(id)}/reply`, { message });
+
+export const privateReplyFacebookComment = (id: string, message: string) =>
+  apiClient.post(`/facebook/comments/${encodeURIComponent(id)}/private-reply`, { message });
+
+export const hideFacebookComment = (id: string, hidden: boolean) =>
+  apiClient.post(`/facebook/comments/${encodeURIComponent(id)}/hide`, { hidden });
+
+export const deleteFacebookComment = (id: string) =>
+  apiClient.delete(`/facebook/comments/${encodeURIComponent(id)}`);
+
+export const fetchFacebookCommentConfig = async (): Promise<FacebookCommentConfig> => {
+  const res = await apiClient.get('/facebook/config');
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  return {
+    autoHidePhone: d.autoHidePhone === true,
+    autoHideKeywords: Array.isArray(d.autoHideKeywords) ? (d.autoHideKeywords as string[]) : [],
+    autoReplyEnabled: d.autoReplyEnabled === true,
+    autoReplyText: str(d.autoReplyText),
+    autoPrivateReply: d.autoPrivateReply === true,
+    privateReplyText: str(d.privateReplyText),
+  };
+};
+
+export const saveFacebookCommentConfig = (cfg: Partial<FacebookCommentConfig>) =>
+  apiClient.put('/facebook/config', cfg);
