@@ -118,6 +118,7 @@ export const routes: RouteConfig[] = [
   },
   {
     // Gom Zalo + Facebook về 1 màn (trước ở /settings/zalo, /facebook, /order-notify).
+    // Để PHẲNG ở sidebar (không nằm trong nhóm Bán hàng) — mục riêng như Đơn hàng.
     type: "page",
     path: "/channels",
     labelKey: "nav.channels",
@@ -438,7 +439,6 @@ export const navGroups: NavGroupConfig[] = [
     labelKey: "nav.salesGroup",
     icon: ShoppingBag,
     childPaths: [
-      "/channels",
       "/shipping",
       "/promotions",
     ],
