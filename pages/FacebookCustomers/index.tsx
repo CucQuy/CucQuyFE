@@ -84,29 +84,48 @@ const FacebookCustomersPage: React.FC<Props> = ({ platform }) => {
   const [imageUrl, setImageUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [openChat, setOpenChat] = useState<FacebookContact | null>(null);
+  /** Chỉ tự kéo 1 lần mỗi lượt mở màn. */
+  const autoSynced = useRef(false);
   const [buttonTitle, setButtonTitle] = useState('');
   const [buttonUrl, setButtonUrl] = useState('');
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<FacebookSendResult[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<number> => {
     setLoading(true);
     try {
       const r = await fetchFacebookContacts(onlyWindow ? 'window' : '', 300, platform ?? '');
       setContacts(r.items);
       setCounts(r.counts);
       setSelected((prev) => new Set([...prev].filter((p) => r.items.some((c) => c.psid === p))));
+      return r.items.length;
     } catch {
       toast.error(t('channels.loadContactsFailed'));
+      return 0;
     } finally {
       setLoading(false);
     }
   }, [onlyWindow, platform]);
 
+  // Chưa có ai trong DB thì tự kéo hội thoại từ kênh về lần đầu, khỏi bắt bấm nút.
   useEffect(() => {
-    void load();
-  }, [load]);
+    void (async () => {
+      const n = await load();
+      if (n > 0 || autoSynced.current) return;
+      autoSynced.current = true;
+      setSyncing(true);
+      try {
+        if (platform === 'instagram') await syncInstagramConversations();
+        else await syncFacebookContacts();
+        await load();
+      } catch {
+        // chưa nối kênh → giữ trạng thái trống + nút đồng bộ tay
+      } finally {
+        setSyncing(false);
+      }
+    })();
+  }, [load, platform]);
 
   const nameByPsid = useMemo(
     () => new Map(contacts.map((c) => [c.psid, c.name || 'bạn'])),

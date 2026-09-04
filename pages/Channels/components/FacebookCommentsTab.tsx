@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Eye,
@@ -110,23 +110,43 @@ const FacebookCommentsTab: React.FC<Props> = ({ lockPlatform, postId, hideAutoRu
   const [cfg, setCfg] = useState<FacebookCommentConfig | null>(null);
   const [keywordText, setKeywordText] = useState('');
   const [savingCfg, setSavingCfg] = useState(false);
+  /** Chỉ tự kéo 1 lần mỗi lượt mở màn. */
+  const autoSynced = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<number> => {
     setLoading(true);
     try {
       const r = await fetchFacebookComments(filter, 100, platform, postId ?? '');
       setItems(r.items);
       setCounts(r.counts);
+      return r.counts.total;
     } catch {
       toast.error(t('channels.cmtLoadFailed'));
+      return 0;
     } finally {
       setLoading(false);
     }
   }, [filter, platform, postId]);
 
+  // Chưa có bình luận nào trong DB thì tự kéo về lần đầu (khi mở từ 1 bài thì thôi —
+  // màn Bài viết đã kéo trước đó rồi).
   useEffect(() => {
-    void load();
-  }, [load]);
+    void (async () => {
+      const total = await load();
+      if (total > 0 || postId || autoSynced.current) return;
+      autoSynced.current = true;
+      setSyncing(true);
+      try {
+        if (lockPlatform === 'instagram') await syncInstagramComments();
+        else await syncFacebookComments();
+        await load();
+      } catch (e) {
+        if (isPermissionError(e)) setNoPermission(true);
+      } finally {
+        setSyncing(false);
+      }
+    })();
+  }, [load, lockPlatform, postId]);
 
   useEffect(() => {
     void (async () => {

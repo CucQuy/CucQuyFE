@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ExternalLink, FileText, MessageSquare, RefreshCw } from 'lucide-react';
 import {
@@ -43,21 +43,41 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [openPost, setOpenPost] = useState<PagePost | null>(null);
+  /** Chỉ tự kéo 1 lần mỗi lượt mở màn — kênh thật sự chưa có bài thì đừng gọi lại mãi. */
+  const autoSynced = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<PagePost[]> => {
     setLoading(true);
     try {
-      setItems(await fetchPagePosts(lockPlatform ?? '', 30));
+      const rows = await fetchPagePosts(lockPlatform ?? '', 30);
+      setItems(rows);
+      return rows;
     } catch {
       toast.error(t('channels.postsLoadFailed'));
+      return [];
     } finally {
       setLoading(false);
     }
   }, [lockPlatform]);
 
+  // Lần đầu vào màn mà DB chưa có bài nào thì tự kéo từ kênh về, khỏi bắt bấm nút.
   useEffect(() => {
-    void load();
-  }, [load]);
+    void (async () => {
+      const rows = await load();
+      if (rows.length > 0 || autoSynced.current) return;
+      autoSynced.current = true;
+      setSyncing(true);
+      try {
+        if (lockPlatform === 'instagram') await syncInstagramComments();
+        else await syncFacebookComments();
+        await load();
+      } catch {
+        // chưa cấp quyền / chưa nối kênh → để trạng thái trống + nút kéo tay
+      } finally {
+        setSyncing(false);
+      }
+    })();
+  }, [load, lockPlatform]);
 
   const handleSync = async () => {
     setSyncing(true);
