@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { fetchFacebookStatus, type FacebookStatus } from '@/services/facebookService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
 import Typography from '@/components/ui/Typography';
@@ -9,7 +10,7 @@ import Button from '@/components/ui/Button';
 import Spinner from '@/components/ui/Spinner';
 
 /** 1 dòng "tính năng — dùng được / thiếu quyền". */
-const Row: React.FC<{ label: string; ok: boolean; hint?: string }> = ({ label, ok, hint }) => (
+const Row: React.FC<{ label: string; ok: boolean; hint?: string; okText: string; missText: string }> = ({ label, ok, hint, okText, missText }) => (
   <Box layoutClassName="flex items-start justify-between gap-3 py-1.5">
     <Box layoutClassName="space-y-0.5">
       <Typography as="p" size="sm" textClassName="text-slate-700 dark:text-slate-200">
@@ -30,7 +31,7 @@ const Row: React.FC<{ label: string; ok: boolean; hint?: string }> = ({ label, o
         layoutClassName="inline-flex shrink-0 items-center gap-1"
       >
         <CheckCircle2 className="h-3 w-3" />
-        Dùng được
+        {okText}
       </Badge>
     ) : (
       <Badge
@@ -41,7 +42,7 @@ const Row: React.FC<{ label: string; ok: boolean; hint?: string }> = ({ label, o
         layoutClassName="inline-flex shrink-0 items-center gap-1"
       >
         <XCircle className="h-3 w-3" />
-        Thiếu quyền
+        {missText}
       </Badge>
     )}
   </Box>
@@ -53,6 +54,7 @@ const Row: React.FC<{ label: string; ok: boolean; hint?: string }> = ({ label, o
  * nhưng KHÔNG đăng ký field nào — nhìn màn này là thấy ngay.
  */
 const FacebookConnectionCard: React.FC = () => {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<FacebookStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,7 +77,7 @@ const FacebookConnectionCard: React.FC = () => {
     return (
       <Card layoutClassName="flex items-center justify-center gap-2 p-8">
         <Spinner size="md" />
-        <Typography size="sm" variant="muted">Đang kiểm tra kết nối…</Typography>
+        <Typography size="sm" variant="muted">{t('channels.connChecking')}</Typography>
       </Card>
     );
   }
@@ -88,7 +90,7 @@ const FacebookConnectionCard: React.FC = () => {
       <Card layoutClassName="space-y-3 p-4">
         <Box layoutClassName="flex flex-wrap items-center justify-between gap-2">
           <Typography size="sm" layoutClassName="font-semibold" textClassName="text-slate-800 dark:text-slate-100">
-            {status?.pageName || 'Chưa kết nối fanpage'}
+            {status?.pageName || t('channels.connNoPage')}
             {status?.pageId ? (
               <Typography as="span" size="xs" variant="muted" layoutClassName="ml-2">
                 id {status.pageId}
@@ -108,46 +110,62 @@ const FacebookConnectionCard: React.FC = () => {
             sizeClassName="px-2.5 py-1.5"
             layoutClassName="inline-flex items-center gap-1.5"
           >
-            Kiểm tra lại
+            {t('channels.connRecheck')}
           </Button>
         </Box>
 
         <Box layoutClassName="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Typography as="span" size="xs" variant="muted">
-            Token: {status?.tokenValid ? 'còn hiệu lực' : `lỗi — ${status?.tokenError || 'không hợp lệ'}`}
-            {status?.tokenValid && status?.expiresAt === 0 ? ' · không hết hạn' : ''}
+            {t('channels.connToken')}:{' '}
+            {status?.tokenValid
+              ? t('channels.connTokenOk')
+              : `${status?.tokenError || t('channels.connTokenBad')}`}
+            {status?.tokenValid && status?.expiresAt === 0 ? ` · ${t('channels.connTokenNoExpiry')}` : ''}
           </Typography>
           <Typography as="span" size="xs" variant="muted">
-            Webhook: {(status?.webhookFields ?? []).length > 0 ? status?.webhookFields?.join(', ') : 'chưa đăng ký sự kiện nào'}
+            {t('channels.connWebhook')}:{' '}
+            {(status?.webhookFields ?? []).length > 0
+              ? status?.webhookFields?.join(', ')
+              : t('channels.connNoWebhookField')}
           </Typography>
         </Box>
       </Card>
 
       <Card layoutClassName="divide-y divide-slate-100 p-4 dark:divide-slate-700">
         <Row
-          label="Nhận tin khách nhắn (webhook)"
+          okText={t('channels.connOk')}
+          missText={t('channels.connMissing')}
+          label={t('channels.featReceive')}
           ok={hasMessages}
-          hint="Cần đăng ký sự kiện 'messages' cho page trong Meta App."
+          hint={t('channels.featReceiveHint')}
         />
         <Row
-          label="Gửi tin nhắn cho khách"
+          okText={t('channels.connOk')}
+          missText={t('channels.connMissing')}
+          label={t('channels.featSend')}
           ok={status?.can?.messaging ?? false}
-          hint="Token cần quyền pages_messaging."
+          hint={t('channels.featSendHint')}
         />
         <Row
-          label="Đọc bình luận fanpage"
+          okText={t('channels.connOk')}
+          missText={t('channels.connMissing')}
+          label={t('channels.featReadComments')}
           ok={status?.can?.readComments ?? false}
-          hint="Token cần quyền pages_read_engagement — lấy token mới ở Graph API Explorer."
+          hint={t('channels.featReadCommentsHint')}
         />
         <Row
-          label="Trả lời / ẩn / xoá bình luận"
+          okText={t('channels.connOk')}
+          missText={t('channels.connMissing')}
+          label={t('channels.featManageComments')}
           ok={status?.can?.manageComments ?? false}
-          hint="Token cần quyền pages_manage_engagement."
+          hint={t('channels.featManageCommentsHint')}
         />
         <Row
-          label="Nhận bình luận mới theo thời gian thực"
+          okText={t('channels.connOk')}
+          missText={t('channels.connMissing')}
+          label={t('channels.featFeed')}
           ok={hasFeed}
-          hint="Cần đăng ký thêm sự kiện 'feed' cho page."
+          hint={t('channels.featFeedHint')}
         />
       </Card>
     </Box>

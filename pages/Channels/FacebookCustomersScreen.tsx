@@ -1,15 +1,19 @@
 import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ChannelScreen from './ChannelScreen';
 import FacebookCustomers from '@/pages/FacebookCustomers/index';
 
 /** Khách đã inbox fanpage + gửi tin hàng loạt (chỉ trong cửa sổ 24h của Meta). */
-const FacebookCustomersScreen: React.FC = () => (
+const FacebookCustomersScreen: React.FC = () => {
+  const { t } = useLanguage();
+  return (
   <ChannelScreen
-    title="Facebook · Khách & gửi tin"
-    desc="Người đã nhắn fanpage; gửi tin hàng loạt cho nhóm còn nhắn được."
+    title={t('channels.fbCustomersTitle')}
+    desc={t('channels.fbCustomersDesc')}
   >
     <FacebookCustomers />
   </ChannelScreen>
-);
+  );
+};
 
 export default FacebookCustomersScreen;

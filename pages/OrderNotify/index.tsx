@@ -8,6 +8,7 @@ import {
   type OrderNotifyRow,
 } from '@/services/orderService';
 import { formatVND } from '@/utils/format/currencyUtil';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
 import Heading from '@/components/ui/Heading';
@@ -28,11 +29,11 @@ import {
 
 type Filter = '' | 'sent' | 'failed' | 'none';
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: '', label: 'Tất cả' },
-  { id: 'sent', label: 'Đã gửi' },
-  { id: 'failed', label: 'Lỗi' },
-  { id: 'none', label: 'Chưa gửi' },
+const FILTERS: { id: Filter; labelKey: string }[] = [
+  { id: '', labelKey: 'channels.all' },
+  { id: 'sent', labelKey: 'channels.sent' },
+  { id: 'failed', labelKey: 'channels.failed' },
+  { id: 'none', labelKey: 'channels.notSent' },
 ];
 
 /** ISO → 'dd/mm HH:MM' theo giờ máy. */
@@ -45,7 +46,7 @@ const at = (iso?: string | null): string => {
 };
 
 /** 1 ô trạng thái thông báo: đã gửi (kèm giờ) / lỗi (kèm lý do) / chưa gửi. */
-const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
+const NotifyCell: React.FC<{ cell: NotifyCellState; labels: { sent: string; failed: string; notSent: string } }> = ({ cell, labels }) => {
   if (cell.status === 'sent') {
     return (
       <Box layoutClassName="space-y-0.5">
@@ -57,7 +58,7 @@ const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
           layoutClassName="inline-flex items-center gap-1"
         >
           <CheckCircle2 className="h-3 w-3" />
-          Đã gửi
+          {labels.sent}
         </Badge>
         <Typography as="p" size="xs" variant="muted">
           {at(cell.at)}
@@ -76,7 +77,7 @@ const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
           layoutClassName="inline-flex items-center gap-1"
         >
           <XCircle className="h-3 w-3" />
-          Lỗi
+          {labels.failed}
         </Badge>
         {cell.error ? (
           <Typography as="p" size="xs" textClassName="max-w-[220px] text-rose-600 dark:text-rose-400">
@@ -88,7 +89,7 @@ const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
   }
   return (
     <Typography as="span" size="xs" variant="muted">
-      Chưa gửi
+      {labels.notSent}
     </Typography>
   );
 };
@@ -101,6 +102,7 @@ const NotifyCell: React.FC<{ cell: NotifyCellState }> = ({ cell }) => {
  * thì chỉ cần render `r.zaloPromo` / `r.facebook`, không phải sửa SQL.
  */
 const OrderNotifyPage: React.FC = () => {
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('');
   const [rows, setRows] = useState<OrderNotifyRow[]>([]);
   const [counts, setCounts] = useState({ total: 0, sent: 0, failed: 0, none: 0 });
@@ -114,7 +116,7 @@ const OrderNotifyPage: React.FC = () => {
       setRows(r.items);
       setCounts(r.counts);
     } catch {
-      toast.error('Không tải được danh sách thông báo');
+      toast.error(t('channels.notifyLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -125,27 +127,27 @@ const OrderNotifyPage: React.FC = () => {
   }, [load]);
 
   const handleSend = async (row: OrderNotifyRow) => {
-    if (row.zaloOrder.status === 'sent' && !window.confirm(`Đơn ${row.orderNumber} đã gửi. Gửi lại?`)) return;
+    if (row.zaloOrder.status === 'sent' && !window.confirm(t('channels.notifyConfirmResend').replace('{n}', row.orderNumber))) return;
     setSendingId(row.id);
     try {
       const r = await notifyCustomerZalo(row.id, true);
       if (r.sent) {
-        toast.success(`Đã xếp gửi Zalo cho khách đơn ${row.orderNumber}`);
+        toast.success(t('channels.notifyQueued').replace('{n}', row.orderNumber));
       } else {
         const why: Record<string, string> = {
-          no_phone: 'Đơn không có số điện thoại khách',
-          opt_out: 'Khách đã chọn không nhận thông báo',
-          daily_limit: 'Đã đạt hạn mức tin/ngày',
-          already_sent: 'Đơn này đã gửi rồi',
-          disabled: 'Tính năng đang tắt ở Cài đặt Zalo',
-          no_order: 'Không tìm thấy đơn',
-          test_order: 'Đơn test — không gửi cho khách',
+          no_phone: t('channels.whyNoPhone'),
+          opt_out: t('channels.whyOptOut'),
+          daily_limit: t('channels.whyDailyLimit'),
+          already_sent: t('channels.whyAlreadySent'),
+          disabled: t('channels.whyDisabled'),
+          no_order: t('channels.whyNoOrder'),
+          test_order: t('channels.whyTestOrder'),
         };
-        toast.error(why[r.reason ?? ''] ?? 'Không gửi được tin');
+        toast.error(why[r.reason ?? ''] ?? t('channels.notifySendFailed'));
       }
       await load();
     } catch {
-      toast.error('Không gửi được tin');
+      toast.error(t('channels.notifySendFailed'));
     } finally {
       setSendingId(null);
     }
@@ -157,21 +159,21 @@ const OrderNotifyPage: React.FC = () => {
         <Box layoutClassName="flex items-center gap-2">
           <Bell className="h-5 w-5 text-primary-500" />
           <Heading level={2} textClassName="text-base font-semibold text-slate-900 dark:text-white">
-            Thông báo cho khách
+            {t('channels.notifyCustomerTitle')}
           </Heading>
         </Box>
         <Box layoutClassName="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <Typography as="span" size="sm" variant="muted">
-            Tổng đơn: <b>{counts.total}</b>
+            {t('channels.total')}: <b>{counts.total}</b>
           </Typography>
           <Typography as="span" size="sm" textClassName="text-emerald-600 dark:text-emerald-400">
-            Đã gửi: <b>{counts.sent}</b>
+            {t('channels.sent')}: <b>{counts.sent}</b>
           </Typography>
           <Typography as="span" size="sm" textClassName="text-rose-600 dark:text-rose-400">
-            Lỗi: <b>{counts.failed}</b>
+            {t('channels.failed')}: <b>{counts.failed}</b>
           </Typography>
           <Typography as="span" size="sm" variant="muted">
-            Chưa gửi: <b>{counts.none}</b>
+            {t('channels.notSent')}: <b>{counts.none}</b>
           </Typography>
         </Box>
         <Box layoutClassName="ml-auto flex flex-wrap items-center gap-2">
@@ -195,7 +197,7 @@ const OrderNotifyPage: React.FC = () => {
               roundedClassName="rounded-lg"
               sizeClassName="px-2.5 py-1.5"
             >
-              {f.label}
+              {t(f.labelKey)}
             </Button>
           ))}
           <Button
@@ -211,7 +213,7 @@ const OrderNotifyPage: React.FC = () => {
             sizeClassName="px-2.5 py-1.5"
             layoutClassName="inline-flex items-center gap-1.5"
           >
-            Làm mới
+            {t('channels.refresh')}
           </Button>
         </Box>
       </Card>
@@ -220,15 +222,15 @@ const OrderNotifyPage: React.FC = () => {
         <Card layoutClassName="flex items-center justify-center gap-2 p-8">
           <Spinner size="md" />
           <Typography size="sm" variant="muted">
-            Đang tải…
+            {t('channels.loading')}
           </Typography>
         </Card>
       ) : rows.length === 0 ? (
         <Card layoutClassName="p-6">
           <EmptyState
             icon={<Send className="h-8 w-8 text-slate-300 dark:text-slate-600" />}
-            title="Không có đơn nào"
-            description="Đổi bộ lọc để xem các đơn khác."
+            title={t('channels.notifyEmptyTitle')}
+            description={t('channels.notifyEmptyDesc')}
           />
         </Card>
       ) : (
@@ -244,15 +246,15 @@ const OrderNotifyPage: React.FC = () => {
                 borderClassName="border-b border-slate-200 dark:border-slate-600"
               >
                 <TableRow textClassName="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                  <TableHeaderCell layoutClassName="px-4 py-3">Đơn</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">Khách · SĐT</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colOrder')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colCustomerPhone')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3">
                     <Box layoutClassName="inline-flex items-center gap-1.5">
                       <MessageCircle className="h-3.5 w-3.5 text-[#0068FF]" />
-                      Thông báo đơn hàng
+                      {t('channels.colOrderNotify')}
                     </Box>
                   </TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3 text-right">Thao tác</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3 text-right">{t('channels.colActions')}</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -272,11 +274,14 @@ const OrderNotifyPage: React.FC = () => {
                     <TableCell layoutClassName="px-4 py-3" textClassName="text-sm text-slate-700 dark:text-slate-200">
                       {r.customerName || '—'}
                       <Typography as="p" size="xs" variant="muted">
-                        {r.phone || 'không có SĐT'}
+                        {r.phone || t('channels.noPhone')}
                       </Typography>
                     </TableCell>
                     <TableCell layoutClassName="px-4 py-3">
-                      <NotifyCell cell={r.zaloOrder} />
+                      <NotifyCell
+                        cell={r.zaloOrder}
+                        labels={{ sent: t('channels.sent'), failed: t('channels.failed'), notSent: t('channels.notSent') }}
+                      />
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
                       <Button
@@ -293,7 +298,7 @@ const OrderNotifyPage: React.FC = () => {
                         layoutClassName="inline-flex items-center gap-1.5"
                         stateClassName="disabled:opacity-50"
                       >
-                        {r.zaloOrder.status === 'sent' ? 'Gửi lại' : 'Gửi'}
+                        {r.zaloOrder.status === 'sent' ? t('channels.resend') : t('channels.send')}
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -21,6 +21,7 @@ import {
   type FacebookComment,
   type FacebookCommentConfig,
 } from '@/services/facebookService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
 import Typography from '@/components/ui/Typography';
@@ -35,19 +36,19 @@ import EmptyState from '@/components/ui/EmptyState';
 
 type Filter = '' | 'pending' | 'hidden' | 'replied';
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'pending', label: 'Chưa trả lời' },
-  { id: '', label: 'Tất cả' },
-  { id: 'replied', label: 'Đã trả lời' },
-  { id: 'hidden', label: 'Đã ẩn' },
+const FILTERS: { id: Filter; labelKey: string }[] = [
+  { id: 'pending', labelKey: 'channels.cmtPending' },
+  { id: '', labelKey: 'channels.all' },
+  { id: 'replied', labelKey: 'channels.cmtReplied' },
+  { id: 'hidden', labelKey: 'channels.cmtHidden' },
 ];
 
 /** Nhãn cho luật tự động đã chạy trên bình luận. */
-const AUTO_LABEL: Record<string, string> = {
-  hide_phone: 'tự ẩn: có SĐT',
-  hide_keyword: 'tự ẩn: từ khoá',
-  reply: 'tự trả lời',
-  private_reply: 'tự nhắn riêng',
+const AUTO_LABEL_KEY: Record<string, string> = {
+  hide_phone: 'channels.autoHidePhoneTag',
+  hide_keyword: 'channels.autoHideKeywordTag',
+  reply: 'channels.autoReplyTag',
+  private_reply: 'channels.autoPrivateReplyTag',
 };
 
 const at = (iso?: string | null): string => {
@@ -68,6 +69,7 @@ const isPermissionError = (e: any): boolean =>
  * Abit không có API cho phần này nên mọi thao tác đi thẳng Graph API của Meta.
  */
 const FacebookCommentsTab: React.FC = () => {
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('pending');
   const [items, setItems] = useState<FacebookComment[]>([]);
   const [counts, setCounts] = useState({ total: 0, pending: 0, hidden: 0, replied: 0 });
@@ -90,7 +92,7 @@ const FacebookCommentsTab: React.FC = () => {
       setItems(r.items);
       setCounts(r.counts);
     } catch {
-      toast.error('Không tải được bình luận');
+      toast.error(t('channels.cmtLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -116,12 +118,12 @@ const FacebookCommentsTab: React.FC = () => {
     setSyncing(true);
     try {
       const r = await syncFacebookComments();
-      toast.success(`Đã kéo ${r.comments} bình luận từ ${r.posts} bài`);
+      toast.success(t('channels.cmtSynced').replace('{c}', String(r.comments)).replace('{p}', String(r.posts)));
       setNoPermission(false);
       await load();
     } catch (e: any) {
       if (isPermissionError(e)) setNoPermission(true);
-      else toast.error('Đồng bộ bình luận thất bại');
+      else toast.error(t('channels.cmtSyncFailed'));
     } finally {
       setSyncing(false);
     }
@@ -136,9 +138,9 @@ const FacebookCommentsTab: React.FC = () => {
     } catch (e: any) {
       if (isPermissionError(e)) {
         setNoPermission(true);
-        toast.error('Token Facebook chưa có quyền quản lý bình luận');
+        toast.error(t('channels.cmtNoPermission'));
       } else {
-        toast.error(e?.response?.data?.message || 'Thao tác thất bại');
+        toast.error(e?.response?.data?.message || t('channels.cmtActionFailed'));
       }
     } finally {
       setBusyId(null);
@@ -148,7 +150,7 @@ const FacebookCommentsTab: React.FC = () => {
   const submitReply = async (c: FacebookComment) => {
     const text = replyText.trim();
     if (!text) {
-      toast.error('Chưa nhập nội dung');
+      toast.error(t('channels.cmtNoContent'));
       return;
     }
     await act(
@@ -157,7 +159,7 @@ const FacebookCommentsTab: React.FC = () => {
         replyPrivate
           ? privateReplyFacebookComment(c.id, text)
           : replyFacebookComment(c.id, text),
-      replyPrivate ? 'Đã nhắn riêng người bình luận' : 'Đã trả lời bình luận',
+      replyPrivate ? t('channels.cmtPrivateRepliedDone') : t('channels.cmtRepliedDone'),
     );
     setReplyFor(null);
     setReplyText('');
@@ -171,7 +173,7 @@ const FacebookCommentsTab: React.FC = () => {
     try {
       await saveFacebookCommentConfig(patch);
     } catch {
-      toast.error('Không lưu được cấu hình');
+      toast.error(t('channels.autoSaveFailed'));
     } finally {
       setSavingCfg(false);
     }
@@ -188,12 +190,10 @@ const FacebookCommentsTab: React.FC = () => {
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <Box layoutClassName="space-y-1">
             <Typography as="p" size="sm" layoutClassName="font-semibold" textClassName="text-amber-800 dark:text-amber-200">
-              Token Facebook chưa có quyền cho bình luận
+              {t('channels.permTitle')}
             </Typography>
             <Typography as="p" size="xs" textClassName="text-amber-700 dark:text-amber-300">
-              Vào Graph API Explorer, tạo Page Access Token mới có thêm{' '}
-              <b>pages_read_engagement</b> (đọc) và <b>pages_manage_engagement</b> (trả lời / ẩn / xoá),
-              rồi cập nhật vào cấu hình hệ thống. Xem thêm ở tab “Kết nối”.
+              {t('channels.permDesc')}
             </Typography>
           </Box>
         </Card>
@@ -204,7 +204,7 @@ const FacebookCommentsTab: React.FC = () => {
         <Card layoutClassName="space-y-3 p-4">
           <Box layoutClassName="flex items-center justify-between gap-2">
             <Typography size="xs" layoutClassName="font-bold uppercase tracking-wider" textClassName="text-slate-500 dark:text-slate-400">
-              Tự động xử lý bình luận mới
+              {t('channels.autoTitle')}
             </Typography>
             {savingCfg ? <Spinner size="sm" /> : null}
           </Box>
@@ -214,11 +214,11 @@ const FacebookCommentsTab: React.FC = () => {
               <Checkbox
                 checked={cfg.autoHidePhone}
                 onChange={(e) => void saveCfg({ autoHidePhone: e.target.checked })}
-                label="Tự ẩn bình luận có số điện thoại"
+                label={t('channels.autoHidePhone')}
                 labelClassName="text-sm text-slate-700 dark:text-slate-200"
               />
               <Box layoutClassName="space-y-1">
-                <Label className="mb-0">Tự ẩn theo từ khoá (cách nhau dấu phẩy)</Label>
+                <Label className="mb-0">{t('channels.autoHideKeywords')}</Label>
                 <Input
                   value={keywordText}
                   onChange={(e) => setKeywordText(e.target.value)}
@@ -230,7 +230,7 @@ const FacebookCommentsTab: React.FC = () => {
                         .filter(Boolean),
                     })
                   }
-                  placeholder="spam, shop khác, …"
+                  placeholder={t('channels.autoHideKeywordsPh')}
                   containerClassName="w-full"
                 />
               </Box>
@@ -240,27 +240,27 @@ const FacebookCommentsTab: React.FC = () => {
               <Checkbox
                 checked={cfg.autoReplyEnabled}
                 onChange={(e) => void saveCfg({ autoReplyEnabled: e.target.checked })}
-                label="Tự trả lời công khai bình luận mới"
+                label={t('channels.autoReply')}
                 labelClassName="text-sm text-slate-700 dark:text-slate-200"
               />
               <Input
                 value={cfg.autoReplyText}
                 onChange={(e) => setCfg({ ...cfg, autoReplyText: e.target.value })}
                 onBlur={() => void saveCfg({ autoReplyText: cfg.autoReplyText })}
-                placeholder="Cúc Quy đã nhận, bạn inbox shop nhé ạ!"
+                placeholder={t('channels.autoReplyPh')}
                 containerClassName="w-full"
               />
               <Checkbox
                 checked={cfg.autoPrivateReply}
                 onChange={(e) => void saveCfg({ autoPrivateReply: e.target.checked })}
-                label="Tự nhắn riêng người bình luận (mở 24h để bán tiếp)"
+                label={t('channels.autoPrivateReply')}
                 labelClassName="text-sm text-slate-700 dark:text-slate-200"
               />
               <Input
                 value={cfg.privateReplyText}
                 onChange={(e) => setCfg({ ...cfg, privateReplyText: e.target.value })}
                 onBlur={() => void saveCfg({ privateReplyText: cfg.privateReplyText })}
-                placeholder="Chào bạn, Cúc Quy gửi bạn menu nhé…"
+                placeholder={t('channels.autoPrivateReplyPh')}
                 containerClassName="w-full"
               />
             </Box>
@@ -272,13 +272,13 @@ const FacebookCommentsTab: React.FC = () => {
       <Card layoutClassName="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
         <Box layoutClassName="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <Typography as="span" size="sm" variant="muted">
-            Tổng: <b>{counts.total}</b>
+            {t('channels.total')}: <b>{counts.total}</b>
           </Typography>
           <Typography as="span" size="sm" textClassName="text-amber-600 dark:text-amber-400">
-            Chưa trả lời: <b>{counts.pending}</b>
+            {t('channels.cmtPending')}: <b>{counts.pending}</b>
           </Typography>
           <Typography as="span" size="sm" variant="muted">
-            Đã ẩn: <b>{counts.hidden}</b>
+            {t('channels.cmtHidden')}: <b>{counts.hidden}</b>
           </Typography>
         </Box>
         <Box layoutClassName="ml-auto flex flex-wrap items-center gap-2">
@@ -296,7 +296,7 @@ const FacebookCommentsTab: React.FC = () => {
               roundedClassName="rounded-lg"
               sizeClassName="px-2.5 py-1.5"
             >
-              {f.label}
+              {t(f.labelKey)}
             </Button>
           ))}
           <Button
@@ -312,7 +312,7 @@ const FacebookCommentsTab: React.FC = () => {
             sizeClassName="px-2.5 py-1.5"
             layoutClassName="inline-flex items-center gap-1.5"
           >
-            {syncing ? 'Đang kéo…' : 'Kéo bình luận mới'}
+            {syncing ? t('channels.cmtSyncing') : t('channels.cmtSync')}
           </Button>
         </Box>
       </Card>
@@ -321,14 +321,14 @@ const FacebookCommentsTab: React.FC = () => {
       {loading && items.length === 0 ? (
         <Card layoutClassName="flex items-center justify-center gap-2 p-8">
           <Spinner size="md" />
-          <Typography size="sm" variant="muted">Đang tải…</Typography>
+          <Typography size="sm" variant="muted">{t('channels.loading')}</Typography>
         </Card>
       ) : items.length === 0 ? (
         <Card layoutClassName="p-6">
           <EmptyState
             icon={<MessageSquareReply className="h-8 w-8 text-slate-300 dark:text-slate-600" />}
-            title="Chưa có bình luận nào"
-            description="Bấm “Kéo bình luận mới” để lấy từ fanpage về."
+            title={t('channels.cmtEmptyTitle')}
+            description={t('channels.cmtEmptyDesc')}
           />
         </Card>
       ) : (
@@ -337,34 +337,34 @@ const FacebookCommentsTab: React.FC = () => {
             <Card key={c.id} layoutClassName="space-y-2 p-3">
               <Box layoutClassName="flex flex-wrap items-center gap-2">
                 <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-800 dark:text-slate-100">
-                  {c.fromName || '(không rõ tên)'}
+                  {c.fromName || t('channels.cmtUnknownName')}
                 </Typography>
                 <Typography as="span" size="xs" variant="muted">
                   {at(c.createdTime)}
                 </Typography>
                 {c.isHidden ? (
                   <Badge size="sm" backgroundClassName="bg-slate-100 dark:bg-slate-700/50" textClassName="text-slate-600 dark:text-slate-300" borderClassName="border border-slate-200 dark:border-slate-600">
-                    Đã ẩn
+                    {t('channels.cmtHidden')}
                   </Badge>
                 ) : null}
                 {c.repliedAt ? (
                   <Badge size="sm" backgroundClassName="bg-emerald-50 dark:bg-emerald-900/20" textClassName="text-emerald-700 dark:text-emerald-300" borderClassName="border border-emerald-200 dark:border-emerald-800">
-                    Đã trả lời
+                    {t('channels.cmtReplied')}
                   </Badge>
                 ) : null}
                 {c.autoAction ? (
                   <Typography as="span" size="xs" variant="muted">
-                    · {AUTO_LABEL[c.autoAction] ?? c.autoAction}
+                    · {AUTO_LABEL_KEY[c.autoAction] ? t(AUTO_LABEL_KEY[c.autoAction]) : c.autoAction}
                   </Typography>
                 ) : null}
               </Box>
 
               <Typography as="p" size="sm" textClassName="text-slate-700 dark:text-slate-200">
-                {c.message || '(không có nội dung chữ)'}
+                {c.message || t('channels.cmtNoText')}
               </Typography>
               {c.postMessage ? (
                 <Typography as="p" size="xs" variant="muted">
-                  Bài: {c.postMessage.slice(0, 70)}
+                  {t('channels.cmtPost')}: {c.postMessage.slice(0, 70)}
                   {c.postMessage.length > 70 ? '…' : ''}
                 </Typography>
               ) : null}
@@ -387,11 +387,11 @@ const FacebookCommentsTab: React.FC = () => {
                   sizeClassName="px-2.5 py-1.5"
                   layoutClassName="inline-flex items-center gap-1.5"
                 >
-                  Trả lời
+                  {t('channels.cmtReply')}
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => void act(c.id, () => hideFacebookComment(c.id, !c.isHidden), c.isHidden ? 'Đã bỏ ẩn' : 'Đã ẩn bình luận')}
+                  onClick={() => void act(c.id, () => hideFacebookComment(c.id, !c.isHidden), c.isHidden ? t('channels.cmtUnhiddenDone') : t('channels.cmtHiddenDone'))}
                   disabled={busyId === c.id}
                   leftIcon={c.isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                   variant="secondary"
@@ -402,13 +402,13 @@ const FacebookCommentsTab: React.FC = () => {
                   sizeClassName="px-2.5 py-1.5"
                   layoutClassName="inline-flex items-center gap-1.5"
                 >
-                  {c.isHidden ? 'Bỏ ẩn' : 'Ẩn'}
+                  {c.isHidden ? t('channels.cmtUnhide') : t('channels.cmtHide')}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('Xoá hẳn bình luận này? Không hoàn tác được.')) {
-                      void act(c.id, () => deleteFacebookComment(c.id), 'Đã xoá bình luận');
+                    if (window.confirm(t('channels.cmtConfirmDelete'))) {
+                      void act(c.id, () => deleteFacebookComment(c.id), t('channels.cmtDeleted'));
                     }
                   }}
                   disabled={busyId === c.id}
@@ -421,7 +421,7 @@ const FacebookCommentsTab: React.FC = () => {
                   sizeClassName="px-2.5 py-1.5"
                   layoutClassName="inline-flex items-center gap-1.5"
                 >
-                  Xoá
+                  {t('channels.cmtDelete')}
                 </Button>
                 {busyId === c.id ? <Spinner size="sm" /> : null}
               </Box>
@@ -432,13 +432,13 @@ const FacebookCommentsTab: React.FC = () => {
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     rows={2}
-                    placeholder="Nhập nội dung trả lời…"
+                    placeholder={t('channels.cmtReplyPlaceholder')}
                   />
                   <Box layoutClassName="flex flex-wrap items-center gap-3">
                     <Checkbox
                       checked={replyPrivate}
                       onChange={(e) => setReplyPrivate(e.target.checked)}
-                      label="Nhắn riêng thay vì trả lời công khai"
+                      label={t('channels.cmtPrivateOption')}
                       labelClassName="text-xs text-slate-600 dark:text-slate-300"
                     />
                     <Button
@@ -456,7 +456,7 @@ const FacebookCommentsTab: React.FC = () => {
                       disableVariantHover
                       disableVariantTextColor
                     >
-                      Gửi
+                      {t('channels.send')}
                     </Button>
                   </Box>
                 </Box>

@@ -1,15 +1,19 @@
 import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ChannelScreen from './ChannelScreen';
 import FacebookCommentsTab from './components/FacebookCommentsTab';
 
 /** Bình luận fanpage: trả lời, nhắn riêng, ẩn/xoá + luật tự động. */
-const FacebookCommentsScreen: React.FC = () => (
+const FacebookCommentsScreen: React.FC = () => {
+  const { t } = useLanguage();
+  return (
   <ChannelScreen
-    title="Facebook · Bình luận"
-    desc="Trả lời, nhắn riêng, ẩn hoặc xoá bình luận; đặt luật tự ẩn SĐT / từ khoá."
+    title={t('channels.fbCommentsTitle')}
+    desc={t('channels.fbCommentsDesc')}
   >
     <FacebookCommentsTab />
   </ChannelScreen>
-);
+  );
+};
 
 export default FacebookCommentsScreen;

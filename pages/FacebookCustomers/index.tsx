@@ -9,6 +9,7 @@ import {
   type FacebookSendResult,
 } from '@/services/facebookService';
 import { uploadImage } from '@/services/imageService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
 import Heading from '@/components/ui/Heading';
@@ -43,12 +44,14 @@ const at = (iso?: string | null): string => {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-/** Số phút còn lại → "còn 3h20" cho dễ đọc. */
-const left = (minutes: number): string => {
+/** Số phút còn lại → "còn 3h20" cho dễ đọc (nhãn lấy từ i18n). */
+const left = (minutes: number, t: (k: string) => string): string => {
   if (minutes <= 0) return '';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return h > 0 ? `còn ${h}h${String(m).padStart(2, '0')}` : `còn ${m} phút`;
+  return h > 0
+    ? t('channels.windowLeftHours').replace('{h}', String(h)).replace('{m}', String(m).padStart(2, '0'))
+    : t('channels.windowLeftMinutes').replace('{m}', String(m));
 };
 
 /**
@@ -59,6 +62,7 @@ const left = (minutes: number): string => {
  * lọc nhóm "còn nhắn được" — gửi cho người ngoài 24h sẽ bị Meta từ chối và BE trả lý do.
  */
 const FacebookCustomersPage: React.FC = () => {
+  const { t } = useLanguage();
   const [onlyWindow, setOnlyWindow] = useState(true);
   const [contacts, setContacts] = useState<FacebookContact[]>([]);
   const [counts, setCounts] = useState({ total: 0, inWindow: 0, optIn: 0 });
@@ -85,7 +89,7 @@ const FacebookCustomersPage: React.FC = () => {
       setCounts(r.counts);
       setSelected((prev) => new Set([...prev].filter((p) => r.items.some((c) => c.psid === p))));
     } catch {
-      toast.error('Không tải được danh sách khách Facebook');
+      toast.error(t('channels.loadContactsFailed'));
     } finally {
       setLoading(false);
     }
@@ -119,10 +123,10 @@ const FacebookCustomersPage: React.FC = () => {
     setSyncing(true);
     try {
       const r = await syncFacebookContacts();
-      toast.success(`Đã đồng bộ ${r.synced} hội thoại từ Facebook`);
+      toast.success(t('channels.syncedConversations').replace('{n}', String(r.synced)));
       await load();
     } catch {
-      toast.error('Đồng bộ thất bại');
+      toast.error(t('channels.syncFailed'));
     } finally {
       setSyncing(false);
     }
@@ -134,9 +138,9 @@ const FacebookCustomersPage: React.FC = () => {
     try {
       const url = await uploadImage(file, 'facebook-broadcast');
       setImageUrl(url);
-      toast.success('Đã tải ảnh lên');
+      toast.success(t('channels.imageUploaded'));
     } catch {
-      toast.error('Tải ảnh thất bại');
+      toast.error(t('channels.imageUploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -145,14 +149,14 @@ const FacebookCustomersPage: React.FC = () => {
   const handleSend = async () => {
     const psids = [...selected];
     if (psids.length === 0) {
-      toast.error('Chưa chọn khách nào');
+      toast.error(t('channels.noSelection'));
       return;
     }
     if (!text.trim() && !imageUrl) {
-      toast.error('Chưa có nội dung (chữ hoặc ảnh)');
+      toast.error(t('channels.noContent'));
       return;
     }
-    if (!window.confirm(`Gửi tin cho ${psids.length} khách?`)) return;
+    if (!window.confirm(t('channels.confirmSend').replace('{n}', String(psids.length)))) return;
 
     setSending(true);
     setResults(null);
@@ -173,11 +177,14 @@ const FacebookCustomersPage: React.FC = () => {
       setResults(all);
       const ok = all.filter((r) => r.sent).length;
       const fail = all.length - ok;
-      if (fail === 0) toast.success(`Đã gửi cho ${ok} khách`);
-      else toast.error(`Gửi ${ok} thành công · ${fail} lỗi (xem chi tiết bên dưới)`);
+      if (fail === 0) toast.success(t('channels.sentToN').replace('{n}', String(ok)));
+      else
+        toast.error(
+          t('channels.partialSend').replace('{ok}', String(ok)).replace('{fail}', String(fail)),
+        );
       await load();
     } catch {
-      toast.error('Gửi thất bại');
+      toast.error(t('channels.sendFailed'));
     } finally {
       setSending(false);
     }
@@ -192,25 +199,25 @@ const FacebookCustomersPage: React.FC = () => {
         <Box layoutClassName="flex items-center gap-2">
           <Users className="h-5 w-5 text-[#1877F2]" />
           <Heading level={2} textClassName="text-base font-semibold text-slate-900 dark:text-white">
-            Khách Facebook
+            {t('channels.fbCustomers')}
           </Heading>
         </Box>
         <Box layoutClassName="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <Typography as="span" size="sm" variant="muted">
-            Tổng: <b>{counts.total}</b>
+            {t('channels.total')}: <b>{counts.total}</b>
           </Typography>
           <Typography as="span" size="sm" textClassName="text-emerald-600 dark:text-emerald-400">
-            Còn nhắn được: <b>{counts.inWindow}</b>
+            {t('channels.inWindow')}: <b>{counts.inWindow}</b>
           </Typography>
           <Typography as="span" size="sm" variant="muted">
-            Đã chọn: <b>{selected.size}</b>
+            {t('channels.selected')}: <b>{selected.size}</b>
           </Typography>
         </Box>
         <Box layoutClassName="ml-auto flex flex-wrap items-center gap-2">
           <Checkbox
             checked={onlyWindow}
             onChange={(e) => setOnlyWindow(e.target.checked)}
-            label="Chỉ hiện khách còn nhắn được (24h)"
+            label={t('channels.onlyInWindow')}
             labelClassName="text-xs text-slate-600 dark:text-slate-300"
           />
           <Button
@@ -226,7 +233,7 @@ const FacebookCustomersPage: React.FC = () => {
             sizeClassName="px-2.5 py-1.5"
             layoutClassName="inline-flex items-center gap-1.5"
           >
-            {syncing ? 'Đang đồng bộ…' : 'Đồng bộ từ Facebook'}
+            {syncing ? t('channels.syncing') : t('channels.syncFromFb')}
           </Button>
         </Box>
       </Card>
@@ -234,10 +241,10 @@ const FacebookCustomersPage: React.FC = () => {
       {/* Soạn tin */}
       <Card layoutClassName="space-y-3 p-4">
         <Typography size="xs" layoutClassName="font-bold uppercase tracking-wider" textClassName="text-slate-500 dark:text-slate-400">
-          Nội dung gửi
+          {t('channels.composeTitle')}
         </Typography>
         <Box layoutClassName="space-y-1">
-          <Label className="mb-0">Lời nhắn</Label>
+          <Label className="mb-0">{t('channels.messageLabel')}</Label>
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -245,13 +252,13 @@ const FacebookCustomersPage: React.FC = () => {
             placeholder="Chào {tên} 👋 …"
           />
           <Typography size="xs" variant="muted">
-            Gõ <b>{NAME_TOKEN}</b> để tự điền tên từng khách (ví dụ “Chào Bùi Thị Tuyết Ngân 👋”).
+            {t('channels.namePlaceholderHint').replace('{token}', NAME_TOKEN)}
           </Typography>
         </Box>
 
         <Box layoutClassName="grid gap-3 sm:grid-cols-2">
           <Box layoutClassName="space-y-1">
-            <Label className="mb-0">Ảnh kèm theo (tuỳ chọn)</Label>
+            <Label className="mb-0">{t('channels.imageLabel')}</Label>
             <Box layoutClassName="flex items-center gap-2">
               <Button
                 type="button"
@@ -266,13 +273,13 @@ const FacebookCustomersPage: React.FC = () => {
                 sizeClassName="px-2.5 py-1.5"
                 layoutClassName="inline-flex items-center gap-1.5"
               >
-                {uploading ? 'Đang tải…' : 'Chọn ảnh'}
+                {uploading ? t('channels.uploading') : t('channels.pickImage')}
               </Button>
               {imageUrl ? (
                 <>
                   <Image
                     src={imageUrl}
-                    alt="ảnh gửi kèm"
+                    alt={t('channels.attachedImageAlt')}
                     layoutClassName="h-10 w-10 object-cover"
                     roundedClassName="rounded"
                   />
@@ -285,7 +292,7 @@ const FacebookCustomersPage: React.FC = () => {
                     backgroundClassName="bg-transparent"
                     borderClassName="border-transparent"
                   >
-                    bỏ ảnh
+                    {t('channels.removeImage')}
                   </Button>
                 </>
               ) : null}
@@ -301,7 +308,7 @@ const FacebookCustomersPage: React.FC = () => {
           </Box>
           <Box layoutClassName="grid grid-cols-2 gap-2">
             <Box layoutClassName="space-y-1">
-              <Label className="mb-0">Nút bấm (tuỳ chọn)</Label>
+              <Label className="mb-0">{t('channels.buttonLabel')}</Label>
               <Input
                 value={buttonTitle}
                 onChange={(e) => setButtonTitle(e.target.value)}
@@ -310,7 +317,7 @@ const FacebookCustomersPage: React.FC = () => {
               />
             </Box>
             <Box layoutClassName="space-y-1">
-              <Label className="mb-0">Link của nút</Label>
+              <Label className="mb-0">{t('channels.buttonUrlLabel')}</Label>
               <Input
                 value={buttonUrl}
                 onChange={(e) => setButtonUrl(e.target.value)}
@@ -338,10 +345,10 @@ const FacebookCustomersPage: React.FC = () => {
             disableVariantHover
             disableVariantTextColor
           >
-            {sending ? 'Đang gửi…' : `Gửi cho ${selected.size} khách`}
+            {sending ? t('channels.sending') : t('channels.sendToN').replace('{n}', String(selected.size))}
           </Button>
           <Typography size="xs" variant="muted">
-            Mỗi tin cách nhau ~1 giây. Khách ngoài 24h sẽ bị Facebook từ chối — hệ thống báo lý do.
+            {t('channels.sendHint')}
           </Typography>
         </Box>
 
@@ -352,7 +359,7 @@ const FacebookCustomersPage: React.FC = () => {
             borderClassName="border border-rose-200 dark:border-rose-800"
           >
             <Typography size="xs" layoutClassName="font-semibold" textClassName="text-rose-700 dark:text-rose-300">
-              {failed.length} tin không gửi được:
+              {t('channels.notSentList').replace('{n}', String(failed.length))}
             </Typography>
             {failed.slice(0, 8).map((r) => (
               <Typography key={r.psid} as="p" size="xs" textClassName="text-rose-600 dark:text-rose-400">
@@ -367,14 +374,14 @@ const FacebookCustomersPage: React.FC = () => {
       {loading && contacts.length === 0 ? (
         <Card layoutClassName="flex items-center justify-center gap-2 p-8">
           <Spinner size="md" />
-          <Typography size="sm" variant="muted">Đang tải…</Typography>
+          <Typography size="sm" variant="muted">{t('channels.loading')}</Typography>
         </Card>
       ) : contacts.length === 0 ? (
         <Card layoutClassName="p-6">
           <EmptyState
             icon={<Users className="h-8 w-8 text-slate-300 dark:text-slate-600" />}
-            title="Chưa có khách nào nhắn trong 24h"
-            description="Bỏ tick “Chỉ hiện khách còn nhắn được” để xem toàn bộ, hoặc bấm Đồng bộ từ Facebook."
+            title={t('channels.noContactsTitle')}
+            description={t('channels.noContactsDesc')}
           />
         </Card>
       ) : (
@@ -393,10 +400,10 @@ const FacebookCustomersPage: React.FC = () => {
                   <TableHeaderCell layoutClassName="w-10 px-4 py-3">
                     <Checkbox checked={selected.size === contacts.length && contacts.length > 0} onChange={toggleAll} />
                   </TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">Khách</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">Nhắn cuối</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">Trạng thái</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3">Số tin</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colCustomer')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colLastInbound')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colStatus')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3">{t('channels.colMessages')}</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -412,7 +419,7 @@ const FacebookCustomersPage: React.FC = () => {
                       <Checkbox checked={selected.has(c.psid)} onChange={() => toggle(c.psid)} />
                     </TableCell>
                     <TableCell layoutClassName="px-4 py-3" textClassName="text-sm text-slate-800 dark:text-slate-100">
-                      {c.name || '(không rõ tên)'}
+                      {c.name || t('channels.cmtUnknownName')}
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3" textClassName="text-xs text-slate-500 dark:text-slate-400">
                       {at(c.lastInboundAt)}
@@ -427,7 +434,7 @@ const FacebookCustomersPage: React.FC = () => {
                           layoutClassName="inline-flex items-center gap-1"
                         >
                           <CheckCircle2 className="h-3 w-3" />
-                          Nhắn được · {left(c.minutesLeft)}
+                          {t('channels.canSend')} · {left(c.minutesLeft, t)}
                         </Badge>
                       ) : (
                         <Badge
@@ -438,7 +445,7 @@ const FacebookCustomersPage: React.FC = () => {
                           layoutClassName="inline-flex items-center gap-1"
                         >
                           <Clock className="h-3 w-3" />
-                          Hết 24h
+                          {t('channels.windowClosed')}
                         </Badge>
                       )}
                     </TableCell>

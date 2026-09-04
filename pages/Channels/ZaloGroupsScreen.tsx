@@ -1,15 +1,19 @@
 import React from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ChannelScreen from './ChannelScreen';
 import ZaloSettingsTab from '@/pages/Settings/ZaloSettingsTab';
 
 /** Nhóm Zalo nhận thông báo + cài đặt tin gửi khách (màn /settings/zalo cũ). */
-const ZaloGroupsScreen: React.FC = () => (
+const ZaloGroupsScreen: React.FC = () => {
+  const { t } = useLanguage();
+  return (
   <ChannelScreen
-    title="Zalo · Nhóm & cài đặt"
-    desc="Nhóm nhận thông báo đơn, ID nhóm và cài đặt tin gửi cho khách."
+    title={t('channels.zaloGroupsTitle')}
+    desc={t('channels.zaloGroupsDesc')}
   >
     <ZaloSettingsTab />
   </ChannelScreen>
-);
+  );
+};
 
 export default ZaloGroupsScreen;
