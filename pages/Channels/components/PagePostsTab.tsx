@@ -43,6 +43,8 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [openPost, setOpenPost] = useState<PagePost | null>(null);
+  /** Xem TẤT CẢ bình luận của kênh (không lọc theo bài) — thay cho màn Bình luận cũ. */
+  const [allComments, setAllComments] = useState(false);
   /** Chỉ tự kéo 1 lần mỗi lượt mở màn — kênh thật sự chưa có bài thì đừng gọi lại mãi. */
   const autoSynced = useRef(false);
 
@@ -104,7 +106,21 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
         <Typography as="span" size="sm" textClassName="text-amber-600 dark:text-amber-400">
           {t('channels.cmtPending')}: <b>{items.reduce((sum, p) => sum + p.pendingCount, 0)}</b>
         </Typography>
-        <Box layoutClassName="ml-auto">
+        <Box layoutClassName="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => setAllComments(true)}
+            leftIcon={<MessageSquare className="h-3.5 w-3.5" />}
+            variant="secondary"
+            borderClassName="border border-slate-200 dark:border-slate-600"
+            backgroundClassName="bg-white dark:bg-slate-800"
+            textClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
+            roundedClassName="rounded-lg"
+            sizeClassName="px-2.5 py-1.5"
+            layoutClassName="inline-flex items-center gap-1.5"
+          >
+            {t('channels.allComments')}
+          </Button>
           <Button
             type="button"
             onClick={() => void handleSync()}
@@ -224,6 +240,21 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
           ))}
         </Box>
       )}
+
+      {/* Tất cả bình luận của kênh */}
+      {allComments ? (
+        <BaseModal
+          isOpen
+          onClose={() => {
+            setAllComments(false);
+            void load();
+          }}
+          title={t('channels.allComments')}
+          size="xl"
+        >
+          <FacebookCommentsTab lockPlatform={lockPlatform} />
+        </BaseModal>
+      ) : null}
 
       {/* Bình luận của 1 bài — dùng lại nguyên bộ máy của màn Bình luận */}
       {openPost ? (

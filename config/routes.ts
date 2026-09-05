@@ -153,13 +153,6 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/facebook/comments",
-    labelKey: "nav.chFbComments",
-    icon: MessageSquare,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
     path: "/channels/posts",
     labelKey: "nav.chSocialPosts",
     icon: Send,
@@ -174,13 +167,6 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/facebook/feedback",
-    labelKey: "nav.chFeedback",
-    icon: Star,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
     path: "/channels/facebook/settings",
     labelKey: "nav.chFbSettings",
     icon: Plug,
@@ -191,13 +177,6 @@ export const routes: RouteConfig[] = [
     path: "/channels/instagram",
     labelKey: "nav.chIgMessages",
     icon: Instagram,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/instagram/comments",
-    labelKey: "nav.chIgComments",
-    icon: MessageSquare,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -551,9 +530,7 @@ export const navGroups: NavGroupConfig[] = [
     parentKey: "channels",
     childPaths: [
       "/channels/facebook/posts",
-      "/channels/facebook/comments",
       "/channels/facebook",
-      "/channels/facebook/feedback",
       "/channels/facebook/settings",
     ],
   },
@@ -564,7 +541,6 @@ export const navGroups: NavGroupConfig[] = [
     parentKey: "channels",
     childPaths: [
       "/channels/instagram/posts",
-      "/channels/instagram/comments",
       "/channels/instagram",
       "/channels/instagram/settings",
     ],

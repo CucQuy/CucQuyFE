@@ -47,11 +47,8 @@ const ZaloGroupsScreen = lazy(() => import("./pages/Channels/ZaloGroupsScreen"))
 const ZaloOrdersScreen = lazy(() => import("./pages/Channels/ZaloOrdersScreen"));
 const ZaloLogScreen = lazy(() => import("./pages/Channels/ZaloLogScreen"));
 const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCustomersScreen"));
-const FacebookCommentsScreen = lazy(() => import("./pages/Channels/FacebookCommentsScreen"));
 const SocialPostsScreen = lazy(() => import("./pages/Channels/SocialPostsScreen"));
-const FeedbackScreen = lazy(() => import("./pages/Channels/FeedbackScreen"));
 const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
-const InstagramCommentsScreen = lazy(() => import("./pages/Channels/InstagramCommentsScreen"));
 const InstagramSettingsScreen = lazy(() => import("./pages/Channels/InstagramSettingsScreen"));
 const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
 const InstagramPostsScreen = lazy(() => import("./pages/Channels/InstagramPostsScreen"));
@@ -140,14 +137,6 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/facebook/comments"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/comments")?.roles}>
-            <FacebookCommentsScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
         path="channels/posts"
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/posts")?.roles}>
@@ -164,14 +153,6 @@ const AppRoutes: React.FC = () => (
         }
       />
       <Route
-        path="channels/facebook/feedback"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/feedback")?.roles}>
-            <FeedbackScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
         path="channels/facebook/settings"
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/settings")?.roles}>
@@ -184,14 +165,6 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram")?.roles}>
             <InstagramCustomersScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/instagram/comments"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/comments")?.roles}>
-            <InstagramCommentsScreen />
           </RoleBasedRoute>
         }
       />
