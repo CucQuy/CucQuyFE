@@ -47,7 +47,6 @@ const ZaloGroupsScreen = lazy(() => import("./pages/Channels/ZaloGroupsScreen"))
 const ZaloOrdersScreen = lazy(() => import("./pages/Channels/ZaloOrdersScreen"));
 const ZaloLogScreen = lazy(() => import("./pages/Channels/ZaloLogScreen"));
 const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCustomersScreen"));
-const SocialPostsScreen = lazy(() => import("./pages/Channels/SocialPostsScreen"));
 const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
 const InstagramSettingsScreen = lazy(() => import("./pages/Channels/InstagramSettingsScreen"));
 const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
@@ -133,14 +132,6 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook")?.roles}>
             <FacebookCustomersScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/posts"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/posts")?.roles}>
-            <SocialPostsScreen />
           </RoleBasedRoute>
         }
       />

@@ -45,15 +45,20 @@ const STATUS_STYLE: Record<SocialPost['status'], { bg: string; text: string; key
  * Soạn 1 bài rồi đăng lên fanpage và/hoặc Instagram — đăng ngay hoặc hẹn giờ.
  * Instagram bắt buộc có ảnh (Meta tự tải ảnh về từ URL), nên form chặn trước khi gửi.
  */
-const SocialPostsTab: React.FC = () => {
+interface Props {
+  /** Kênh tick sẵn khi mở từ màn Bài viết của kênh đó. */
+  defaultPlatform?: SocialPlatform;
+}
+
+const SocialPostsTab: React.FC<Props> = ({ defaultPlatform }) => {
   const { t } = useLanguage();
   const [items, setItems] = useState<SocialPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [toFacebook, setToFacebook] = useState(true);
-  const [toInstagram, setToInstagram] = useState(false);
+  const [toFacebook, setToFacebook] = useState(defaultPlatform !== 'instagram');
+  const [toInstagram, setToInstagram] = useState(defaultPlatform === 'instagram');
   const [scheduledAt, setScheduledAt] = useState('');
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);

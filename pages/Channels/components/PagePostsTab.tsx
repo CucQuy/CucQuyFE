@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ExternalLink, FileText, MessageSquare, RefreshCw } from 'lucide-react';
+import { ExternalLink, FileText, MessageSquare, PenLine, RefreshCw } from 'lucide-react';
 import {
   fetchPagePosts,
   syncFacebookComments,
@@ -19,6 +19,7 @@ import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
 import BaseModal from '@/components/BaseModal';
 import FacebookCommentsTab from './FacebookCommentsTab';
+import SocialPostsTab from './SocialPostsTab';
 
 const at = (iso?: string | null): string => {
   if (!iso) return '';
@@ -45,6 +46,8 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
   const [openPost, setOpenPost] = useState<PagePost | null>(null);
   /** Xem TẤT CẢ bình luận của kênh (không lọc theo bài) — thay cho màn Bình luận cũ. */
   const [allComments, setAllComments] = useState(false);
+  /** Soạn bài mới ngay trong màn Bài viết (thay cho màn Đăng bài riêng). */
+  const [composing, setComposing] = useState(false);
   /** Chỉ tự kéo 1 lần mỗi lượt mở màn — kênh thật sự chưa có bài thì đừng gọi lại mãi. */
   const autoSynced = useRef(false);
 
@@ -107,6 +110,17 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
           {t('channels.cmtPending')}: <b>{items.reduce((sum, p) => sum + p.pendingCount, 0)}</b>
         </Typography>
         <Box layoutClassName="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => setComposing(true)}
+            leftIcon={<PenLine className="h-3.5 w-3.5" />}
+            sizeClassName="px-2.5 py-1.5"
+            textClassName="text-xs font-semibold"
+            roundedClassName="rounded-lg"
+            layoutClassName="inline-flex items-center gap-1.5"
+          >
+            {t('channels.postsCompose')}
+          </Button>
           <Button
             type="button"
             onClick={() => setAllComments(true)}
@@ -240,6 +254,21 @@ const PagePostsTab: React.FC<Props> = ({ lockPlatform }) => {
           ))}
         </Box>
       )}
+
+      {/* Soạn bài mới — đăng ngay hoặc hẹn giờ, chọn được cả 2 kênh */}
+      {composing ? (
+        <BaseModal
+          isOpen
+          onClose={() => {
+            setComposing(false);
+            void load();
+          }}
+          title={t('channels.postsCompose')}
+          size="xl"
+        >
+          <SocialPostsTab defaultPlatform={lockPlatform} />
+        </BaseModal>
+      ) : null}
 
       {/* Tất cả bình luận của kênh */}
       {allComments ? (

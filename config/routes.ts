@@ -153,13 +153,6 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/channels/posts",
-    labelKey: "nav.chSocialPosts",
-    icon: Send,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
     path: "/channels/facebook/posts",
     labelKey: "nav.chFbPosts",
     icon: FileText,
@@ -508,9 +501,7 @@ export const navGroups: NavGroupConfig[] = [
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
-    // Đăng bài dùng chung cho Facebook + Instagram nên nằm ở cấp nhóm cha,
-    // không thuộc riêng kênh nào.
-    childPaths: ["/channels/posts"],
+    childPaths: [],
   },
   {
     key: "channelsZalo",
