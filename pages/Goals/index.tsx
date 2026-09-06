@@ -129,67 +129,6 @@ const GoalsPage: React.FC = () => {
         </Card>
       ) : null}
 
-      {/* KPI hôm nay — chỉ hiện khi đang xem tháng này */}
-      <Box layoutClassName="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard
-          label="Doanh thu hôm nay"
-          value={formatVND(stats.todayRevenue)}
-          valueSize="xl"
-          icon={TrendingUp}
-          iconWrapClassName="bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-        />
-        <MetricCard
-          label="So với tối thiểu"
-          value={`${todayVsMin >= 0 ? '+' : '−'}${formatVND(Math.abs(todayVsMin))}`}
-          valueClassName={todayVsMin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}
-          valueSize="xl"
-          icon={Gauge}
-          iconWrapClassName="bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400"
-        />
-        <MetricCard
-          label="So với kỳ vọng"
-          value={`${todayVsExp >= 0 ? '+' : '−'}${formatVND(Math.abs(todayVsExp))}`}
-          valueClassName={todayVsExp >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}
-          valueSize="xl"
-          icon={Target}
-          iconWrapClassName="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
-        />
-        <MetricCard
-          label="TB / ngày (tháng này)"
-          value={formatVND(stats.avg)}
-          valueSize="xl"
-          icon={CalendarCheck}
-          iconWrapClassName="bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-        />
-      </Box>
-
-      {/* Biểu đồ doanh thu theo ngày + 2 đường min/kỳ vọng */}
-      <Card padding="md" backgroundClassName="bg-white dark:bg-slate-800" borderClassName="border-slate-100 dark:border-slate-700">
-        <Box layoutClassName="mb-3 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary-500" />
-          <Typography size="xs" variant="muted" layoutClassName="font-semibold uppercase tracking-wide">Doanh thu theo ngày — {stats.label}</Typography>
-        </Box>
-        {stats.chart.length === 0 ? (
-          <Box layoutClassName="flex h-64 items-center justify-center">
-            <Typography size="xs" variant="muted">Chưa có dữ liệu</Typography>
-          </Box>
-        ) : (
-          <TrendChart
-            data={stats.chart}
-            xKey="day"
-            series={[
-              { key: 'revenue', label: 'Doanh thu', color: '#3b82f6' },
-              { key: 'min', label: 'Tối thiểu', color: '#ef4444' },
-              { key: 'expected', label: 'Kỳ vọng', color: '#16a34a' },
-            ]}
-            type="line"
-            formatValue={formatVND}
-            heightClassName="h-64 sm:h-72"
-          />
-        )}
-      </Card>
-
-
       {/* KPI hôm nay */}
       <Box layoutClassName="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard

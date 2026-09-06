@@ -511,6 +511,13 @@ export interface NavGroupConfig {
 
 export const navGroups: NavGroupConfig[] = [
   {
+    // Mục tiêu doanh thu: tháng đang chạy / nhìn lại nhiều tháng / đặt mục tiêu.
+    key: "goals",
+    labelKey: "nav.goalsGroup",
+    icon: Target,
+    childPaths: ["/goals", "/goals/overview", "/goals/settings"],
+  },
+  {
     // Kết nối đa kênh (cha) › Zalo / Facebook (con) › từng màn.
     key: "channels",
     labelKey: "nav.channelsGroup",
