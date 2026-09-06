@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, CalendarRange, Lock, Unlock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarRange, Lock, Unlock, History} from 'lucide-react';
 import { useEmployees } from '@/hooks/queries/useEmployeesQuery';
 import { fetchShifts, fetchShiftAssignments, setDayAssignments } from '@/services/shiftService';
 import { fetchWeekSubmissions, reopenWeek } from '@/services/attendanceService';
 import { WorkShift } from '@/types/shift';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
+import ShiftLogModal from './ShiftLogModal';
 import Button from '@/components/ui/Button';
 import Typography from '@/components/ui/Typography';
 import Spinner from '@/components/ui/Spinner';
@@ -35,6 +36,8 @@ const cellKey = (date: string, shift: string) => `${date}|${shift}`;
  * (kể cả quá khứ). Toggle = gửi trọn danh sách NV của (ngày, ca) qua setDayAssignments.
  */
 const AdminShiftBoard: React.FC = () => {
+  /** Mở lịch sử thay đổi ca (ai thêm/gỡ ca của ai, lúc nào). */
+  const [showLogs, setShowLogs] = useState(false);
   const { employees, loading: empLoading } = useEmployees();
   const [weekStart, setWeekStart] = useState<Date>(() => thisMonday());
   const [shifts, setShifts] = useState<WorkShift[]>([]);
@@ -160,6 +163,20 @@ const AdminShiftBoard: React.FC = () => {
           <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-800 dark:text-slate-100">
             {days[0].getDate()}/{days[0].getMonth() + 1} – {days[6].getDate()}/{days[6].getMonth() + 1}
           </Typography>
+          {/* NV hay tick nhầm ca rồi admin sửa → xem lại ai đổi gì, lúc nào. */}
+          <Button
+            type="button"
+            onClick={() => setShowLogs(true)}
+            variant="ghost"
+            leftIcon={<History className="h-3.5 w-3.5" />}
+            sizeClassName="px-2 py-1 text-xs"
+            roundedClassName="rounded-md"
+            backgroundClassName="bg-slate-100 dark:bg-slate-700/50"
+            textClassName="font-medium text-slate-600 dark:text-slate-300"
+            layoutClassName="inline-flex items-center gap-1"
+          >
+            Lịch sử
+          </Button>
         </Box>
         <Button
           type="button"
@@ -295,6 +312,7 @@ const AdminShiftBoard: React.FC = () => {
         </Box>
       )}
       </Box>
+      {showLogs ? <ShiftLogModal onClose={() => setShowLogs(false)} /> : null}
     </Card>
   );
 };

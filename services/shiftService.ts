@@ -67,3 +67,42 @@ export async function setDayAssignments(
   const res = await apiClient.put<any[]>(`${BASE}/assignments/day`, input);
   return Array.isArray(res.data) ? res.data.map(toAssignment) : [];
 }
+
+/** 1 dòng lịch sử thay đổi đăng ký ca. */
+export interface ShiftAssignmentLog {
+  id: number;
+  employeeId: string;
+  employeeName: string;
+  workDate: string; // yyyy-mm-dd
+  shiftCode: string;
+  shiftName: string;
+  /** 'add' = thêm ca, 'remove' = gỡ ca */
+  action: 'add' | 'remove';
+  /** 'self' = NV tự đăng ký, 'admin' = admin xếp/sửa */
+  source: string;
+  changedBy: string;
+  createdAt: string | null;
+}
+
+/** Lịch sử thay đổi đăng ký ca — ai đổi, đổi gì, lúc nào. */
+export async function fetchShiftLogs(params: {
+  employeeId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+} = {}): Promise<ShiftAssignmentLog[]> {
+  const res = await apiClient.get<any[]>(`${BASE}/assignments/logs`, { params });
+  const rows = Array.isArray(res.data) ? res.data : [];
+  return rows.map((r) => ({
+    id: Number(r?.id) || 0,
+    employeeId: typeof r?.employeeId === 'string' ? r.employeeId : '',
+    employeeName: typeof r?.employeeName === 'string' ? r.employeeName : '',
+    workDate: typeof r?.workDate === 'string' ? r.workDate : '',
+    shiftCode: typeof r?.shiftCode === 'string' ? r.shiftCode : '',
+    shiftName: typeof r?.shiftName === 'string' ? r.shiftName : '',
+    action: r?.action === 'remove' ? 'remove' : 'add',
+    source: typeof r?.source === 'string' ? r.source : 'admin',
+    changedBy: typeof r?.changedBy === 'string' ? r.changedBy : '',
+    createdAt: typeof r?.createdAt === 'string' ? r.createdAt : null,
+  }));
+}
