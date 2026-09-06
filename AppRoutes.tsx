@@ -7,6 +7,8 @@ import Spinner from "./components/ui/Spinner";
 // Lazy-load từng trang → mỗi trang là 1 chunk JS riêng, chỉ tải khi vào (giảm bundle đầu).
 const DashboardPage = lazy(() => import("./pages/Dashboard/index"));
 const GoalsPage = lazy(() => import("./pages/Goals/index"));
+const GoalsOverviewPage = lazy(() => import("./pages/Goals/GoalsOverview"));
+const GoalsSettingsPage = lazy(() => import("./pages/Goals/GoalsSettings"));
 const OrdersPage = lazy(() => import("./pages/Orders/index"));
 const ShippingPage = lazy(() => import("./pages/Shipping/index"));
 const TxOverviewPage = lazy(() => import("./pages/Transactions/OverviewPage"));
@@ -92,6 +94,22 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/goals")?.roles}>
             <GoalsPage />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="goals/overview"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/goals/overview")?.roles}>
+            <GoalsOverviewPage />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="goals/settings"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/goals/settings")?.roles}>
+            <GoalsSettingsPage />
           </RoleBasedRoute>
         }
       />

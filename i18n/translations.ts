@@ -11,6 +11,10 @@ export const translations = {
     nav: {
       dashboard: "Dashboard",
       goals: "Goals",
+      goalsGroup: "Goals",
+      goalsLive: "Live",
+      goalsOverview: "Overview",
+      goalsSettings: "Settings",
       orders: "Orders",
       dineIn: "Dine-in tables",
       shipping: "Shipping",
@@ -1047,6 +1051,10 @@ export const translations = {
     nav: {
       dashboard: "Tổng quan",
       goals: "Mục tiêu",
+      goalsGroup: "Mục tiêu",
+      goalsLive: "Đang diễn ra",
+      goalsOverview: "Tổng quan",
+      goalsSettings: "Cài đặt",
       orders: "Đơn hàng",
       dineIn: "Order theo bàn",
       shipping: "Vận chuyển",

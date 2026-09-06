@@ -111,8 +111,22 @@ export const routes: RouteConfig[] = [
   {
     type: "page",
     path: "/goals",
-    labelKey: "nav.goals",
+    labelKey: "nav.goalsLive",
     icon: Target,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/goals/overview",
+    labelKey: "nav.goalsOverview",
+    icon: TrendingUp,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
+    path: "/goals/settings",
+    labelKey: "nav.goalsSettings",
+    icon: SlidersHorizontal,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
