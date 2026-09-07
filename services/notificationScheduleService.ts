@@ -1,10 +1,10 @@
 import { apiClient } from '@/services/api/client';
 
-/**
- * Loại lịch = composer của code (4 loại dưới) HOẶC key 1 chức năng tự soạn thêm từ
- * màn Chức năng (097) → để string, danh mục lấy từ API zalo-features.
- */
-export type ScheduleType = string;
+export type ScheduleType =
+  | 'daily_summary'
+  | 'production_tomorrow'
+  | 'delivery_today_tomorrow'
+  | 'delivery_by_day';
 
 export interface NotificationSchedule {
   id: string;
@@ -61,8 +61,7 @@ export const sendNotificationNow = async (
   return res.data ?? { sent: false };
 };
 
-/** Nhãn 4 loại nội dung do CODE soạn — chức năng tự soạn lấy nhãn từ API. */
-export const SCHEDULE_TYPE_LABEL: Record<string, string> = {
+export const SCHEDULE_TYPE_LABEL: Record<ScheduleType, string> = {
   daily_summary: 'Tổng kết hôm nay',
   production_tomorrow: 'Sản xuất ngày mai',
   delivery_today_tomorrow: 'Đơn giao hôm nay + ngày mai',
