@@ -17,6 +17,7 @@ import {
   ZaloGroupConfig,
   ZaloGroupsConfiguration,
   ZaloOrderEventType,
+  zaloFeatureOfOrderEvent,
 } from '@/types';
 import { DEFAULT_SHIPPING_CONFIG } from '@/types/shippingConfig';
 import type { ShippingConfiguration } from '@/types/shippingConfig';
@@ -53,25 +54,17 @@ export const fetchZaloGroupsConfiguration = async (): Promise<ZaloGroupsConfigur
   return data ?? { groups: [] };
 };
 
-const getMainGroupId = async (cfg?: ZaloGroupsConfiguration): Promise<string> => {
-  // Group chính lấy từ config (BE). Nếu trống → để rỗng; khi gửi với
-  // groupIds rỗng, BE tự dùng ZALO_MAIN_GROUP_ID của BE.
-  return (cfg?.mainGroupId ?? '').trim();
-};
-
+/**
+ * Nhóm có nhận event đơn này không: phải được gán feature tương ứng, và với event
+ * SỬA đơn thì field thay đổi phải nằm trong whitelist (whitelist rỗng = nhận tất).
+ */
 const groupAcceptsEvent = (
-  group: {
-    notifyOnCreate?: boolean;
-    notifyOnUpdate?: boolean;
-    notifyOnDelete?: boolean;
-    updateFieldWhitelist?: string[];
-  },
+  group: Pick<ZaloGroupConfig, 'features' | 'updateFieldWhitelist'>,
   eventType: ZaloOrderEventType,
   changedFieldIds?: string[],
 ): boolean => {
-  if (eventType === 'create') return group.notifyOnCreate !== false;
-  if (eventType === 'delete') return group.notifyOnDelete !== false;
-  if (group.notifyOnUpdate === false) return false;
+  if (!(group.features ?? []).includes(zaloFeatureOfOrderEvent(eventType))) return false;
+  if (eventType !== 'update') return true;
   const wl = group.updateFieldWhitelist ?? [];
   if (wl.length === 0) return true;
   if (!changedFieldIds || changedFieldIds.length === 0) return false;
@@ -89,20 +82,13 @@ export const resolveZaloGroupIdsForOrderEvent = async (
   changedFieldIds?: string[],
 ): Promise<string[]> => {
   const cfg = await fetchZaloGroupsConfiguration();
-  const mainId = await getMainGroupId(cfg);
-  if (!mainId) throw new Error('Main Zalo group is not configured');
 
-  const targets: string[] = [];
-
-  const mainGroup = {
-    notifyOnCreate: cfg.mainNotifyOnCreate,
-    notifyOnUpdate: cfg.mainNotifyOnUpdate,
-    notifyOnDelete: cfg.mainNotifyOnDelete,
-    updateFieldWhitelist: cfg.mainUpdateFieldWhitelist,
-  };
-  if (groupAcceptsEvent(mainGroup, eventType, changedFieldIds)) {
-    targets.push(mainId);
-  }
+  // Nhóm KHÔNG có member = nhóm nội bộ → nhận theo feature được gán (095).
+  // Nhóm CÓ member = nhóm CTV → chỉ nhận đơn do chính member đó tạo (xử lý bên dưới).
+  const targets = cfg.groups
+    .filter((g) => (g.memberUids ?? []).length === 0)
+    .filter((g) => groupAcceptsEvent(g, eventType, changedFieldIds))
+    .map((g) => g.zaloGroupId);
 
   if (createdByUid) {
     const user = await getUserByUid(createdByUid);
@@ -144,23 +130,15 @@ export const collaboratorHasZaloGroup = async (uid: string): Promise<boolean> =>
 export const saveZaloGroupsConfiguration = async (
   groups: ZaloGroupConfig[],
   updatedBy?: string | null,
-  mainSettings?: Partial<Pick<
+  customerSettings?: Partial<Pick<
     ZaloGroupsConfiguration,
-    | 'mainGroupId'
-    | 'paymentGroupId'
-    | 'mainNotifyOnCreate'
-    | 'mainNotifyOnUpdate'
-    | 'mainNotifyOnDelete'
-    | 'mainUpdateFieldWhitelist'
-    | 'customerNotifyEnabled'
-    | 'customerNotifyPromotionId'
-    | 'customerNotifyDailyLimit'
+    'customerNotifyEnabled' | 'customerNotifyPromotionId' | 'customerNotifyDailyLimit'
   >>,
 ): Promise<void> => {
   await apiClient.put('/configurations/zalo-groups', {
     groups,
     updatedBy,
-    ...(mainSettings ?? {}),
+    ...(customerSettings ?? {}),
   });
 };
 

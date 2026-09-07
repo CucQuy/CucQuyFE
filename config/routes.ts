@@ -153,6 +153,13 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
+    path: "/channels/zalo/settings",
+    labelKey: "nav.chZaloSettings",
+    icon: MessageSquare,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    type: "page",
     path: "/channels/zalo/log",
     labelKey: "nav.chZaloLog",
     icon: ScrollText,
@@ -531,6 +538,7 @@ export const navGroups: NavGroupConfig[] = [
     parentKey: "channels",
     childPaths: [
       "/channels/zalo",
+      "/channels/zalo/settings",
       "/channels/zalo/orders",
       "/channels/zalo/log",
     ],

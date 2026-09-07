@@ -109,18 +109,11 @@ export const useZaloGroups = (): UseZaloGroupsResult => {
 export interface SaveZaloGroupsArgs {
   groups: ZaloGroupConfig[];
   updatedBy?: string | null;
-  mainSettings?: Partial<
+  /** Cài đặt tin gửi KHÁCH (màn riêng /channels/zalo/customer). */
+  customerSettings?: Partial<
     Pick<
       ZaloGroupsConfiguration,
-      | 'mainGroupId'
-      | 'paymentGroupId'
-      | 'mainNotifyOnCreate'
-      | 'mainNotifyOnUpdate'
-      | 'mainNotifyOnDelete'
-      | 'mainUpdateFieldWhitelist'
-      | 'customerNotifyEnabled'
-      | 'customerNotifyPromotionId'
-      | 'customerNotifyDailyLimit'
+      'customerNotifyEnabled' | 'customerNotifyPromotionId' | 'customerNotifyDailyLimit'
     >
   >;
 }
@@ -133,8 +126,8 @@ export interface UseSaveZaloGroupsResult {
 export const useSaveZaloGroups = (): UseSaveZaloGroupsResult => {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: ({ groups, updatedBy, mainSettings }: SaveZaloGroupsArgs) =>
-      saveZaloGroupsConfiguration(groups, updatedBy ?? null, mainSettings),
+    mutationFn: ({ groups, updatedBy, customerSettings }: SaveZaloGroupsArgs) =>
+      saveZaloGroupsConfiguration(groups, updatedBy ?? null, customerSettings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.zaloConfig.groups });
     },

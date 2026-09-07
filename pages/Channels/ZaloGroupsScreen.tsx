@@ -1,9 +1,9 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ChannelScreen from './ChannelScreen';
-import ZaloSettingsTab from '@/pages/Settings/ZaloSettingsTab';
+import ZaloGroupsPage from '@/pages/Channels/ZaloGroups';
 
-/** Nhóm Zalo nhận thông báo + cài đặt tin gửi khách (màn /settings/zalo cũ). */
+/** Nhóm Zalo + gán tính năng thông báo cho từng nhóm (tin gửi khách ở màn riêng). */
 const ZaloGroupsScreen: React.FC = () => {
   const { t } = useLanguage();
   return (
@@ -11,7 +11,7 @@ const ZaloGroupsScreen: React.FC = () => {
     title={t('channels.zaloGroupsTitle')}
     desc={t('channels.zaloGroupsDesc')}
   >
-    <ZaloSettingsTab />
+    <ZaloGroupsPage />
   </ChannelScreen>
   );
 };

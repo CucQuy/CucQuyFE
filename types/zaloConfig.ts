@@ -17,28 +17,56 @@ export const ZALO_TRACKABLE_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'items', label: 'Sản phẩm' },
 ];
 
+/** Tính năng thông báo Zalo — nhóm nào nhận loại nào (khớp ZALO_NOTIFY_FEATURES ở BE). */
+export type ZaloNotifyFeature =
+  | 'order_create'
+  | 'order_update'
+  | 'order_delete'
+  | 'payment'
+  | 'unpaid'
+  | 'pending'
+  | 'delivery_due'
+  | 'production_tomorrow'
+  | 'stuck_pending'
+  | 'daily_summary'
+  | 'custom'
+  | 'health_check';
+
+export const ZALO_NOTIFY_FEATURES: { value: ZaloNotifyFeature; label: string }[] = [
+  { value: 'order_create', label: 'Tạo đơn' },
+  { value: 'order_update', label: 'Sửa đơn' },
+  { value: 'order_delete', label: 'Xoá đơn' },
+  { value: 'payment', label: 'Thanh toán' },
+  { value: 'unpaid', label: 'Đơn chưa thanh toán' },
+  { value: 'pending', label: 'Đơn chờ xử lý' },
+  { value: 'delivery_due', label: 'Đơn cần giao' },
+  { value: 'production_tomorrow', label: 'Sản xuất ngày mai' },
+  { value: 'stuck_pending', label: 'Đơn treo lâu' },
+  { value: 'daily_summary', label: 'Tổng kết ngày' },
+  { value: 'custom', label: 'Tin tuỳ chỉnh' },
+  { value: 'health_check', label: 'Kiểm tra kết nối' },
+];
+
+export const zaloFeatureLabel = (f: string): string =>
+  ZALO_NOTIFY_FEATURES.find((x) => x.value === f)?.label ?? f;
+
+/** Feature của event đơn (create/update/delete) — dùng khi resolve nhóm nhận tin. */
+export const zaloFeatureOfOrderEvent = (e: ZaloOrderEventType): ZaloNotifyFeature =>
+  e === 'create' ? 'order_create' : e === 'delete' ? 'order_delete' : 'order_update';
+
 export interface ZaloGroupConfig {
   id: string;
   name: string;
   zaloGroupId: string;
+  /** CTV thuộc nhóm — nhóm CÓ member chỉ nhận đơn của member đó (nhóm CTV). */
   memberUids: string[];
-  notifyOnCreate?: boolean;
-  notifyOnUpdate?: boolean;
-  notifyOnDelete?: boolean;
-  /** Nhận thông báo THANH TOÁN (webhook SePay) cho nhóm này. */
-  notifyOnPayment?: boolean;
+  /** Tính năng thông báo nhóm này nhận. */
+  features: ZaloNotifyFeature[];
   updateFieldWhitelist?: string[];
 }
 
 export interface ZaloGroupsConfiguration {
   groups: ZaloGroupConfig[];
-  mainGroupId?: string;
-  /** Nhóm Zalo nhận thông báo THANH TOÁN (webhook SePay) — tách khỏi nhóm đơn hàng. */
-  paymentGroupId?: string;
-  mainNotifyOnCreate?: boolean;
-  mainNotifyOnUpdate?: boolean;
-  mainNotifyOnDelete?: boolean;
-  mainUpdateFieldWhitelist?: string[];
   updatedAt?: string;
   updatedBy?: string | null;
   // ── Thông báo Zalo cho KHÁCH HÀNG (cảm ơn + trạng thái đơn) ──

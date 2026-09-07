@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/api/client";
-import { Order, OrderFieldChange } from "@/types";
+import { Order, OrderFieldChange, ZaloNotifyFeature } from "@/types";
 import {
   DailySummaryStats,
   formatDailySummaryMessage,
@@ -36,10 +36,13 @@ export const sendZaloOrderImage = async (
   });
 };
 
-export const sendZaloMessage = async (message: string) => {
-  // Khong truyen groupIds → BE dung ZALO_MAIN_GROUP_ID tu env (giong logic cu).
+/**
+ * Gửi tin theo TÍNH NĂNG: không tự chọn nhóm, BE tra nhóm nào được gán feature này
+ * ở Cài đặt Zalo → Nhóm (thay cho "nhóm chính" cũ). Chưa gán nhóm → BE trả lỗi rõ.
+ */
+export const sendZaloMessage = async (message: string, feature: ZaloNotifyFeature) => {
   try {
-    await apiClient.post('/zalo/send', { message });
+    await apiClient.post('/zalo/send', { message, feature });
   } catch (error: any) {
     console.error("Loi gui Zalo:", error.response?.data || error.message);
     throw error;
@@ -91,21 +94,21 @@ export const sendOrderDeleteNotification = async (
 
 export const sendUnpaidOrdersNotification = async (orders: Order[]) => {
   const message = formatUnpaidOrdersMessage(orders);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'unpaid');
 };
 
 export const sendPendingOrdersNotification = async (orders: Order[]) => {
   const message = formatPendingOrdersMessage(orders);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'pending');
 };
 
 export const sendDeliveryDueNotification = async (orders: Order[], fromDate?: Date, toDate?: Date) => {
   const message = formatDeliveryDueMessage(orders, fromDate, toDate);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'delivery_due');
 };
 
 export const sendCustomNotification = async (message: string) => {
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'custom');
 };
 
 /**
@@ -160,20 +163,20 @@ export const sendZaloTestMessage = async (
 
 export const sendProductionTomorrowNotification = async (orders: Order[], targetDate: Date) => {
   const message = formatProductionTomorrowMessage(orders, targetDate);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'production_tomorrow');
 };
 
 export const sendStuckPendingNotification = async (orders: Order[], thresholdHours: number) => {
   const message = formatStuckPendingMessage(orders, thresholdHours);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'stuck_pending');
 };
 
 export const sendDailySummaryNotification = async (stats: DailySummaryStats, date: Date) => {
   const message = formatDailySummaryMessage(stats, date);
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'daily_summary');
 };
 
 export const sendHealthCheckNotification = async () => {
   const message = formatHealthCheckMessage(new Date());
-  await sendZaloMessage(message);
+  await sendZaloMessage(message, 'health_check');
 };
