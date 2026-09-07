@@ -16,6 +16,7 @@ import {
   ScreenRolesMap,
   ZaloGroupConfig,
   ZaloGroupsConfiguration,
+  ZaloFeatureFlag,
   ZaloOrderEventType,
   zaloFeatureOfOrderEvent,
 } from '@/types';
@@ -140,6 +141,20 @@ export const saveZaloGroupsConfiguration = async (
     updatedBy,
     ...(customerSettings ?? {}),
   });
+};
+
+// ==================== ZALO FEATURE FLAGS ====================
+
+export const fetchZaloFeatures = async (): Promise<ZaloFeatureFlag[]> => {
+  const { data } = await apiClient.get<ZaloFeatureFlag[]>('/configurations/zalo-features');
+  return Array.isArray(data) ? data : [];
+};
+
+/** Chỉ gửi các feature cần đổi — BE không reset cái khác. */
+export const saveZaloFeatures = async (
+  features: { feature: string; enabled: boolean }[],
+): Promise<void> => {
+  await apiClient.put('/configurations/zalo-features', { features });
 };
 
 // ==================== SHIPPING CONFIGURATION ====================

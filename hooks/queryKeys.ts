@@ -95,6 +95,7 @@ export const qk = {
   },
   zaloConfig: {
     groups: ['zalo-config', 'groups'] as const,
+    features: ['zalo-config', 'features'] as const,
   },
   users: {
     all: ['users'] as const,

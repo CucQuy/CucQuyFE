@@ -87,6 +87,7 @@ export const translations = {
       channelsInstagram: "Instagram",
       chZaloGroups: "Groups",
       chZaloOrders: "Order alerts",
+      chZaloFeatures: "Features",
       chZaloSettings: "Settings",
       chZaloLog: "Send log",
       chFbMessages: "Messages",
@@ -157,6 +158,8 @@ export const translations = {
     channels: {
       zaloGroupsTitle: "Notification groups",
       zaloGroupsDesc: "Pick Zalo groups from the connected account and choose which notifications each one receives.",
+      zaloFeaturesTitle: "Notification features",
+      zaloFeaturesDesc: "Turn each Zalo notification on or off. Off means nothing is sent even if a group is assigned.",
       zaloSettingsTitle: "Zalo settings",
       zaloSettingsDesc: "Zalo message sent to the customer after an order is created (thanks, tracking link, promo code).",
       zaloOrdersTitle: "Order alerts",
@@ -1130,6 +1133,7 @@ export const translations = {
       channelsInstagram: "Instagram",
       chZaloGroups: "Nhóm & cài đặt",
       chZaloOrders: "Thông báo đơn",
+      chZaloFeatures: "Chức năng",
       chZaloSettings: "Cài đặt",
       chZaloLog: "Nhật ký gửi",
       chFbMessages: "Tin nhắn",
@@ -1201,6 +1205,8 @@ export const translations = {
       // ── Tiêu đề các màn ──
       zaloGroupsTitle: "Nhóm nhận thông báo",
       zaloGroupsDesc: "Chọn nhóm từ nick Zalo đang kết nối và gán loại thông báo cho từng nhóm.",
+      zaloFeaturesTitle: "Chức năng thông báo",
+      zaloFeaturesDesc: "Bật/tắt từng loại thông báo Zalo. Tắt là không gửi, kể cả nhóm đã được gán.",
       zaloSettingsTitle: "Cài đặt Zalo",
       zaloSettingsDesc: "Tin Zalo gửi cho khách sau khi tạo đơn: cảm ơn, link tra đơn, mã khuyến mãi.",
       zaloOrdersTitle: "Thông báo đơn",

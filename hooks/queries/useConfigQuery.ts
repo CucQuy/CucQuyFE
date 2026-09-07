@@ -20,7 +20,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { qk } from '@/hooks/queryKeys';
 import {
   fetchScreenConfiguration,
+  fetchZaloFeatures,
   fetchZaloGroupsConfiguration,
+  saveZaloFeatures,
   saveScreenConfiguration,
   saveZaloGroupsConfiguration,
 } from '@/services/configurationService';
@@ -103,6 +105,38 @@ export const useZaloGroups = (): UseZaloGroupsResult => {
     refetch: async () => {
       await query.refetch();
     },
+  };
+};
+
+/** Chức năng thông báo Zalo + cờ bật/tắt (màn "Chức năng"). */
+export const useZaloFeatures = () => {
+  const { currentUser } = useAuth();
+  const query = useQuery({
+    queryKey: qk.zaloConfig.features,
+    queryFn: fetchZaloFeatures,
+    enabled: !!currentUser,
+  });
+  return {
+    data: query.data ?? [],
+    loading: query.isLoading,
+    error: query.error,
+  };
+};
+
+export const useSaveZaloFeatures = () => {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (features: { feature: string; enabled: boolean }[]) =>
+      saveZaloFeatures(features),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.zaloConfig.features });
+    },
+  });
+  return {
+    save: async (features: { feature: string; enabled: boolean }[]) => {
+      await mutation.mutateAsync(features);
+    },
+    saving: mutation.isPending,
   };
 };
 

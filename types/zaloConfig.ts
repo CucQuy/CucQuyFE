@@ -65,6 +65,15 @@ export interface ZaloGroupConfig {
   updateFieldWhitelist?: string[];
 }
 
+/** 1 dòng ở màn "Chức năng": cờ bật/tắt + các nhóm đang nhận loại thông báo đó. */
+export interface ZaloFeatureFlag {
+  feature: ZaloNotifyFeature;
+  enabled: boolean;
+  updatedAt?: string;
+  updatedBy?: string | null;
+  groups: { name: string; zaloGroupId: string }[];
+}
+
 export interface ZaloGroupsConfiguration {
   groups: ZaloGroupConfig[];
   updatedAt?: string;
