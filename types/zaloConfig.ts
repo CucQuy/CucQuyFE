@@ -30,8 +30,14 @@ export type ZaloNotifyFeature =
   | 'stuck_pending'
   | 'daily_summary'
   | 'custom'
-  | 'health_check';
+  | 'health_check'
+  // Chức năng tự soạn thêm từ UI → key do DB sinh.
+  | (string & {});
 
+/**
+ * Nhãn dự phòng cho các key builtin — danh mục THẬT lấy từ API /configurations/
+ * zalo-features (thêm chức năng mới không cần sửa file này).
+ */
 export const ZALO_NOTIFY_FEATURES: { value: ZaloNotifyFeature; label: string }[] = [
   { value: 'order_create', label: 'Tạo đơn' },
   { value: 'order_update', label: 'Sửa đơn' },
@@ -65,13 +71,43 @@ export interface ZaloGroupConfig {
   updateFieldWhitelist?: string[];
 }
 
-/** 1 dòng ở màn "Chức năng": cờ bật/tắt + các nhóm đang nhận loại thông báo đó. */
+/**
+ * 1 chức năng thông báo (bảng zalo_features ở BE). Danh mục nằm ở DB nên thêm chức
+ * năng mới làm từ màn "Chức năng", FE KHÔNG hardcode danh sách nữa.
+ * - kind='builtin': nội dung do code soạn, không sửa/xoá được.
+ * - kind='template': tin tự soạn, nội dung là `template` có biến {{...}}.
+ */
 export interface ZaloFeatureFlag {
-  feature: ZaloNotifyFeature;
+  feature: string;
+  label: string;
+  description: string;
+  kind: 'builtin' | 'template';
+  section: string;
+  template: string;
+  composer: string | null;
+  /** Đặt được lịch nhắc (có composer của code, hoặc là tin tự soạn). */
+  schedulable: boolean;
+  builtin: boolean;
   enabled: boolean;
   updatedAt?: string;
   updatedBy?: string | null;
   groups: { name: string; zaloGroupId: string }[];
+}
+
+/** Biến chèn được vào tin tự soạn. */
+export interface ZaloTemplateVar {
+  key: string;
+  label: string;
+}
+
+/** Payload tạo/sửa chức năng tự soạn. */
+export interface UpsertZaloFeatureInput {
+  feature?: string;
+  label: string;
+  description?: string;
+  section?: string;
+  template: string;
+  enabled?: boolean;
 }
 
 export interface ZaloGroupsConfiguration {

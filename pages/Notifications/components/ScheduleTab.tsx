@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useZaloFeatures } from '@/hooks/queries/useConfigQuery';
 import { Plus, Pencil, Trash2, X, Save, Clock, CalendarClock } from 'lucide-react';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
@@ -38,6 +39,28 @@ const daysLabel = (days: number[]): string => {
 const ScheduleTab: React.FC = () => {
   const { schedules, loading } = useNotificationSchedules();
   const { createSchedule, updateSchedule, deleteSchedule, saving } = useScheduleMutations();
+  // Loại thông báo = 4 composer của code + chức năng TỰ SOẠN thêm từ màn Chức năng
+  // (097) → danh mục lấy từ API, không hardcode ở đây nữa.
+  const { data: features } = useZaloFeatures();
+
+  const typeOptions = useMemo(() => {
+    const fromApi = features
+      .filter((f) => f.schedulable)
+      .map((f) => ({
+        value: f.composer ?? f.feature,
+        label: f.enabled ? f.label : `${f.label} (đang tắt)`,
+      }));
+    const builtin = Object.entries(SCHEDULE_TYPE_LABEL).map(([value, label]) => ({ value, label }));
+    const seen = new Set<string>();
+    return [...fromApi, ...builtin].filter((o) => {
+      if (seen.has(o.value)) return false;
+      seen.add(o.value);
+      return true;
+    });
+  }, [features]);
+
+  const typeLabel = (t: string) =>
+    typeOptions.find((o) => o.value === t)?.label ?? SCHEDULE_TYPE_LABEL[t] ?? t;
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,7 +93,7 @@ const ScheduleTab: React.FC = () => {
   };
 
   const remove = async (s: NotificationSchedule) => {
-    if (!window.confirm(`Xoá lịch "${SCHEDULE_TYPE_LABEL[s.type]}" lúc ${s.timeHHMM}?`)) return;
+    if (!window.confirm(`Xoá lịch "${typeLabel(s.type)}" lúc ${s.timeHHMM}?`)) return;
     try { await deleteSchedule(s.id); toast.success('Đã xoá'); } catch { toast.error('Không xoá được'); }
   };
 
@@ -89,8 +112,8 @@ const ScheduleTab: React.FC = () => {
             <Box layoutClassName="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Loại thông báo">
                 <Select fullWidth value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ScheduleType }))}>
-                  {(Object.keys(SCHEDULE_TYPE_LABEL) as ScheduleType[]).map((t) => (
-                    <option key={t} value={t}>{SCHEDULE_TYPE_LABEL[t]}</option>
+                  {typeOptions.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </Select>
               </Field>
@@ -147,7 +170,7 @@ const ScheduleTab: React.FC = () => {
                 </Box>
                 <Box layoutClassName="min-w-0 flex-1">
                   <Box layoutClassName="flex flex-wrap items-center gap-2">
-                    <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-900 dark:text-white">{SCHEDULE_TYPE_LABEL[s.type]}</Typography>
+                    <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-slate-900 dark:text-white">{typeLabel(s.type)}</Typography>
                     <Badge size="sm" borderClassName="border-transparent" backgroundClassName="bg-slate-100 dark:bg-slate-700" textClassName="text-slate-600 dark:text-slate-300">{s.timeHHMM}</Badge>
                     <Badge size="sm" borderClassName="border-transparent" backgroundClassName="bg-sky-100 dark:bg-sky-900/30" textClassName="text-sky-700 dark:text-sky-300">{daysLabel(s.days)}</Badge>
                     {!s.enabled ? (

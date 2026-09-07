@@ -13,6 +13,7 @@ import type {
   ScreenConfiguration,
   ScreenVisibilityMap,
   ScreenRolesMap,
+  UpsertZaloFeatureInput,
   ZaloGroupConfig,
   ZaloGroupsConfiguration,
 } from '@/types';
@@ -20,9 +21,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { qk } from '@/hooks/queryKeys';
 import {
   fetchScreenConfiguration,
+  deleteZaloFeature,
   fetchZaloFeatures,
   fetchZaloGroupsConfiguration,
+  fetchZaloTemplateVars,
   saveZaloFeatures,
+  upsertZaloFeature,
   saveScreenConfiguration,
   saveZaloGroupsConfiguration,
 } from '@/services/configurationService';
@@ -125,19 +129,48 @@ export const useZaloFeatures = () => {
 
 export const useSaveZaloFeatures = () => {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: qk.zaloConfig.features });
+    // Danh mục đổi → màn Nhóm (checkbox chức năng) phải nạp lại theo.
+    queryClient.invalidateQueries({ queryKey: qk.zaloConfig.groups });
+  };
+  const toggle = useMutation({
     mutationFn: (features: { feature: string; enabled: boolean }[]) =>
       saveZaloFeatures(features),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.zaloConfig.features });
-    },
+    onSuccess: invalidate,
+  });
+  const upsert = useMutation({
+    mutationFn: (input: UpsertZaloFeatureInput) => upsertZaloFeature(input),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: (feature: string) => deleteZaloFeature(feature),
+    onSuccess: invalidate,
   });
   return {
     save: async (features: { feature: string; enabled: boolean }[]) => {
-      await mutation.mutateAsync(features);
+      await toggle.mutateAsync(features);
     },
-    saving: mutation.isPending,
+    upsert: async (input: UpsertZaloFeatureInput) => {
+      await upsert.mutateAsync(input);
+    },
+    remove: async (feature: string) => {
+      await remove.mutateAsync(feature);
+    },
+    saving: toggle.isPending || upsert.isPending || remove.isPending,
   };
+};
+
+/** Biến chèn được vào tin tự soạn. */
+export const useZaloTemplateVars = () => {
+  const { currentUser } = useAuth();
+  const query = useQuery({
+    queryKey: [...qk.zaloConfig.features, 'vars'],
+    queryFn: fetchZaloTemplateVars,
+    enabled: !!currentUser,
+    staleTime: 5 * 60 * 1000,
+  });
+  return { data: query.data ?? [], loading: query.isLoading };
 };
 
 export interface SaveZaloGroupsArgs {

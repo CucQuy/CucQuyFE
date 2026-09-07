@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, RefreshCw, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
-import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
+import { useSaveZaloGroups, useZaloFeatures, useZaloGroups } from '@/hooks/queries/useConfigQuery';
 import { useUsers } from '@/hooks/queries/useUsersQuery';
 import { useAuth } from '@/contexts/AuthContext';
-import { ZaloGroupConfig, ZaloNotifyFeature, zaloFeatureLabel } from '@/types';
+import { ZaloGroupConfig, ZaloNotifyFeature } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
@@ -43,6 +43,13 @@ const ZaloGroupsPage: React.FC = () => {
   const { data: zaloConfig, loading: configLoading } = useZaloGroups();
   const { save: saveZaloGroups } = useSaveZaloGroups();
   const { users } = useUsers();
+  const { data: allFeatures } = useZaloFeatures();
+
+  /** Nhãn chức năng theo danh mục DB (chức năng tự soạn cũng có nhãn). */
+  const featureLabel = useMemo(() => {
+    const m = new Map(allFeatures.map((f) => [f.feature, f.label]));
+    return (key: string) => m.get(key) ?? key;
+  }, [allFeatures]);
 
   const [bridgeGroups, setBridgeGroups] = useState<ZaloBridgeGroup[] | null>(null);
   const [loadingBridge, setLoadingBridge] = useState(false);
@@ -271,7 +278,7 @@ const ZaloGroupsPage: React.FC = () => {
                             backgroundClassName="bg-primary-50 dark:bg-primary-950/40"
                             textClassName="text-primary-700 dark:text-primary-300"
                           >
-                            {zaloFeatureLabel(f)}
+                            {featureLabel(f)}
                           </Badge>
                         ))}
                         {r.features.length > 3 ? (
@@ -305,6 +312,7 @@ const ZaloGroupsPage: React.FC = () => {
         <GroupFeatureModal
           key={activeGroup.zaloGroupId}
           group={activeGroup}
+          allFeatures={allFeatures}
           users={users}
           uidTakenBy={uidTakenBy}
           saving={saving}

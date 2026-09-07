@@ -16,8 +16,10 @@ import {
   ScreenRolesMap,
   ZaloGroupConfig,
   ZaloGroupsConfiguration,
+  UpsertZaloFeatureInput,
   ZaloFeatureFlag,
   ZaloOrderEventType,
+  ZaloTemplateVar,
   zaloFeatureOfOrderEvent,
 } from '@/types';
 import { DEFAULT_SHIPPING_CONFIG } from '@/types/shippingConfig';
@@ -155,6 +157,21 @@ export const saveZaloFeatures = async (
   features: { feature: string; enabled: boolean }[],
 ): Promise<void> => {
   await apiClient.put('/configurations/zalo-features', { features });
+};
+
+/** Biến chèn được vào tin tự soạn (danh sách do BE khai, FE không hardcode). */
+export const fetchZaloTemplateVars = async (): Promise<ZaloTemplateVar[]> => {
+  const { data } = await apiClient.get<ZaloTemplateVar[]>('/configurations/zalo-features/vars');
+  return Array.isArray(data) ? data : [];
+};
+
+/** Tạo (feature trống) hoặc sửa 1 chức năng TỰ SOẠN. */
+export const upsertZaloFeature = async (input: UpsertZaloFeatureInput): Promise<void> => {
+  await apiClient.post('/configurations/zalo-features', input);
+};
+
+export const deleteZaloFeature = async (feature: string): Promise<void> => {
+  await apiClient.delete(`/configurations/zalo-features/${encodeURIComponent(feature)}`);
 };
 
 // ==================== SHIPPING CONFIGURATION ====================

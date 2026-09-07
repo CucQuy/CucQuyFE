@@ -4,8 +4,8 @@ import toast from 'react-hot-toast';
 import { sendZaloTestMessage } from '@/services/zaloService';
 import { UserData, UserRole } from '@/types/user';
 import {
-  ZALO_NOTIFY_FEATURES,
   ZALO_TRACKABLE_FIELDS,
+  ZaloFeatureFlag,
   ZaloGroupConfig,
   ZaloNotifyFeature,
 } from '@/types';
@@ -31,6 +31,8 @@ export interface GroupDraft {
 
 interface Props {
   group: GroupDraft | null;
+  /** Danh mục chức năng lấy từ API (bảng zalo_features) — gom theo section. */
+  allFeatures: ZaloFeatureFlag[];
   users: UserData[];
   /** uid → id nhóm khác đang giữ CTV đó (1 CTV chỉ thuộc 1 nhóm). */
   uidTakenBy: Map<string, string>;
@@ -46,6 +48,7 @@ interface Props {
  */
 const GroupFeatureModal: React.FC<Props> = ({
   group,
+  allFeatures,
   users,
   uidTakenBy,
   saving,
@@ -58,6 +61,16 @@ const GroupFeatureModal: React.FC<Props> = ({
 
   // Modal mount lại mỗi lần mở nhóm khác (key ở screen) nên chỉ cần seed 1 lần.
   const current = draft ?? group;
+
+  const featureSections = useMemo(() => {
+    const m = new Map<string, ZaloFeatureFlag[]>();
+    for (const f of allFeatures) {
+      const list = m.get(f.section) ?? [];
+      list.push(f);
+      m.set(f.section, list);
+    }
+    return [...m.entries()];
+  }, [allFeatures]);
 
   const collaborators = useMemo(
     () =>
@@ -152,17 +165,24 @@ const GroupFeatureModal: React.FC<Props> = ({
           >
             Chức năng thông báo
           </Typography>
-          <Box layoutClassName="grid gap-1.5 sm:grid-cols-2">
-            {ZALO_NOTIFY_FEATURES.map((f) => (
-              <Checkbox
-                key={f.value}
-                checked={current.features.includes(f.value)}
-                onChange={(e) => toggleFeature(f.value, e.target.checked)}
-                label={f.label}
-                labelClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
-              />
-            ))}
-          </Box>
+          {featureSections.map(([section, list]) => (
+            <Box key={section} layoutClassName="space-y-1">
+              <Typography size="xs" variant="muted">
+                {section}
+              </Typography>
+              <Box layoutClassName="grid gap-1.5 sm:grid-cols-2">
+                {list.map((f) => (
+                  <Checkbox
+                    key={f.feature}
+                    checked={current.features.includes(f.feature)}
+                    onChange={(e) => toggleFeature(f.feature, e.target.checked)}
+                    label={f.enabled ? f.label : `${f.label} (đang tắt)`}
+                    labelClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
+                  />
+                ))}
+              </Box>
+            </Box>
+          ))}
         </Box>
 
         {current.features.includes('order_update') ? (
