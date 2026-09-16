@@ -688,7 +688,7 @@ const todayStr = (): string => {
 const dayStatus = (
   day: PayrollDay,
   today: string,
-): 'off' | 'full' | 'short' | 'absent' | 'upcoming' | 'locked' => {
+): 'off' | 'full' | 'short' | 'absent' | 'no_out' | 'upcoming' | 'locked' => {
   // Đã CHỐT: số giờ hiện tại là số cuối → không coi là thiếu ca nữa.
   if (day.locked) return 'locked';
   // Ngày CHƯA TỚI: không tính vắng/thiếu — chỉ là "sắp tới" nếu có đăng ký.
@@ -696,6 +696,8 @@ const dayStatus = (
   const reg = day.registered;
   const workedUnreg = day.shifts.filter((s) => s.worked && !s.registered).length;
   if (reg === 0 && workedUnreg === 0 && !day.in) return 'off';
+  // Có chấm vào nhưng quên tan ca → ca dở dang không tính công (khác hẳn "vắng").
+  if (day.missingCheckout && day.valid < reg) return 'no_out';
   if (reg > 0 && day.valid === 0) return 'absent'; // đăng ký mà không đủ 1 công nào
   if (day.valid === reg && workedUnreg === 0) return 'full'; // làm đúng & đủ ca đăng ký
   return 'short'; // thiếu ca so với đăng ký, hoặc chấm ngoài đăng ký (không tính)
@@ -763,8 +765,14 @@ const DayRow: React.FC<{
                   layoutClassName="px-1.5 py-0.5 text-[10px]"
                   backgroundClassName={green ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-slate-100 dark:bg-slate-700'}
                   textClassName={green ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'}
+                  title={
+                    s.pay == null
+                      ? 'Chưa đặt mức lương/giờ'
+                      : `${fmtHours(s.hours)} chấm công${s.adjHours ? ` + ${fmtHours(s.adjHours)} bổ sung` : ''} × mức lương/giờ = ${vnd(s.pay)}`
+                  }
                 >
-                  {s.name}
+                  {/* Tiền của ca = (giờ chấm trong khung ca + giờ bổ sung gắn ca) × mức/giờ. */}
+                  {s.name}{s.pay != null && s.pay > 0 ? ` · ${vnd(s.pay)}` : ''}
                 </Badge>
               );
             })}
@@ -776,6 +784,11 @@ const DayRow: React.FC<{
         {hasAtt ? (
           <Typography as="span" size="xs" layoutClassName="tabular-nums" textClassName="text-slate-700 dark:text-slate-200">
             {fmtTime(day.in)} → {day.out ? fmtTime(day.out) : '…'}
+            {day.missingCheckout && (
+              <Typography as="span" size="xs" layoutClassName="ml-1 font-semibold" textClassName="text-orange-600 dark:text-orange-400">
+                (thiếu giờ ra)
+              </Typography>
+            )}
           </Typography>
         ) : (
           <Typography as="span" size="xs" textClassName="text-slate-300 dark:text-slate-600">—</Typography>
@@ -791,6 +804,8 @@ const DayRow: React.FC<{
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-emerald-50 dark:bg-emerald-900/20" textClassName="text-emerald-700 dark:text-emerald-300">Đủ công</Badge>
         ) : status === 'short' ? (
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-amber-50 dark:bg-amber-900/20" textClassName="text-amber-600 dark:text-amber-400">Thiếu công</Badge>
+        ) : status === 'no_out' ? (
+          <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-orange-50 dark:bg-orange-900/20" textClassName="text-orange-600 dark:text-orange-400" title="Có chấm vào nhưng quên tan ca — ca dở dang không tính công">Quên tan ca</Badge>
         ) : status === 'absent' ? (
           <Badge size="sm" layoutClassName="inline-flex px-2 py-0.5 text-[10px] font-semibold" backgroundClassName="bg-rose-50 dark:bg-rose-900/20" textClassName="text-rose-600 dark:text-rose-400">Vắng</Badge>
         ) : status === 'upcoming' ? (

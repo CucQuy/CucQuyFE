@@ -596,6 +596,90 @@ const StockReceiptsPage: React.FC = () => {
     [t, processOneJob],
   );
 
+  /** Xử lý 1 bill TEXT (đã AI phân tích) → match NCC/NVL + kiểm trùng → để REVIEW. */
+  const processTextJob = useCallback(
+    async (job: BillJob, structuredIn: StockReceiptStructured) => {
+      patchJob(job.id, { status: 'ocr', error: undefined });
+      try {
+        const supMatch = bestMaterialMatch(structuredIn.supplierName ?? '', supplierRows, 0.7);
+        const structured = autoMatchMaterials(
+          { ...structuredIn, supplierName: supMatch ? supMatch.item.name : structuredIn.supplierName },
+          materialRows,
+        );
+        const supplierContactVal: SupplierContactInfo = supMatch
+          ? {
+              phone: supMatch.item.phone ?? structuredIn.supplierPhone ?? null,
+              address: supMatch.item.address ?? structuredIn.supplierAddress ?? null,
+              contactPerson: supMatch.item.contactPerson ?? null,
+              email: supMatch.item.email ?? null,
+              taxCode: supMatch.item.taxCode ?? null,
+              category: supMatch.item.category ?? null,
+              channel: supMatch.item.channel,
+              notes: supMatch.item.notes ?? null,
+            }
+          : { phone: structuredIn.supplierPhone ?? null, address: structuredIn.supplierAddress ?? null };
+        const base: Partial<BillJob> = {
+          structured,
+          validation: MANUAL_VALIDATION,
+          ocrText: job.ocrText,
+          imageBase64: null,
+          imageMimeType: null,
+          supplierId: supMatch ? supMatch.item.id : null,
+          supplierContact: supplierContactVal,
+          confidence: 1,
+          progressStage: null,
+        };
+        try {
+          const dup = await findDuplicateReceipt({
+            structured: buildStructuredForSave(structured, false),
+            ocrText: job.ocrText,
+            targetSupplierId: supMatch ? supMatch.item.id : null,
+          });
+          if (dup.duplicate) {
+            patchJob(job.id, { ...base, status: 'duplicate', existingId: dup.receipt?.id });
+            return;
+          }
+        } catch {
+          /* không chặn nếu kiểm trùng lỗi */
+        }
+        // Bill chữ luôn để REVIEW (người xác nhận kết quả AI trước khi lưu).
+        patchJob(job.id, { ...base, status: 'review' });
+      } catch (e) {
+        patchJob(job.id, { status: 'error', progressStage: null, error: e instanceof Error ? e.message : String(e) });
+      }
+    },
+    [supplierRows, materialRows, patchJob],
+  );
+
+  /** Bill TEXT từ Zalo (đã AI phân tích) → thêm vào hàng đợi review. */
+  const handleZaloTextBills = useCallback(
+    (bills: { msgId: string; ts: number; dName: string; text: string; structured: StockReceiptStructured }[]) => {
+      if (!bills.length) return;
+      setSourceModalOpen(false);
+      const jobs: BillJob[] = bills.map((b) => ({
+        id: `job_${Date.now()}_${jobSeqRef.current++}`,
+        fileName: `Zalo · ${b.structured.supplierName || b.dName || 'bill chữ'}`,
+        previewUrl: '',
+        status: 'pending',
+        progressStage: null,
+        structured: null,
+        validation: null,
+        ocrText: b.text,
+        imageBase64: null,
+        imageMimeType: null,
+        supplierId: null,
+        supplierContact: EMPTY_CONTACT,
+        confidence: 0,
+      }));
+      setQueue((prev) => [...prev, ...jobs]);
+      setQueueOpen(true);
+      void (async () => {
+        for (let i = 0; i < jobs.length; i++) await processTextJob(jobs[i], bills[i].structured);
+      })();
+    },
+    [processTextJob],
+  );
+
   /** Mở form review cho 1 bill trong hàng đợi (dùng lại form nhập 1 bill). */
   const reviewJob = useCallback((job: BillJob) => {
     const file = filesRef.current.get(job.id);
@@ -765,6 +849,7 @@ const StockReceiptsPage: React.FC = () => {
         onImageSelected={handleSourceImage}
         onImagesSelected={handleImagesSelected}
         onStartManual={handleSourceManual}
+        onZaloTextBills={handleZaloTextBills}
       />
 
       <BillImportQueueModal

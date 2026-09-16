@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Copy, Eye, Loader2, Pencil, RotateCcw, Save } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, Eye, FileText, Loader2, Pencil, RotateCcw, Save } from 'lucide-react';
 import { formatVND } from '@/utils/format/currencyUtil';
 import BaseModal from '@/components/BaseModal';
 import Box from '@/components/ui/Box';
@@ -123,7 +123,17 @@ const BillImportQueueModal: React.FC<Props> = ({ open, onClose, jobs, onReview, 
                 borderClassName="border-slate-100 dark:border-slate-700"
                 backgroundClassName="bg-white dark:bg-slate-800"
               >
-                <Image src={j.previewUrl} alt={j.fileName} layoutClassName="h-12 w-12 shrink-0 object-cover" roundedClassName="rounded-lg" />
+                {j.previewUrl ? (
+                  <Image src={j.previewUrl} alt={j.fileName} layoutClassName="h-12 w-12 shrink-0 object-cover" roundedClassName="rounded-lg" />
+                ) : (
+                  <Box
+                    layoutClassName="flex h-12 w-12 shrink-0 items-center justify-center"
+                    roundedClassName="rounded-lg"
+                    backgroundClassName="bg-sky-100 dark:bg-sky-900/40"
+                  >
+                    <FileText className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+                  </Box>
+                )}
                 <Box layoutClassName="min-w-0 flex-1">
                   <Typography as="p" size="sm" layoutClassName="truncate font-medium" textClassName="text-slate-800 dark:text-slate-100">
                     {s?.supplierName || j.fileName}

@@ -47,6 +47,14 @@ export interface IpStatus {
   ip: string;
 }
 
+/** Lần chấm vào chưa có chấm ra (phiên đang mở / đã bị bỏ vì quên tan ca). */
+export interface AttendanceOpenSession {
+  at: string; // ISO giờ chấm vào
+  date: string; // yyyy-mm-dd
+  shift: AttendanceShift | null;
+  deadline: string | null; // hạn phải chấm ra (ISO)
+}
+
 /** Trạng thái chấm công hôm nay của NV. */
 export interface AttendanceStatus {
   employeeId: string;
@@ -59,11 +67,21 @@ export interface AttendanceStatus {
   todayOut: string | null;
   todayCount: number;
   todayShifts: AttendanceShiftStatus[]; // vào/ra từng ca hôm nay
+  openSince: string | null; // giờ vào của phiên đang mở (chưa quá hạn tan ca)
+  checkoutDeadline: string | null; // hạn phải chấm ra của phiên đang mở
+  /** Lần chấm vào đã bị BỎ QUA vì quá hạn tan ca → ca đó tính thiếu công. */
+  skippedCheckout: AttendanceOpenSession | null;
   today?: AttendanceDayCompute | null; // đối chiếu đăng ký ↔ đã làm hôm nay (ca hợp lệ + công)
 }
 
 /** 1 ca theo compute đăng-ký↔đã-làm của 1 ngày. */
-export type SpxDayShiftStatus = 'valid' | 'partial' | 'missed' | 'unregistered' | 'off';
+export type SpxDayShiftStatus =
+  | 'valid'
+  | 'partial'
+  | 'no_checkout'
+  | 'missed'
+  | 'unregistered'
+  | 'off';
 export interface AttendanceDayShift {
   code: AttendanceShift;
   name: string;
@@ -71,7 +89,10 @@ export interface AttendanceDayShift {
   registered: boolean;
   worked: boolean;
   valid: boolean;
-  hours: number; // giờ hợp lệ của ca (chấm thực tế cắt trong khung ca)
+  hours: number; // giờ CHẤM hợp lệ của ca (chấm thực tế cắt trong khung ca)
+  adjHours: number; // giờ quản lý bổ sung gắn đúng ca này
+  totalHours: number; // hours + adjHours (giờ dùng để tính tiền ca)
+  pay: number | null; // tiền của ca = totalHours × mức lương/giờ (null khi chưa đặt mức)
   status: SpxDayShiftStatus;
 }
 
@@ -83,6 +104,12 @@ export interface AttendanceDayCompute {
   out: string | null;
   cong: number;
   hours: number; // tổng giờ hợp lệ trong ngày
+  rate: number | null; // mức lương/giờ áp dụng ngày đó
+  adjHours: number; // tổng giờ quản lý bổ sung trong ngày
+  pay: number | null; // tiền ngày = (giờ chấm + giờ bổ sung) × mức/giờ
+  /** Có lần chấm vào bị bỏ vì quên tan ca (ca dở dang → thiếu công). */
+  missingCheckout: boolean;
+  missingCheckoutAt: string | null; // giờ vào bị bỏ (ISO)
   shifts: AttendanceDayShift[];
 }
 
@@ -102,6 +129,8 @@ export interface PayrollDay {
   in: string | null; // giờ chấm vào (ISO) — null nếu không chấm
   out: string | null; // giờ chấm ra (ISO)
   shifts: AttendanceDayShift[]; // chi tiết từng ca (đăng ký/làm/hợp lệ)
+  /** Có lần chấm vào bị bỏ vì quên tan ca (ca dở dang → thiếu công). */
+  missingCheckout: boolean;
   /** Đã CHỐT công: số giờ hiện tại là số cuối (NV chỉ xin làm ít giờ) → không coi là thiếu ca. */
   locked: boolean;
   lockNote: string;
@@ -175,6 +204,7 @@ export interface MyShiftWeek {
 export const DAY_SHIFT_STATUS_LABELS: { value: SpxDayShiftStatus; label: string }[] = [
   { value: 'valid', label: 'Hợp lệ' },
   { value: 'partial', label: 'Làm một phần' },
+  { value: 'no_checkout', label: 'Quên tan ca (thiếu công)' },
   { value: 'missed', label: 'Vắng (đã đăng ký)' },
   { value: 'unregistered', label: 'Chưa đăng ký' },
   { value: 'off', label: 'Không đăng ký' },

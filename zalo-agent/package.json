@@ -1,0 +1,12 @@
+{
+  "name": "cucquy-zalo-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Agent doc anh bill tu nhom Zalo qua CDP, tra ve BE khi FE bam nut (giong print-agent).",
+  "bin": { "cucquy-zalo-agent": "agent.mjs" },
+  "dependencies": {
+    "chrome-remote-interface": "^0.33.3",
+    "socket.io-client": "^4.7.5"
+  }
+}

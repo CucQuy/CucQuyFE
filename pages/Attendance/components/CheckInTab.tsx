@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, LogOut, RefreshCw, ScanFace, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, LogIn, LogOut, RefreshCw, ScanFace, Wifi, WifiOff } from 'lucide-react';
 import Box from '@/components/ui/Box';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -8,11 +8,71 @@ import Heading from '@/components/ui/Heading';
 import Spinner from '@/components/ui/Spinner';
 import Badge from '@/components/ui/Badge';
 import { useAttendanceMe } from '@/hooks/queries/useAttendanceQuery';
-import { AttendanceKind, SHIFTS, shiftLabel, shiftTime } from '@/types/attendance';
+import {
+  AttendanceDayShift,
+  AttendanceKind,
+  SHIFTS,
+  shiftLabel,
+  shiftTime,
+} from '@/types/attendance';
 import CheckInCameraModal from './CheckInCameraModal';
+import { vnd } from './payrollUtil';
 
 const fmt = (iso?: string | null): string =>
   iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—';
+
+/** '18:30 13/09' — dùng cho lần chấm vào bị bỏ (có thể là ngày hôm trước). */
+const fmtDateTime = (iso?: string | null): string =>
+  iso
+    ? new Date(iso).toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      })
+    : '—';
+
+/** ' · 120.000đ' — tiền của ca; rỗng khi chưa đặt mức lương/giờ hoặc ca chưa có giờ. */
+const payText = (s: AttendanceDayShift): string =>
+  s.pay != null && s.pay > 0 ? ` · ${vnd(s.pay)}` : '';
+
+/** Nhãn + màu của 1 ca theo đối chiếu đăng ký ↔ đã làm. */
+const shiftBadge = (s: AttendanceDayShift): { bg: string; text: string; label: string } => {
+  switch (s.status) {
+    case 'valid':
+      return {
+        bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        label: `✓ ${s.hours}h${payText(s)}`,
+      };
+    case 'partial':
+      return {
+        bg: 'bg-sky-100 dark:bg-sky-900/30',
+        text: 'text-sky-700 dark:text-sky-300',
+        label: `${s.hours}h (một phần)${payText(s)}`,
+      };
+    // Quên tan ca: hệ thống đã bỏ qua lần chấm ra → ca này không tính công.
+    case 'no_checkout':
+      return {
+        bg: 'bg-orange-100 dark:bg-orange-900/30',
+        text: 'text-orange-700 dark:text-orange-300',
+        label: `quên tan ca · thiếu công${payText(s)}`,
+      };
+    case 'unregistered':
+      return {
+        bg: 'bg-rose-100 dark:bg-rose-900/30',
+        text: 'text-rose-700 dark:text-rose-300',
+        label: 'chưa đăng ký · không tính',
+      };
+    default:
+      // Ca đã đăng ký chưa làm — vẫn có tiền nếu quản lý đã bổ sung công cho ca đó.
+      return {
+        bg: 'bg-amber-100 dark:bg-amber-900/30',
+        text: 'text-amber-700 dark:text-amber-300',
+        label: `đã đăng ký${payText(s)}`,
+      };
+  }
+};
 
 const CheckInTab: React.FC = () => {
   const { me, loading, refetch } = useAttendanceMe();
@@ -62,6 +122,8 @@ const CheckInTab: React.FC = () => {
   // Đối chiếu đăng ký ↔ đã làm hôm nay (đăng ký công): ca hợp lệ + công.
   const today = status?.today ?? null;
   const dayShift = (code: string) => today?.shifts.find((x) => x.code === code) ?? null;
+  // Lần chấm vào quá hạn tan ca → BE tự bỏ qua lần chấm ra, cho chấm vào ca mới.
+  const skipped = status?.skippedCheckout ?? null;
 
   // Ở MẠNG NGOÀI (hoặc quán chưa cấu hình) → TRANG LỖI toàn màn, KHÔNG header/badge/camera.
   if (!ipOk) {
@@ -136,6 +198,26 @@ const CheckInTab: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Quên tan ca ở lần chấm trước → đã bỏ qua, ca đó thiếu công */}
+      {skipped && (
+        <Box
+          layoutClassName="flex items-start gap-2 rounded-xl px-3 py-2.5"
+          borderClassName="border border-orange-200 dark:border-orange-800/60"
+          backgroundClassName="bg-orange-50 dark:bg-orange-900/20"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+          <Box layoutClassName="flex flex-col gap-0.5">
+            <Typography as="span" size="sm" layoutClassName="font-semibold" textClassName="text-orange-700 dark:text-orange-300">
+              Lần vào ca {fmtDateTime(skipped.at)} chưa tan ca
+            </Typography>
+            <Typography as="span" size="xs" textClassName="text-orange-700/80 dark:text-orange-300/80">
+              Đã quá giờ ca nên hệ thống bỏ qua lần tan ca đó — ca này tính THIẾU CÔNG. Nhờ quản lý
+              bổ sung công nếu bạn có đi làm. Bây giờ bạn vào ca bình thường.
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       {/* Tổng công hôm nay theo ca ĐĂNG KÝ (đăng ký công) */}
       {today && (
         <Box
@@ -146,9 +228,17 @@ const CheckInTab: React.FC = () => {
           <Typography as="span" size="sm" textClassName="text-slate-700 dark:text-slate-200">
             Công hôm nay (ca đã đăng ký + đã làm):
           </Typography>
-          <Typography as="span" size="sm" layoutClassName="font-bold tabular-nums" textClassName="text-primary-600 dark:text-primary-400">
-            {today.cong} công
-          </Typography>
+          <Box layoutClassName="flex items-baseline gap-1.5">
+            <Typography as="span" size="sm" layoutClassName="font-bold tabular-nums" textClassName="text-primary-600 dark:text-primary-400">
+              {today.cong} công
+            </Typography>
+            {/* Tiền từ chấm công hôm nay — chưa gồm giờ quản lý bổ sung. */}
+            {today.pay != null && (
+              <Typography as="span" size="sm" layoutClassName="font-bold tabular-nums" textClassName="text-emerald-600 dark:text-emerald-400">
+                · {vnd(today.pay)}
+              </Typography>
+            )}
+          </Box>
         </Box>
       )}
 
@@ -184,37 +274,15 @@ const CheckInTab: React.FC = () => {
                   <Box
                     layoutClassName="mt-0.5 inline-flex w-fit items-center px-1.5 py-0.5"
                     roundedClassName="rounded"
-                    backgroundClassName={
-                      cs.status === 'valid'
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                        : cs.status === 'partial'
-                          ? 'bg-sky-100 dark:bg-sky-900/30'
-                          : cs.status === 'unregistered'
-                            ? 'bg-rose-100 dark:bg-rose-900/30'
-                            : 'bg-amber-100 dark:bg-amber-900/30'
-                    }
+                    backgroundClassName={shiftBadge(cs).bg}
                   >
                     <Typography
                       as="span"
                       size="xs"
                       layoutClassName="font-semibold"
-                      textClassName={
-                        cs.status === 'valid'
-                          ? 'text-emerald-700 dark:text-emerald-300'
-                          : cs.status === 'partial'
-                            ? 'text-sky-700 dark:text-sky-300'
-                            : cs.status === 'unregistered'
-                              ? 'text-rose-700 dark:text-rose-300'
-                              : 'text-amber-700 dark:text-amber-300'
-                      }
+                      textClassName={shiftBadge(cs).text}
                     >
-                      {cs.status === 'valid'
-                        ? `✓ ${cs.hours}h`
-                        : cs.status === 'partial'
-                          ? `${cs.hours}h (một phần)`
-                          : cs.status === 'unregistered'
-                            ? 'chưa đăng ký · không tính'
-                            : 'đã đăng ký'}
+                      {shiftBadge(cs).label}
                     </Typography>
                   </Box>
                 )}
@@ -275,6 +343,12 @@ const CheckInTab: React.FC = () => {
                 {shiftLabel(curShift)} · {shiftTime(curShift)}
               </Typography>
             </Box>
+          )}
+          {/* Quá hạn này mà chưa tan ca → hệ thống bỏ qua, ca tính thiếu công. */}
+          {isCheckedIn && status?.checkoutDeadline && (
+            <Typography size="xs" layoutClassName="text-center" textClassName="text-orange-600 dark:text-orange-400">
+              Nhớ tan ca trước {fmt(status.checkoutDeadline)} — quá giờ sẽ bị bỏ qua và ca này thiếu công.
+            </Typography>
           )}
           {/* Bấm → mở modal camera riêng (camera chỉ bật trong modal). 1 nút theo trạng thái. */}
           <Button

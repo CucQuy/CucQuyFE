@@ -56,6 +56,9 @@ const InstagramSettingsScreen = lazy(() => import("./pages/Channels/InstagramSet
 const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
 const InstagramPostsScreen = lazy(() => import("./pages/Channels/InstagramPostsScreen"));
 const FacebookSettingsScreen = lazy(() => import("./pages/Channels/FacebookSettingsScreen"));
+const TiktokVideosScreen = lazy(() => import("./pages/Channels/TiktokVideosScreen"));
+const TiktokPublishScreen = lazy(() => import("./pages/Channels/TiktokPublishScreen"));
+const TiktokSettingsScreen = lazy(() => import("./pages/Channels/TiktokSettingsScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -208,6 +211,30 @@ const AppRoutes: React.FC = () => (
         element={
           <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/settings")?.roles}>
             <InstagramSettingsScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/tiktok"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/tiktok")?.roles}>
+            <TiktokVideosScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/tiktok/publish"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/tiktok/publish")?.roles}>
+            <TiktokPublishScreen />
+          </RoleBasedRoute>
+        }
+      />
+      <Route
+        path="channels/tiktok/settings"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/tiktok/settings")?.roles}>
+            <TiktokSettingsScreen />
           </RoleBasedRoute>
         }
       />

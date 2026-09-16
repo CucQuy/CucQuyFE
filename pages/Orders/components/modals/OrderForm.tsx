@@ -893,7 +893,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
                     <Input
                       id="order-form-order-number"
                       type="text"
-                      value={loadingOrderNumber ? 'Generating...' : orderNumber}
+                      value={loadingOrderNumber ? 'Generating...' : orderNumber || t('detail.orderIdAuto')}
                       disabled
                       readOnly
                       leftIcon={<Hash />}

@@ -34,16 +34,20 @@ export const fetchOrder = async (id: string): Promise<Order | null> => {
   return (res.data as Order) ?? null;
 };
 
-/** Sinh so don ke tiep (BE: GET /orders/next-number → { orderNumber }). */
+/**
+ * Sinh so don ke tiep (BE: GET /orders/next-number → { orderNumber }).
+ * Loi/mat mang → tra CHUOI RONG, KHONG tu che ma o FE: order_create cua BE se goi
+ * order_next_number() luc luu. Truoc day fallback `ORD-${Date.now().slice(-6)}` da
+ * de ra ORD-307123 (10/09/2026, luc mat mang) khien ca day so nhay vot tu 765 len 307k.
+ */
 export const getNextOrderNumber = async (): Promise<string> => {
   try {
     const res = await apiClient.get("/orders/next-number");
     const num = (res.data as { orderNumber?: string } | undefined)?.orderNumber;
-    if (typeof num === "string" && num.length > 0) return num;
-    return "ORD-000001";
+    return typeof num === "string" && num.length > 0 ? num : "";
   } catch (e) {
-    console.warn("Failed to get order number from API, falling back.", e);
-    return `ORD-${Date.now().toString().slice(-6)}`;
+    console.warn("Khong lay duoc so don tu API — de BE tu sinh luc luu.", e);
+    return "";
   }
 };
 

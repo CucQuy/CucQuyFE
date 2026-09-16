@@ -9,6 +9,7 @@ import {
   AttendanceOverviewRow,
   AttendanceRecord,
   AttendanceDayCompute,
+  AttendanceOpenSession,
   MyShiftWeek,
   PayrollDay,
   PayrollResult,
@@ -99,7 +100,7 @@ export async function fetchDayCompute(
   const res = await apiClient.get<AttendanceDayCompute>(`${BASE}/day-compute`, {
     params: { employeeId, ...(date ? { date } : {}) },
   });
-  return (res.data as AttendanceDayCompute) ?? null;
+  return toDayCompute(res.data);
 }
 
 // ---- type-guard (dữ liệu API là untrusted) ----
@@ -158,6 +159,32 @@ function toNetwork(r: any): AllowedNetwork {
 
 // ---- Nhân viên (self) ----
 
+/** Lần chấm vào chưa có chấm ra (phiên đang mở / bị bỏ vì quên tan ca). */
+function toOpenSession(o: any): AttendanceOpenSession | null {
+  const at = toIso(o?.at);
+  if (!at) return null;
+  return { at, date: str(o?.date) ?? '', shift: toShift(o?.shift), deadline: toIso(o?.deadline) };
+}
+
+/** Đối chiếu đăng ký ↔ đã làm của 1 ngày (dùng lại cho status.today và /day-compute). */
+function toDayCompute(d: any): AttendanceDayCompute | null {
+  if (!d) return null;
+  return {
+    employeeId: str(d?.employeeId) ?? '',
+    date: str(d?.date) ?? '',
+    in: toIso(d?.in),
+    out: toIso(d?.out),
+    cong: num(d?.cong) ?? 0,
+    hours: num(d?.hours) ?? 0,
+    rate: num(d?.rate),
+    adjHours: num(d?.adjHours) ?? 0,
+    pay: num(d?.pay),
+    missingCheckout: d?.missingCheckout === true,
+    missingCheckoutAt: toIso(d?.missingCheckoutAt),
+    shifts: Array.isArray(d?.shifts) ? d.shifts.map(toDayShift) : [],
+  };
+}
+
 /** Trạng thái của NV đang đăng nhập + IP hiện tại. */
 export async function fetchMe(): Promise<AttendanceMe> {
   const res = await apiClient.get<AttendanceMe>(`${BASE}/me`);
@@ -188,6 +215,10 @@ export async function fetchMe(): Promise<AttendanceMe> {
                 .map((s: any) => ({ shift: toShift(s?.shift), in: toIso(s?.in), out: toIso(s?.out) }))
                 .filter((s: any) => s.shift)
             : [],
+          openSince: toIso(d.status.openSince),
+          checkoutDeadline: toIso(d.status.checkoutDeadline),
+          skippedCheckout: toOpenSession(d.status.skippedCheckout),
+          today: toDayCompute(d.status.today),
         }
       : null,
     ip: {
@@ -317,9 +348,13 @@ function toDayShift(s: any): AttendanceDayShift {
     worked: s?.worked === true,
     valid: s?.valid === true,
     hours: n0(s?.hours),
+    adjHours: n0(s?.adjHours),
+    totalHours: n0(s?.totalHours),
+    pay: num(s?.pay),
     status:
       s?.status === 'valid' ||
       s?.status === 'partial' ||
+      s?.status === 'no_checkout' ||
       s?.status === 'missed' ||
       s?.status === 'unregistered'
         ? s.status
@@ -341,6 +376,7 @@ function toPayrollDay(d: any): PayrollDay {
     in: toIso(d?.in),
     out: toIso(d?.out),
     shifts: Array.isArray(d?.shifts) ? d.shifts.map(toDayShift) : [],
+    missingCheckout: d?.missingCheckout === true,
     locked: d?.locked === true,
     lockNote: str(d?.lockNote) ?? '',
   };
