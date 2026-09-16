@@ -50,8 +50,6 @@ import {
   Store,
   ShoppingBag,
   Volume2,
-  Music2,
-  Video,
 } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import ZaloIcon from "@/components/ui/ZaloIcon";
@@ -213,27 +211,6 @@ export const routes: RouteConfig[] = [
     type: "page",
     path: "/channels/instagram/settings",
     labelKey: "nav.chIgSettings",
-    icon: Plug,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/tiktok",
-    labelKey: "nav.chTtVideos",
-    icon: Video,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/tiktok/publish",
-    labelKey: "nav.chTtPublish",
-    icon: Send,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/tiktok/settings",
-    labelKey: "nav.chTtSettings",
     icon: Plug,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
@@ -594,17 +571,6 @@ export const navGroups: NavGroupConfig[] = [
       "/channels/instagram/posts",
       "/channels/instagram",
       "/channels/instagram/settings",
-    ],
-  },
-  {
-    key: "channelsTiktok",
-    labelKey: "nav.channelsTiktok",
-    icon: Music2,
-    parentKey: "channels",
-    childPaths: [
-      "/channels/tiktok",
-      "/channels/tiktok/publish",
-      "/channels/tiktok/settings",
     ],
   },
   {
