@@ -519,3 +519,170 @@ export const removeTxShipping = async (transactionId: string): Promise<{ unlinke
   const res = await apiClient.delete<{ unlinked?: number }>(`/transactions/${transactionId}/shipping`);
   return { unlinked: Number(res.data?.unlinked) || 0 };
 };
+
+// ── Đối soát TỰ ĐỘNG (gộp 3 loại, theo kỳ đang xem trên màn Sổ) ──
+
+/** 1 cặp gợi ý: GD tiền VÀO ↔ đơn hàng. */
+export interface AutoReconcileInOrder {
+  transactionId: string;
+  sepayId: number | string;
+  orderId: string;
+  orderNumber: string;
+  customer: string;
+  orderTotal: number;
+  amount: number;
+  transactionDate: string | null;
+  orderCreatedAt: string | null;
+  description: string;
+}
+
+/** 1 cặp gợi ý: GD tiền RA ↔ phiếu nhập kho. */
+export interface AutoReconcileOutReceipt {
+  transactionId: string;
+  receiptId: string;
+  amount: number;
+  transactionDate: string | null;
+  receiptDate: string | null;
+  receiptTotal: number;
+  receiptRemaining: number;
+  supplier: string;
+  invoice: string;
+  description: string;
+}
+
+/** 1 cặp gợi ý: GD tiền RA ↔ khoản chi nhập tay. */
+export interface AutoReconcileOutExpense {
+  transactionId: string;
+  expenseId: string;
+  amount: number;
+  transactionDate: string | null;
+  expenseDate: string | null;
+  category: string | null;
+  note: string;
+  description: string;
+}
+
+export interface AutoReconcilePreviewResult {
+  inOrders: AutoReconcileInOrder[];
+  outReceipts: AutoReconcileOutReceipt[];
+  outExpenses: AutoReconcileOutExpense[];
+  counts: {
+    unmatchedIn: number;
+    unmatchedOut: number;
+    /** Có ứng viên nhưng không 1–1 → phải đối soát tay. */
+    ambiguousIn: number;
+    ambiguousOut: number;
+    /** GD ra khớp CẢ phiếu nhập lẫn chi phí tay → bỏ qua để khỏi đếm trùng chi phí. */
+    conflictOut: number;
+  };
+}
+
+export interface AutoReconcileApplyResult {
+  inOrders: { applied: number; skipped: number };
+  outReceipts: { applied: number; skipped: number };
+  outExpenses: { applied: number; skipped: number };
+  applied: number;
+  skipped: number;
+}
+
+const autoInOrder = (r: Record<string, unknown>): AutoReconcileInOrder => ({
+  transactionId: str(r.transactionId),
+  sepayId: typeof r.sepayId === 'number' || typeof r.sepayId === 'string' ? r.sepayId : '',
+  orderId: str(r.orderId),
+  orderNumber: str(r.orderNumber),
+  customer: str(r.customer),
+  orderTotal: num(r.orderTotal),
+  amount: num(r.amount),
+  transactionDate: typeof r.transactionDate === 'string' ? r.transactionDate : null,
+  orderCreatedAt: typeof r.orderCreatedAt === 'string' ? r.orderCreatedAt : null,
+  description: str(r.description),
+});
+
+const autoOutReceipt = (r: Record<string, unknown>): AutoReconcileOutReceipt => ({
+  transactionId: str(r.transactionId),
+  receiptId: str(r.receiptId),
+  amount: num(r.amount),
+  transactionDate: typeof r.transactionDate === 'string' ? r.transactionDate : null,
+  receiptDate: typeof r.receiptDate === 'string' ? r.receiptDate : null,
+  receiptTotal: num(r.receiptTotal),
+  receiptRemaining: num(r.receiptRemaining),
+  supplier: str(r.supplier),
+  invoice: str(r.invoice),
+  description: str(r.description),
+});
+
+const autoOutExpense = (r: Record<string, unknown>): AutoReconcileOutExpense => ({
+  transactionId: str(r.transactionId),
+  expenseId: str(r.expenseId),
+  amount: num(r.amount),
+  transactionDate: typeof r.transactionDate === 'string' ? r.transactionDate : null,
+  expenseDate: typeof r.expenseDate === 'string' ? r.expenseDate : null,
+  category: typeof r.category === 'string' ? r.category : null,
+  note: str(r.note),
+  description: str(r.description),
+});
+
+/**
+ * Preview (dry-run) đối soát tự động cho khoảng ngày đang xem. KHÔNG ghi gì —
+ * chỉ trả các cặp CHẮC CHẮN (1–1) để user duyệt trước.
+ */
+export const autoReconcilePreview = async (
+  from: string,
+  to: string,
+): Promise<AutoReconcilePreviewResult> => {
+  const res = await apiClient.post('/transactions/auto-reconcile/preview', { from, to });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const rows = (v: unknown): Record<string, unknown>[] =>
+    Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+  const c = (d.counts ?? {}) as Record<string, unknown>;
+  return {
+    inOrders: rows(d.inOrders).map(autoInOrder),
+    outReceipts: rows(d.outReceipts).map(autoOutReceipt),
+    outExpenses: rows(d.outExpenses).map(autoOutExpense),
+    counts: {
+      unmatchedIn: num(c.unmatchedIn),
+      unmatchedOut: num(c.unmatchedOut),
+      ambiguousIn: num(c.ambiguousIn),
+      ambiguousOut: num(c.ambiguousOut),
+      conflictOut: num(c.conflictOut),
+    },
+  };
+};
+
+/** Apply: ghi các cặp user còn tick ở modal (BE atomic + idempotent). */
+export const autoReconcileApply = async (payload: {
+  inOrders: AutoReconcileInOrder[];
+  outReceipts: AutoReconcileOutReceipt[];
+  outExpenses: AutoReconcileOutExpense[];
+}): Promise<AutoReconcileApplyResult> => {
+  const res = await apiClient.post('/transactions/auto-reconcile/apply', {
+    // Chỉ gửi field BE cần — payload gọn, và không lỡ đẩy dữ liệu hiển thị lên server.
+    inOrders: payload.inOrders.map((m) => ({
+      transactionId: m.transactionId,
+      orderId: m.orderId,
+      orderNumber: m.orderNumber,
+      sepayId: m.sepayId,
+    })),
+    outReceipts: payload.outReceipts.map((m) => ({
+      transactionId: m.transactionId,
+      receiptId: m.receiptId,
+      amount: m.amount,
+    })),
+    outExpenses: payload.outExpenses.map((m) => ({
+      transactionId: m.transactionId,
+      expenseId: m.expenseId,
+    })),
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const part = (v: unknown) => {
+    const o = (v ?? {}) as Record<string, unknown>;
+    return { applied: num(o.applied), skipped: num(o.skipped) };
+  };
+  return {
+    inOrders: part(d.inOrders),
+    outReceipts: part(d.outReceipts),
+    outExpenses: part(d.outExpenses),
+    applied: num(d.applied),
+    skipped: num(d.skipped),
+  };
+};

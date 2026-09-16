@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { RefreshCw, ArrowDownCircle, ArrowUpCircle, CircleDot, Tags, Landmark, Scale } from 'lucide-react';
+import { RefreshCw, ArrowDownCircle, ArrowUpCircle, CircleDot, Tags, Landmark, Scale, Wand2 } from 'lucide-react';
 import { LedgerFilters, LedgerStatus, LEDGER_STATUS_META, EXPENSE_CATEGORIES } from '@/types';
 import IconButton from '@/components/ui/IconButton';
 import Button from '@/components/ui/Button';
@@ -18,6 +18,8 @@ interface LedgerFilterBarProps {
   onRefresh: () => void;
   /** Mở modal đối soát gộp (nút "Đối soát"). */
   onReconcile: () => void;
+  /** Mở modal đối soát TỰ ĐỘNG (nút "Tự động") — quét kỳ đang xem, gợi ý cặp chắc chắn. */
+  onAutoReconcile: () => void;
 }
 
 const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'external', 'unmatched'];
@@ -29,7 +31,8 @@ const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'settled', 'expense'
  */
 const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
   filters, search, gatewayOptions, isFetching,
-  onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange, onRefresh, onReconcile,
+  onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange, onRefresh,
+  onReconcile, onAutoReconcile,
 }) => {
   // Trạng thái khả dụng theo loại đang chọn (thu ≠ chi).
   const statusOptions = useMemo<LedgerStatus[]>(() => {
@@ -109,6 +112,23 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
       }
       actions={
         <>
+          {/* Tự động đứng TRƯỚC: quét 1 phát xong phần dễ, còn lại mới cần đối soát tay. */}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onAutoReconcile}
+            leftIcon={<Wand2 className="h-4 w-4" />}
+            layoutClassName="inline-flex items-center gap-1.5"
+            roundedClassName="rounded-lg"
+            sizeClassName="px-3 py-2 text-sm"
+            backgroundClassName="bg-white dark:bg-slate-800"
+            borderClassName="border border-slate-200 dark:border-slate-700"
+            textClassName="font-medium text-slate-700 dark:text-slate-200"
+            hoverClassName="hover:bg-slate-50 dark:hover:bg-slate-700"
+          >
+            Tự động
+          </Button>
           <Button
             type="button"
             variant="primary"
