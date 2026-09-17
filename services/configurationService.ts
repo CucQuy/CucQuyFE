@@ -199,6 +199,21 @@ export const setActivePaymentAccount = async (id: string): Promise<PaymentAccoun
   return Array.isArray(data) ? data : [];
 };
 
+/**
+ * Bật/tắt đưa giao dịch của TK vào Sổ giao dịch/đối soát.
+ * BE chặn tắt TK đang nhận tiền (trả lỗi) → caller hiện toast.
+ */
+export const setTrackedPaymentAccount = async (
+  id: string,
+  tracked: boolean,
+): Promise<PaymentAccount[]> => {
+  const { data } = await apiClient.put<PaymentAccount[]>(
+    `/configurations/payment-accounts/${encodeURIComponent(id)}/tracked`,
+    { tracked },
+  );
+  return Array.isArray(data) ? data : [];
+};
+
 export const deletePaymentAccount = async (id: string): Promise<PaymentAccount[]> => {
   const { data } = await apiClient.delete<PaymentAccount[]>(
     `/configurations/payment-accounts/${encodeURIComponent(id)}`,

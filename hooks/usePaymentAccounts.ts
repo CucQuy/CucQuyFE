@@ -8,6 +8,7 @@ import {
   deletePaymentAccount,
   fetchPaymentAccounts,
   setActivePaymentAccount,
+  setTrackedPaymentAccount,
 } from '@/services/configurationService';
 
 export interface UsePaymentAccountsResult {
@@ -20,6 +21,8 @@ export interface UsePaymentAccountsResult {
   refresh: () => Promise<void>;
   create: (input: CreatePaymentAccountInput) => Promise<PaymentAccount[]>;
   setActive: (id: string) => Promise<PaymentAccount[]>;
+  /** Bật/tắt đưa giao dịch của TK vào Sổ giao dịch/đối soát. */
+  setTracked: (id: string, tracked: boolean) => Promise<PaymentAccount[]>;
   remove: (id: string) => Promise<PaymentAccount[]>;
 }
 
@@ -64,6 +67,12 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     onSuccess: applyList,
   });
 
+  const setTrackedMutation = useMutation({
+    mutationFn: ({ id, tracked }: { id: string; tracked: boolean }) =>
+      setTrackedPaymentAccount(id, tracked),
+    onSuccess: applyList,
+  });
+
   const removeMutation = useMutation({
     mutationFn: (id: string) => deletePaymentAccount(id),
     onSuccess: applyList,
@@ -78,15 +87,28 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     [createMutation],
   );
   const setActive = useCallback((id: string) => setActiveMutation.mutateAsync(id), [setActiveMutation]);
+  const setTracked = useCallback(
+    (id: string, tracked: boolean) => setTrackedMutation.mutateAsync({ id, tracked }),
+    [setTrackedMutation],
+  );
   const remove = useCallback((id: string) => removeMutation.mutateAsync(id), [removeMutation]);
 
   const mutating =
-    createMutation.isPending || setActiveMutation.isPending || removeMutation.isPending;
+    createMutation.isPending ||
+    setActiveMutation.isPending ||
+    setTrackedMutation.isPending ||
+    removeMutation.isPending;
 
   const error = query.error
     ? (query.error as Error)?.message || 'Không tải được danh sách tài khoản thanh toán'
-    : createMutation.error || setActiveMutation.error || removeMutation.error
-      ? ((createMutation.error || setActiveMutation.error || removeMutation.error) as Error)?.message ||
+    : createMutation.error ||
+        setActiveMutation.error ||
+        setTrackedMutation.error ||
+        removeMutation.error
+      ? ((createMutation.error ||
+          setActiveMutation.error ||
+          setTrackedMutation.error ||
+          removeMutation.error) as Error)?.message ||
         'Thao tác tài khoản thanh toán thất bại'
       : null;
 
@@ -99,6 +121,7 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     refresh,
     create,
     setActive,
+    setTracked,
     remove,
   };
 };

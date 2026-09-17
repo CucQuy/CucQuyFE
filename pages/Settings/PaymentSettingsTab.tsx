@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, CreditCard, Plus, Trash2, Wallet } from 'lucide-react';
+import { Check, CreditCard, Eye, EyeOff, Plus, Trash2, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
@@ -27,7 +27,8 @@ interface ParsedPreview {
 
 const PaymentSettingsTab: React.FC = () => {
   const { t } = useLanguage();
-  const { accounts, loading, mutating, create, setActive, remove } = usePaymentAccounts();
+  const { accounts, loading, mutating, create, setActive, setTracked, remove } =
+    usePaymentAccounts();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [qrLink, setQrLink] = useState('');
@@ -96,6 +97,15 @@ const PaymentSettingsTab: React.FC = () => {
     try {
       await setActive(id);
       toast.success(t('paymentSettings.activated'));
+    } catch (err: any) {
+      toast.error(err?.message || t('paymentSettings.saveError'));
+    }
+  };
+
+  const handleSetTracked = async (id: string, tracked: boolean) => {
+    try {
+      await setTracked(id, tracked);
+      toast.success(t('paymentSettings.trackedUpdated'));
     } catch (err: any) {
       toast.error(err?.message || t('paymentSettings.saveError'));
     }
@@ -225,21 +235,43 @@ const PaymentSettingsTab: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5">
-                      {acc.isActive ? (
+                      <Box layoutClassName="flex flex-wrap items-center gap-1.5">
+                        {acc.isActive ? (
+                          <Badge
+                            size="sm"
+                            layoutClassName="px-2 py-0.5 text-xs font-medium"
+                            borderClassName="border border-primary-300 dark:border-primary-700"
+                            backgroundClassName="bg-primary-100 dark:bg-primary-900/40"
+                            textClassName="text-primary-700 dark:text-primary-200"
+                          >
+                            {t('paymentSettings.activeBadge')}
+                          </Badge>
+                        ) : null}
+                        {/* Vào sổ / không vào sổ — TK không vào sổ thì tx bị gắn test, ngoài đối soát. */}
                         <Badge
                           size="sm"
                           layoutClassName="px-2 py-0.5 text-xs font-medium"
-                          borderClassName="border border-primary-300 dark:border-primary-700"
-                          backgroundClassName="bg-primary-100 dark:bg-primary-900/40"
-                          textClassName="text-primary-700 dark:text-primary-200"
+                          borderClassName={
+                            acc.isTracked === false
+                              ? 'border border-slate-300 dark:border-slate-600'
+                              : 'border border-emerald-300 dark:border-emerald-700'
+                          }
+                          backgroundClassName={
+                            acc.isTracked === false
+                              ? 'bg-slate-100 dark:bg-slate-700/40'
+                              : 'bg-emerald-50 dark:bg-emerald-900/30'
+                          }
+                          textClassName={
+                            acc.isTracked === false
+                              ? 'text-slate-500 dark:text-slate-400'
+                              : 'text-emerald-700 dark:text-emerald-300'
+                          }
                         >
-                          {t('paymentSettings.activeBadge')}
+                          {acc.isTracked === false
+                            ? t('paymentSettings.untrackedBadge')
+                            : t('paymentSettings.trackedBadge')}
                         </Badge>
-                      ) : (
-                        <Typography as="span" size="xs" variant="muted">
-                          —
-                        </Typography>
-                      )}
+                      </Box>
                     </TableCell>
                     <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5 text-right">
                       <Box layoutClassName="inline-flex items-center gap-2">
@@ -263,6 +295,40 @@ const PaymentSettingsTab: React.FC = () => {
                         >
                           {acc.isActive ? t('paymentSettings.inUse') : t('paymentSettings.useThis')}
                         </Button>
+                        {/* TK đang nhận tiền buộc phải vào sổ để đối soát → BE chặn tắt. */}
+                        <IconButton
+                          type="button"
+                          label={
+                            acc.isTracked === false
+                              ? t('paymentSettings.trackOn')
+                              : t('paymentSettings.trackOff')
+                          }
+                          variant="secondary"
+                          disabled={mutating || acc.isActive}
+                          backgroundClassName={
+                            acc.isTracked === false
+                              ? 'bg-slate-50 dark:bg-slate-700/40'
+                              : 'bg-emerald-50 dark:bg-emerald-900/20'
+                          }
+                          hoverClassName={
+                            acc.isTracked === false
+                              ? 'hover:bg-slate-100 dark:hover:bg-slate-700'
+                              : 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                          }
+                          textClassName={
+                            acc.isTracked === false
+                              ? 'text-slate-500 dark:text-slate-400'
+                              : 'text-emerald-600 dark:text-emerald-300'
+                          }
+                          stateClassName="transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                          onClick={() => handleSetTracked(acc.id, acc.isTracked === false)}
+                        >
+                          {acc.isTracked === false ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </IconButton>
                         <IconButton
                           type="button"
                           label={t('paymentSettings.deleteAccount')}
@@ -286,6 +352,9 @@ const PaymentSettingsTab: React.FC = () => {
 
         <Typography size="xs" variant="muted" layoutClassName="mt-3">
           {t('paymentSettings.hint')}
+        </Typography>
+        <Typography size="xs" variant="muted" layoutClassName="mt-1">
+          {t('paymentSettings.trackHint')}
         </Typography>
       </Card>
 

@@ -22,6 +22,11 @@ export interface PaymentAccount {
   qrTemplate: QrTemplate | string;
   /** TK đang active — mọi QR đơn dùng TK này. */
   isActive: boolean;
+  /**
+   * Giao dịch của TK này có vào Sổ giao dịch/đối soát hay không. false → BE gắn
+   * `is_test` cho tx → status 'test', loại khỏi doanh thu + tỷ lệ đối soát.
+   */
+  isTracked?: boolean;
   /** Thời điểm tạo (ISO string từ BE). */
   createdAt?: string;
 }
@@ -38,6 +43,7 @@ export const TEST_PAYMENT_ACCOUNT: PaymentAccount = {
   accountHolder: 'TAI KHOAN TEST',
   qrTemplate: 'compact',
   isActive: false,
+  isTracked: false,
 };
 
 /** Body khi tạo tài khoản mới (POST). */
