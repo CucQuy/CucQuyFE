@@ -34,3 +34,13 @@ export async function fetchSecretKey(port = DEFAULT_PORT) {
   }
   return null;
 }
+
+// CDP co song khong (Zalo mo kem --remote-debugging-port chua).
+export async function isCdpUp(port = DEFAULT_PORT) {
+  try {
+    await CDP.List({ port });
+    return true;
+  } catch {
+    return false;
+  }
+}
