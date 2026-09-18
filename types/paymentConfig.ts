@@ -1,9 +1,11 @@
 /**
  * Payment account types + helpers.
- * Mô hình: NHIỀU tài khoản ngân hàng, mỗi LOẠI (`kind`) có 1 TK đang dùng:
- *   - `hkd`      — TK hộ kinh doanh: khách CK vào đây, mọi QR đơn dùng TK HKD đang dùng.
- *   - `personal` — TK cá nhân: cuối ngày TK HKD dồn hết tiền sang đây, rồi chi hoá đơn
- *                  (NCC / ship / vận hành) từ TK này → đối soát tiền ra ở TK cá nhân.
+ * Mô hình: danh sách TK ngân hàng, LOẠI (`kind`) vừa là nhãn vừa là lựa chọn — mỗi loại
+ * thật CHỈ ĐÚNG 1 tài khoản:
+ *   - `hkd`      — TK hộ kinh doanh (1): khách CK vào đây, mọi QR đơn dùng TK này.
+ *   - `personal` — TK cá nhân (1): cuối ngày TK HKD dồn hết tiền sang, rồi chi hoá đơn
+ *                  (NCC / ship / vận hành) từ đây → đối soát tiền ra ở TK cá nhân.
+ *   - `none`     — không dùng: TK cũ giữ lại trong danh sách để tra cứu.
  * Runtime data lưu ở BE (`/configurations/payment-accounts`), truy cập qua
  * `usePaymentAccounts()` ở components. File này chỉ chứa types + helper thuần.
  */
@@ -11,10 +13,10 @@
 /** Template QR của SePay (VietQR). */
 export type QrTemplate = 'compact' | 'compact2' | 'qr_only' | 'print';
 
-/** Loại tài khoản: hộ kinh doanh vs cá nhân. */
-export type PaymentAccountKind = 'hkd' | 'personal';
+/** Loại tài khoản: hộ kinh doanh / cá nhân / không dùng. */
+export type PaymentAccountKind = 'hkd' | 'personal' | 'none';
 
-/** Lựa chọn loại tài khoản cho dropdown/badge cấu hình. */
+/** Lựa chọn loại tài khoản cho dropdown cấu hình (chọn loại = chọn tài khoản). */
 export const PAYMENT_ACCOUNT_KINDS: {
   value: PaymentAccountKind;
   label: string;
@@ -30,11 +32,16 @@ export const PAYMENT_ACCOUNT_KINDS: {
     label: 'TK cá nhân',
     hint: 'Nhận tiền dồn cuối ngày từ TK HKD, rồi chi các hoá đơn.',
   },
+  {
+    value: 'none',
+    label: 'Không dùng',
+    hint: 'Chỉ lưu trong danh sách để tra cứu, không dính vào đơn hay hoá đơn.',
+  },
 ];
 
-/** Helper lookup nhãn loại TK (mặc định coi là TK hộ kinh doanh). */
+/** Helper lookup nhãn loại TK (thiếu/không rõ → coi như không dùng). */
 export const paymentAccountKindLabel = (k?: PaymentAccountKind | string | null): string =>
-  PAYMENT_ACCOUNT_KINDS.find((x) => x.value === k)?.label ?? 'TK hộ kinh doanh';
+  PAYMENT_ACCOUNT_KINDS.find((x) => x.value === k)?.label ?? 'Không dùng';
 
 /** 1 tài khoản ngân hàng đã lưu (BE trả về). */
 export interface PaymentAccount {
@@ -48,14 +55,14 @@ export interface PaymentAccount {
   accountHolder: string;
   /** Template ảnh QR của SePay (mặc định "compact"). */
   qrTemplate: QrTemplate | string;
-  /** TK đang dùng TRONG loại của nó (1 TK HKD + 1 TK cá nhân). */
+  /** Suy ra từ kind (kind !== 'none') — BE tự set, FE không đổi trực tiếp. */
   isActive: boolean;
   /**
    * Có GHI NHẬN giao dịch của TK này không. false → webhook SePay bỏ qua hẳn,
    * không lưu giao dịch nào (TK cá nhân/TK cũ không muốn dính vào sổ).
    */
   isTracked?: boolean;
-  /** TK hộ kinh doanh (`hkd`) hay TK cá nhân (`personal`). Thiếu → coi là `hkd`. */
+  /** TK hộ kinh doanh / TK cá nhân / không dùng. Thiếu → coi là `none`. */
   kind?: PaymentAccountKind;
   /** Thời điểm tạo (ISO string từ BE). */
   createdAt?: string;
@@ -74,7 +81,7 @@ export const TEST_PAYMENT_ACCOUNT: PaymentAccount = {
   qrTemplate: 'compact',
   isActive: false,
   isTracked: false,
-  kind: 'hkd',
+  kind: 'none',
 };
 
 /** Body khi tạo tài khoản mới (POST). */
@@ -83,7 +90,7 @@ export interface CreatePaymentAccountInput {
   accountNumber: string;
   accountHolder: string;
   qrTemplate?: string;
-  /** Mặc định BE dùng 'hkd' nếu không gửi. */
+  /** Mặc định BE dùng 'none' nếu không gửi. */
   kind?: PaymentAccountKind;
 }
 

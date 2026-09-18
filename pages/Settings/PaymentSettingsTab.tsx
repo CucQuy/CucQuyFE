@@ -36,20 +36,20 @@ interface ParsedPreview {
 
 const PaymentSettingsTab: React.FC = () => {
   const { t } = useLanguage();
-  const { accounts, loading, mutating, create, setActive, setTracked, setKind, remove } =
+  const { accounts, loading, mutating, create, setTracked, setKind, remove } =
     usePaymentAccounts();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [qrLink, setQrLink] = useState('');
   const [preview, setPreview] = useState<ParsedPreview | null>(null);
   const [accountHolder, setAccountHolder] = useState('');
-  const [kind, setKindInput] = useState<PaymentAccountKind>('hkd');
+  const [kind, setKindInput] = useState<PaymentAccountKind>('none');
 
   const resetForm = () => {
     setQrLink('');
     setPreview(null);
     setAccountHolder('');
-    setKindInput('hkd');
+    setKindInput('none');
   };
 
   const closeModal = () => {
@@ -100,15 +100,6 @@ const PaymentSettingsTab: React.FC = () => {
       });
       toast.success(t('paymentSettings.created'));
       closeModal();
-    } catch (err: any) {
-      toast.error(err?.message || t('paymentSettings.saveError'));
-    }
-  };
-
-  const handleSetActive = async (id: string, active: boolean) => {
-    try {
-      await setActive(id, active);
-      toast.success(active ? t('paymentSettings.activated') : t('paymentSettings.deactivated'));
     } catch (err: any) {
       toast.error(err?.message || t('paymentSettings.saveError'));
     }
@@ -205,7 +196,6 @@ const PaymentSettingsTab: React.FC = () => {
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.accountNumber')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.accountHolder')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.kind')}</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-4 py-3.5 text-center">{t('paymentSettings.inUseColumn')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5 text-center">{t('paymentSettings.recordColumn')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5 text-right">{t('paymentSettings.actions')}</TableHeaderCell>
                 </TableRow>
@@ -215,7 +205,7 @@ const PaymentSettingsTab: React.FC = () => {
                   <TableRow
                     key={acc.id}
                     backgroundClassName={
-                      acc.isActive
+                      (acc.kind ?? 'none') !== 'none'
                         ? 'bg-primary-50/50 dark:bg-primary-900/10'
                         : idx % 2 === 0
                           ? ''
@@ -260,7 +250,7 @@ const PaymentSettingsTab: React.FC = () => {
                     {/* Loại TK: 2 lựa chọn — 'hkd' nhận tiền khách, 'personal' chi hoá đơn. */}
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3">
                       <Select
-                        value={acc.kind ?? 'hkd'}
+                        value={acc.kind ?? 'none'}
                         disabled={mutating}
                         onChange={(e) =>
                           handleSetKind(acc.id, e.target.value as PaymentAccountKind)
@@ -272,21 +262,12 @@ const PaymentSettingsTab: React.FC = () => {
                       </Select>
                     </TableCell>
 
-                    {/* Sử dụng: bật TK này thì TK CÙNG LOẠI tự tắt (BE lo, chỉ 1 TK/loại). */}
-                    <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-center">
-                      <Switch
-                        checked={acc.isActive}
-                        disabled={mutating}
-                        onCheckedChange={(v) => void handleSetActive(acc.id, v)}
-                        aria-label={t('paymentSettings.inUseColumn')}
-                      />
-                    </TableCell>
-
-                    {/* Ghi nhận GD: tắt → webhook bỏ qua, không lưu giao dịch nào. */}
+                    {/* Ghi nhận GD: tắt → webhook bỏ qua, không lưu giao dịch nào.
+                        TK đã gán HKD/cá nhân bị khoá — tiền đơn & hoá đơn chạy qua đó. */}
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-center">
                       <Switch
                         checked={acc.isTracked !== false}
-                        disabled={mutating || acc.isActive}
+                        disabled={mutating || (acc.kind ?? 'none') !== 'none'}
                         onCheckedChange={(v) => void handleSetTracked(acc.id, v)}
                         aria-label={t('paymentSettings.recordColumn')}
                       />

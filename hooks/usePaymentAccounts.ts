@@ -11,36 +11,33 @@ import {
   createPaymentAccount,
   deletePaymentAccount,
   fetchPaymentAccounts,
-  setActivePaymentAccount,
   setKindPaymentAccount,
   setTrackedPaymentAccount,
 } from '@/services/configurationService';
 
 export interface UsePaymentAccountsResult {
   accounts: PaymentAccount[];
-  /**
-   * TK HỘ KINH DOANH đang dùng (kind 'hkd' + isActive) — mọi QR đơn dùng TK này.
-   * Fallback: TK HKD đầu tiên → TK đầu tiên trong list; null nếu list rỗng.
+/**
+   * TK HỘ KINH DOANH (kind 'hkd') — mọi QR đơn dùng TK này. Chỉ có tối đa 1.
+   * null nếu chưa gán TK nào làm HKD.
    */
   activeAccount: PaymentAccount | null;
-  /** TK CÁ NHÂN đang dùng (kind 'personal' + isActive) — chi hoá đơn; null nếu chưa khai. */
+  /** TK CÁ NHÂN (kind 'personal') — chi hoá đơn; null nếu chưa gán. */
   personalAccount: PaymentAccount | null;
   loading: boolean;
   mutating: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   create: (input: CreatePaymentAccountInput) => Promise<PaymentAccount[]>;
-  /** Bật/tắt TK đang dùng của loại đó (bật → TK cùng loại tự tắt). */
-  setActive: (id: string, active?: boolean) => Promise<PaymentAccount[]>;
   /** Bật/tắt ghi nhận giao dịch của TK (tắt → webhook bỏ qua, không lưu). */
   setTracked: (id: string, tracked: boolean) => Promise<PaymentAccount[]>;
-  /** Đổi loại TK: hộ kinh doanh ↔ cá nhân. */
+  /** Gán loại TK (hkd/personal/none) — TK cũ cùng loại tự rớt về 'none'. */
   setKind: (id: string, kind: PaymentAccountKind) => Promise<PaymentAccount[]>;
   remove: (id: string) => Promise<PaymentAccount[]>;
 }
 
 /**
- * Quản lý danh sách tài khoản ngân hàng (mỗi loại 1 TK đang dùng) qua React Query.
+ * Quản lý danh sách tài khoản ngân hàng (mỗi loại thật đúng 1 TK) qua React Query.
  * - Cache theo `qk.paymentAccounts.all`: mọi consumer mount → fetch 1 lần (dedup).
  * - Mỗi mutation set cache từ response list + invalidate để đồng bộ server.
  * - An toàn khi list rỗng (accounts = [], activeAccount = null).
@@ -57,21 +54,16 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
 
   const accounts = useMemo<PaymentAccount[]>(() => query.data ?? [], [query.data]);
 
-  // TK cũ (chưa khai loại) → coi là TK HKD để không đổi hành vi QR đơn.
-  const isHkd = (a: PaymentAccount) => (a.kind ?? 'hkd') === 'hkd';
+  // Mỗi loại đúng 1 TK (BE đảm bảo bằng unique index) → tìm thấy là lấy luôn.
+  const activeAccount = useMemo<PaymentAccount | null>(
+    () => accounts.find((a) => a.kind === 'hkd') ?? null,
+    [accounts],
+  );
 
-  const activeAccount = useMemo<PaymentAccount | null>(() => {
-    if (accounts.length === 0) return null;
-    const hkd = accounts.filter(isHkd);
-    return (
-      hkd.find((a) => a.isActive) ?? hkd[0] ?? accounts.find((a) => a.isActive) ?? accounts[0] ?? null
-    );
-  }, [accounts]);
-
-  const personalAccount = useMemo<PaymentAccount | null>(() => {
-    const personal = accounts.filter((a) => a.kind === 'personal');
-    return personal.find((a) => a.isActive) ?? personal[0] ?? null;
-  }, [accounts]);
+  const personalAccount = useMemo<PaymentAccount | null>(
+    () => accounts.find((a) => a.kind === 'personal') ?? null,
+    [accounts],
+  );
 
   const applyList = useCallback(
     (list: PaymentAccount[]) => {
@@ -83,12 +75,6 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
 
   const createMutation = useMutation({
     mutationFn: (input: CreatePaymentAccountInput) => createPaymentAccount(input),
-    onSuccess: applyList,
-  });
-
-  const setActiveMutation = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
-      setActivePaymentAccount(id, active),
     onSuccess: applyList,
   });
 
@@ -117,10 +103,6 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     (input: CreatePaymentAccountInput) => createMutation.mutateAsync(input),
     [createMutation],
   );
-  const setActive = useCallback(
-    (id: string, active = true) => setActiveMutation.mutateAsync({ id, active }),
-    [setActiveMutation],
-  );
   const setTracked = useCallback(
     (id: string, tracked: boolean) => setTrackedMutation.mutateAsync({ id, tracked }),
     [setTrackedMutation],
@@ -133,7 +115,6 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
 
   const mutating =
     createMutation.isPending ||
-    setActiveMutation.isPending ||
     setTrackedMutation.isPending ||
     setKindMutation.isPending ||
     removeMutation.isPending;
@@ -141,12 +122,10 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
   const error = query.error
     ? (query.error as Error)?.message || 'Không tải được danh sách tài khoản thanh toán'
     : createMutation.error ||
-        setActiveMutation.error ||
         setTrackedMutation.error ||
         setKindMutation.error ||
         removeMutation.error
       ? ((createMutation.error ||
-          setActiveMutation.error ||
           setTrackedMutation.error ||
           setKindMutation.error ||
           removeMutation.error) as Error)?.message ||
@@ -162,7 +141,6 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     error,
     refresh,
     create,
-    setActive,
     setTracked,
     setKind,
     remove,

@@ -197,18 +197,6 @@ export const createPaymentAccount = async (
   return Array.isArray(data) ? data : [];
 };
 
-/** Bật/tắt TK đang dùng. Bật → TK CÙNG LOẠI tự tắt (BE lo, chỉ 1 TK/loại). */
-export const setActivePaymentAccount = async (
-  id: string,
-  active = true,
-): Promise<PaymentAccount[]> => {
-  const { data } = await apiClient.put<PaymentAccount[]>(
-    `/configurations/payment-accounts/${encodeURIComponent(id)}/active`,
-    { active },
-  );
-  return Array.isArray(data) ? data : [];
-};
-
 /**
  * Bật/tắt GHI NHẬN giao dịch của TK (tắt → webhook bỏ qua, không lưu gì).
  * BE chặn tắt TK đang dùng (trả lỗi) → caller hiện toast.
@@ -225,8 +213,8 @@ export const setTrackedPaymentAccount = async (
 };
 
 /**
- * Đổi loại TK: 'hkd' hộ kinh doanh ↔ 'personal' cá nhân.
- * BE chặn đổi TK HKD đang dùng khi còn TK HKD khác → caller hiện toast.
+ * Gán loại TK: 'hkd' | 'personal' | 'none'. Mỗi loại thật chỉ 1 TK —
+ * gán cho TK này thì TK cũ cùng loại tự rớt về 'none' (BE lo).
  */
 export const setKindPaymentAccount = async (
   id: string,
