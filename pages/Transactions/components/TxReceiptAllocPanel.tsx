@@ -261,9 +261,13 @@ const TxReceiptAllocPanel: React.FC<Props> = ({ txId, onChanged }) => {
         )}
       </Box>
 
-      {/* Nút rải */}
+      {/* Nút rải — dính đáy vùng cuộn: danh sách phiếu dài cả trăm dòng, để nút trôi
+          xuống cuối thì phải cuộn hết mới bấm được (và dễ bị thân modal cắt mất). */}
       {summary.candidates.length > 0 ? (
-        <Box layoutClassName="space-y-1.5">
+        <Box
+          layoutClassName="sticky bottom-0 z-10 space-y-1.5 pb-1 pt-2"
+          backgroundClassName="bg-white dark:bg-slate-800"
+        >
           {over ? (
             <Typography size="xs" textClassName="text-amber-600 dark:text-amber-400">
               Tổng chọn {formatVND(pickedTotal)} vượt còn lại {formatVND(remaining)} — hệ thống sẽ tự cắt theo phần còn lại của giao dịch.

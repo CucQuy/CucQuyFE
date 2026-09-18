@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
-  ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search,
+  ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search, Landmark,
 } from 'lucide-react';
 import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
 import { paymentAccountKindLabel } from '@/types/paymentConfig';
@@ -90,7 +90,9 @@ const LedgerReconcileModal: React.FC<Props> = ({ isOpen, onClose, fromDate, toDa
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title="Đối soát giao dịch chưa khớp" size="2xl">
-      <Box layoutClassName="flex h-[70vh] flex-col gap-3 sm:flex-row">
+      {/* Cao đúng bằng thân BaseModal (max-h min(70vh,100vh-8rem) trừ py-6) — đặt h-[70vh]
+          như trước sẽ tràn khỏi thân modal, làm nút ở đáy cột phải bị cắt. */}
+      <Box layoutClassName="flex h-[calc(70vh-3rem)] max-h-[calc(100vh-11rem)] min-h-[20rem] flex-col gap-3 sm:flex-row">
         {/* Cột trái: danh sách GD chưa khớp */}
         <Box
           layoutClassName="flex min-h-0 flex-col sm:w-[42%]"
@@ -127,22 +129,47 @@ const LedgerReconcileModal: React.FC<Props> = ({ isOpen, onClose, fromDate, toDa
                   <Box
                     key={it.id}
                     onClick={() => setSelectedId(it.id)}
-                    layoutClassName="flex cursor-pointer items-center gap-2 rounded-lg p-2.5"
-                    borderClassName={active ? 'border border-primary-300 dark:border-primary-700' : 'border border-slate-100 dark:border-slate-700'}
-                    backgroundClassName={active ? 'bg-primary-50/60 dark:bg-primary-900/10' : 'bg-white dark:bg-slate-800'}
+                    // Viền trái dày + nền nhạt theo chiều tiền: liếc là biết vào hay ra.
+                    layoutClassName="cursor-pointer space-y-2 rounded-xl border-l-4 p-3"
+                    borderClassName={[
+                      out ? 'border-l-rose-400 dark:border-l-rose-500' : 'border-l-emerald-400 dark:border-l-emerald-500',
+                      active
+                        ? 'border-y border-r border-primary-300 dark:border-primary-600'
+                        : 'border-y border-r border-slate-100 dark:border-slate-700',
+                    ].join(' ')}
+                    backgroundClassName={
+                      active
+                        ? 'bg-primary-50/70 dark:bg-primary-900/20'
+                        : out
+                          ? 'bg-rose-50/40 dark:bg-rose-900/10'
+                          : 'bg-emerald-50/40 dark:bg-emerald-900/10'
+                    }
+                    hoverClassName="hover:bg-primary-50/60 dark:hover:bg-primary-900/10"
+                    stateClassName="transition-colors"
                   >
-                    {out ? <ArrowUpCircle className="h-4 w-4 shrink-0 text-rose-500" /> : <ArrowDownCircle className="h-4 w-4 shrink-0 text-emerald-500" />}
-                    <Box layoutClassName="min-w-0 flex-1">
-                      <Typography as="p" size="sm" layoutClassName="truncate font-medium" textClassName="text-slate-800 dark:text-slate-100">
-                        {it.content || it.description || '(không nội dung)'}
-                      </Typography>
-                      <Typography as="p" size="xs" layoutClassName="truncate" textClassName="text-slate-400 dark:text-slate-500">
-                        {fmtDate(it.transactionDate)}{txAccountLabel(it) ? ` · ${txAccountLabel(it)}` : ''}
+                    <Box layoutClassName="flex items-start gap-2.5">
+                      <Box
+                        layoutClassName="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                        backgroundClassName={out ? 'bg-rose-100 dark:bg-rose-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}
+                      >
+                        {out
+                          ? <ArrowUpCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                          : <ArrowDownCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                      </Box>
+                      <Box layoutClassName="min-w-0 flex-1">
+                        <Typography as="p" size="sm" layoutClassName="truncate font-medium" textClassName="text-slate-800 dark:text-slate-100" title={it.content || it.description || ''}>
+                          {it.content || it.description || '(không nội dung)'}
+                        </Typography>
+                        <Typography as="p" size="xs" variant="muted" layoutClassName="mt-0.5">
+                          {fmtDate(it.transactionDate)}
+                        </Typography>
+                      </Box>
+                      <Typography as="span" layoutClassName="shrink-0 text-base font-bold" textClassName={out ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                        {out ? '−' : '+'}{formatVND(it.transferAmount)}
                       </Typography>
                     </Box>
-                    <Typography as="span" size="sm" layoutClassName="shrink-0 font-semibold" textClassName={out ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>
-                      {out ? '−' : '+'}{formatVND(it.transferAmount)}
-                    </Typography>
+                    {/* Dòng tiền này chạy qua TÀI KHOẢN nào — badge màu theo loại TK. */}
+                    <AccountBadge tx={it} />
                   </Box>
                 );
               })}
@@ -483,33 +510,63 @@ const OrderSearchList: React.FC<{ busy: boolean; actionLabel: string; onPick: (o
 
 /* ---- Header GD đang đối soát ---- */
 /**
- * Nhãn tài khoản của 1 GD khi đối soát: "BIDV ·1308 · TK cá nhân" — cho biết hoá đơn này
- * chi từ TK cá nhân hay tiền vào TK HKD (100). TK chưa khai → fallback tên ngân hàng.
+ * Badge TÀI KHOẢN của 1 giao dịch: "MBBank ·1848 · TK cá nhân" — nói rõ dòng tiền này
+ * chạy qua tài khoản nào. Màu theo loại TK: HKD xanh lá (tiền khách vào), cá nhân xanh
+ * dương (chi hoá đơn), chưa gán loại thì xám. TK chưa khai → fallback tên ngân hàng.
  */
-const txAccountLabel = (tx: LedgerTransaction): string => {
+const AccountBadge: React.FC<{ tx: LedgerTransaction }> = ({ tx }) => {
   const base = tx.accountLabel || tx.gateway || '';
-  if (!base) return '';
-  return tx.accountKind ? `${base} · ${paymentAccountKindLabel(tx.accountKind)}` : base;
+  if (!base) return null;
+  const personal = tx.accountKind === 'personal';
+  const hkd = tx.accountKind === 'hkd';
+  return (
+    <Badge
+      size="sm"
+      layoutClassName="inline-flex max-w-full items-center gap-1 truncate px-2 py-0.5 text-[11px] font-medium"
+      borderClassName={
+        hkd ? 'border border-emerald-200 dark:border-emerald-700'
+          : personal ? 'border border-blue-200 dark:border-blue-700'
+            : 'border border-slate-200 dark:border-slate-600'
+      }
+      backgroundClassName={
+        hkd ? 'bg-emerald-50 dark:bg-emerald-900/20'
+          : personal ? 'bg-blue-50 dark:bg-blue-900/20'
+            : 'bg-slate-100 dark:bg-slate-700/40'
+      }
+      textClassName={
+        hkd ? 'text-emerald-700 dark:text-emerald-300'
+          : personal ? 'text-blue-700 dark:text-blue-300'
+            : 'text-slate-500 dark:text-slate-400'
+      }
+    >
+      <Landmark className="h-3 w-3 shrink-0" />
+      {base}
+      {tx.accountKind ? ` · ${paymentAccountKindLabel(tx.accountKind)}` : ''}
+    </Badge>
+  );
 };
 
 const TxHeader: React.FC<{ tx: LedgerTransaction; kindLabel: string }> = ({ tx, kindLabel }) => {
   const out = tx.transferType === 'out';
   return (
     <Box
-      layoutClassName="mb-3 rounded-lg p-2.5"
-      borderClassName="border border-slate-200 dark:border-slate-700"
-      backgroundClassName="bg-slate-50 dark:bg-slate-800/60"
+      layoutClassName="mb-3 space-y-1.5 rounded-xl border-l-4 p-3"
+      borderClassName={[
+        out ? 'border-l-rose-400 dark:border-l-rose-500' : 'border-l-emerald-400 dark:border-l-emerald-500',
+        'border-y border-r border-slate-200 dark:border-slate-700',
+      ].join(' ')}
+      backgroundClassName={out ? 'bg-rose-50/50 dark:bg-rose-900/10' : 'bg-emerald-50/50 dark:bg-emerald-900/10'}
     >
       <Box layoutClassName="flex items-center justify-between gap-2">
-        <Typography as="span" size="xs" layoutClassName="font-semibold uppercase" textClassName="text-slate-500 dark:text-slate-400">{kindLabel}</Typography>
-        <Typography as="span" size="sm" layoutClassName="font-bold" textClassName={out ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>
+        <Typography as="span" size="xs" layoutClassName="font-semibold uppercase tracking-wide" textClassName="text-slate-500 dark:text-slate-400">{kindLabel}</Typography>
+        <Typography as="span" layoutClassName="text-lg font-bold" textClassName={out ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>
           {out ? '−' : '+'}{formatVND(tx.transferAmount)}
         </Typography>
       </Box>
-      <Typography as="p" size="xs" layoutClassName="mt-0.5 truncate" textClassName="text-slate-500 dark:text-slate-400">
+      <Typography as="p" size="xs" layoutClassName="truncate" textClassName="text-slate-600 dark:text-slate-300" title={tx.content || tx.description || ''}>
         {tx.content || tx.description || '(không nội dung)'} · {fmtDate(tx.transactionDate)}
-        {txAccountLabel(tx) ? ` · ${txAccountLabel(tx)}` : ''}
       </Typography>
+      <AccountBadge tx={tx} />
     </Box>
   );
 };
