@@ -17,7 +17,7 @@ import {
   speakPaymentAmount,
   speakNewOrder,
 } from '@/utils/sound';
-import { getSsoToken } from '@/services/auth/ssoToken';
+import { ensureAccessToken } from '@/services/auth/session';
 import { fetchOrder } from '@/services/orderService';
 import BatchKitchenPrintPortal from '@/pages/Orders/components/print/BatchKitchenPrintPortal';
 import { UserRole } from '@/types/user';
@@ -58,7 +58,7 @@ const RealtimePaymentListener: React.FC = () => {
     // Owner/Admin đã đăng nhập (đúng đối tượng cần realtime).
     import('@/services/socket/connect').then(({ createAuthedSocket }) => {
       if (cancelled) return;
-      socket = createAuthedSocket(() => Promise.resolve(getSsoToken()));
+      socket = createAuthedSocket(() => ensureAccessToken().catch(() => ''));
 
       socket.on(SOCKET_EVENTS.ORDER_PAID, (e: OrderPaidEvent) => {
         const rawAmount = e?.amount || 0;

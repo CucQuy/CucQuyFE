@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChefHat, UserPlus, X } from 'lucide-react';
@@ -26,6 +26,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [accountsHistory, setAccountsHistory] = useState(getAccountsHistory());
+  const [params, setParams] = useSearchParams();
 
   // Đã đăng nhập → về trang chủ
   useEffect(() => {
@@ -35,6 +36,15 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     setAccountsHistory(getAccountsHistory());
   }, []);
+
+  // BE 302 về đây kèm ?error=sso khi đổi mã đăng nhập thất bại. Báo rồi xoá param
+  // để F5 không hiện lại toast cũ.
+  useEffect(() => {
+    if (params.get('error') !== 'sso') return;
+    toast.error('Đăng nhập Google thất bại. Vui lòng thử lại.');
+    params.delete('error');
+    setParams(params, { replace: true });
+  }, [params, setParams]);
 
   // Điều hướng cả trang sang BE → BE 302 sang Google → callback về /auth/callback?token=.
   const startLogin = () => {

@@ -1,11 +1,14 @@
 import axios from 'axios';
 import { getSsoToken } from '@/services/auth/ssoToken';
+import { ensureAccessToken, refreshAccessToken } from '@/services/auth/session';
+import { API_BASE_URL } from '@/services/api/baseUrl';
 
 /**
- * HTTP client gọi BE NestJS. Base URL lấy từ env `VITE_API_URL`. Mỗi request tự
- * gắn SSO JWT (RiceService phát sau khi đăng nhập Google) vào header Authorization.
+ * HTTP client gọi BE NestJS. Base URL lấy từ env `VITE_API_URL`. Mỗi request tự gắn
+ * access token (RiceService phát sau khi đăng nhập Google) vào header Authorization,
+ * và tự làm mới khi token sắp/đã hết hạn — user không bị đá ra giữa chừng.
  */
-export const API_BASE_URL: string = (import.meta as any).env?.VITE_API_URL || '';
+export { API_BASE_URL };
 
 /** BE đã cấu hình chưa (FE có thể fallback nếu chưa). */
 export const isApiEnabled = (): boolean => Boolean(API_BASE_URL);
@@ -15,10 +18,24 @@ export const apiClient = axios.create({
   timeout: 30000,
 });
 
-// Gắn SSO JWT (lưu ở localStorage) vào mỗi request. Token bền qua reload nên
-// không còn cảnh "request đầu bị thiếu token" như thời auth cũ (authStateReady).
-apiClient.interceptors.request.use((config) => {
-  const token = getSsoToken();
+// Cookie phiên (refresh token, httpOnly) phải được gửi kèm để BE làm mới được token.
+apiClient.defaults.withCredentials = true;
+
+/** Route không cần token — gọi trước khi đăng nhập nên đừng kéo theo một vòng refresh. */
+const isAuthRoute = (url?: string): boolean => Boolean(url && url.startsWith('/auth/'));
+
+// Gắn access token vào mỗi request; token sắp hết hạn thì làm mới TRƯỚC khi gửi
+// (`ensureAccessToken` gom mọi request đồng thời về một lần refresh duy nhất).
+apiClient.interceptors.request.use(async (config) => {
+  if (isAuthRoute(config.url)) return config;
+  let token = getSsoToken();
+  if (token) {
+    try {
+      token = await ensureAccessToken();
+    } catch {
+      // Refresh hỏng → cứ gửi token cũ, để 401 bên dưới quyết định đăng xuất.
+    }
+  }
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
@@ -114,7 +131,25 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
+    // 401 = access token hết hạn/không hợp lệ → làm mới MỘT lần rồi gửi lại request.
+    // `_retried` chặn vòng lặp khi BE vẫn trả 401 sau khi đã có token mới.
+    const req = error?.config;
+    if (error?.response?.status === 401 && req && !req._retried && !isAuthRoute(req.url)) {
+      req._retried = true;
+      let refreshed = false;
+      try {
+        await refreshAccessToken();
+        refreshed = true;
+      } catch {
+        // Refresh cũng hỏng → phiên chết thật; rơi xuống nhánh báo lỗi bên dưới
+        // (session.ts đã dọn token + báo cho AuthProvider đưa user về trang đăng nhập).
+      }
+      // Gọi lại NGOÀI try: lỗi của lần gửi lại phải nổi lên cho caller đúng như nó là,
+      // không bị nuốt rồi báo nhầm thành lỗi 401 ban đầu.
+      // `request` chạy lại interceptor phía trên → tự gắn token mới, không cần set tay.
+      if (refreshed) return apiClient.request(req);
+    }
     const env = error?.response?.data;
     const message =
       (env && typeof env === 'object' && typeof env.message === 'string' && env.message) ||

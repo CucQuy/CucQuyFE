@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { setSsoToken, clearSsoToken } from '@/services/auth/ssoToken';
+import { endSession, ensureAccessToken } from '@/services/auth/session';
 import { syncCurrentUser } from '@/services/userService';
 import { UserStatus } from '@/types/user';
 import Box from '@/components/ui/Box';
@@ -11,40 +11,35 @@ import toast from 'react-hot-toast';
 
 /**
  * Đích redirect sau đăng nhập Google (luồng server-side qua RiceService).
- * RiceService → 302 về `/auth/callback?token=<SSO JWT>`. Trang này lưu token,
- * đọc email từ JWT → lấy hồ sơ (role/status) từ BE → áp phiên → về trang chủ.
+ *
+ * BE đã đổi mã đăng nhập lấy phiên và cất refresh token vào cookie httpOnly rồi mới
+ * 302 về đây — URL sạch, KHÔNG mang token. Trang này chỉ việc đổi cookie lấy access
+ * token đầu tiên → lấy hồ sơ (role/status) từ BE → áp phiên → về trang chủ.
  */
 
 const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
   const { applyLogin } = useAuth();
-  const [params] = useSearchParams();
   const ran = useRef(false);
 
   useEffect(() => {
     if (ran.current) return; // guard StrictMode double-run
     ran.current = true;
 
-    const token = params.get('token') || '';
     void (async () => {
-      if (!token) {
-        toast.error('Đăng nhập thất bại: thiếu token.');
-        navigate('/login', { replace: true });
-        return;
-      }
-      setSsoToken(token);
       try {
+        await ensureAccessToken(); // cookie phiên → access token đầu tiên (AuthProvider có thể đã lấy)
         // Sync: upsert user theo token. User MỚI → BE tạo record status 'pending'
         // (để admin thấy trong QL người dùng + duyệt). User cũ → trả hồ sơ hiện tại.
         const data = await syncCurrentUser();
         if (!data) {
-          clearSsoToken();
+          await endSession();
           toast.error('Đăng nhập thất bại: không tạo được hồ sơ. Thử lại hoặc liên hệ quản trị viên.');
           navigate('/login', { replace: true });
           return;
         }
         if (data.status !== UserStatus.ACTIVE) {
-          clearSsoToken();
+          await endSession();
           toast.error('Tài khoản chưa được phê duyệt. Vui lòng chờ quản trị viên.');
           navigate('/login', { replace: true });
           return;
@@ -53,12 +48,12 @@ const AuthCallbackPage: React.FC = () => {
         toast.success('Đăng nhập thành công');
         navigate('/', { replace: true });
       } catch {
-        clearSsoToken();
+        await endSession();
         toast.error('Đăng nhập thất bại. Vui lòng thử lại.');
         navigate('/login', { replace: true });
       }
     })();
-  }, [params, navigate, applyLogin]);
+  }, [navigate, applyLogin]);
 
   return (
     <Box
