@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
-  ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search, Landmark,
+  ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search, Landmark, Repeat,
 } from 'lucide-react';
 import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
 import { paymentAccountKindLabel } from '@/types/paymentConfig';
@@ -42,7 +42,7 @@ const fmtDate = (v?: string | null): string => {
 };
 
 /** Loại đối soát cho 1 giao dịch tiền RA. */
-type OutKind = 'refund' | 'stock' | 'shipping' | 'expense';
+type OutKind = 'stock' | 'expense' | 'shipping' | 'refund' | 'sweep';
 
 /**
  * Modal ĐỐI SOÁT gộp trên Sổ giao dịch: cột trái = các GD chưa khớp (vào + ra),
@@ -277,45 +277,85 @@ const InReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = 
 
 /* ─────────────────────────── TIỀN RA → chọn kiểu ─────────────────────────── */
 
-const OUT_KINDS: { id: OutKind; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'refund', label: 'Hoàn tiền', icon: RotateCcw },
-  { id: 'stock', label: 'Nhập hàng', icon: PackageOpen },
-  { id: 'shipping', label: 'Phí ship', icon: Truck },
-  { id: 'expense', label: 'Chi phí', icon: Coins },
+/** 5 cách xử lý 1 khoản tiền ra — kèm mô tả 1 dòng hiện ngay dưới hàng nút. */
+const OUT_KINDS: {
+  id: OutKind;
+  label: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'stock', label: 'Nhập hàng', desc: 'Rải khoản này vào các phiếu nhập hàng chưa đối soát.', icon: PackageOpen },
+  { id: 'expense', label: 'Chi phí', desc: 'Phân loại thành chi phí vận hành của quán.', icon: Coins },
+  { id: 'shipping', label: 'Phí ship', desc: 'Trả cho nhà xe/ĐVVC, hoặc tiền ship của một đơn cụ thể.', icon: Truck },
+  { id: 'refund', label: 'Hoàn tiền', desc: 'Trả lại tiền cho khách của một đơn cụ thể.', icon: RotateCcw },
+  { id: 'sweep', label: 'Dồn tiền', desc: 'Chuyển nội bộ TK hộ kinh doanh → TK cá nhân, không tính thu/chi.', icon: Repeat },
 ];
 
+/**
+ * Đoán sẵn cách xử lý để người dùng đỡ phải chọn mò: dựa vào danh mục auto-gán theo
+ * rule từ khoá + nội dung CK + tài khoản nguồn. Đoán sai thì bấm nút khác, không hại gì.
+ */
+const guessOutKind = (tx: LedgerTransaction): OutKind => {
+  const cat = (tx.expenseCategory ?? '').trim();
+  if (cat === 'sweep' || tx.settledOut) return 'sweep';
+  if (cat === 'shipping') return 'shipping';
+  const text = `${tx.content ?? ''} ${tx.description ?? ''}`.toLowerCase();
+  if (text.includes('hoan tien') || text.includes('hoàn tiền') || text.includes('refund')) return 'refund';
+  if (cat && cat !== 'supplier') return 'expense';
+  return 'stock';
+};
+
 const OutReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
-  const [kind, setKind] = useState<OutKind>('stock');
+  // Chọn sẵn cách xử lý đoán được; đổi GD thì đoán lại (key={tx.id} ở chỗ render).
+  const suggested = useMemo(() => guessOutKind(tx), [tx]);
+  const [kind, setKind] = useState<OutKind>(suggested);
+  const active = OUT_KINDS.find((k) => k.id === kind);
 
   return (
     <Box layoutClassName="flex min-h-0 flex-1 flex-col">
       <TxHeader tx={tx} kindLabel="Tiền ra" />
-      {/* Bộ chọn kiểu */}
-      <Box layoutClassName="mb-3 grid grid-cols-4 gap-1.5">
+
+      {/* Chọn cách xử lý: 5 nút 1 hàng + mô tả của nút đang chọn ngay dưới, thay vì
+          bắt người dùng bấm thử từng tab mới biết nó làm gì. */}
+      <Typography as="p" size="xs" layoutClassName="mb-1.5 font-semibold uppercase tracking-wide" textClassName="text-slate-500 dark:text-slate-400">
+        Khoản này là gì?
+      </Typography>
+      <Box layoutClassName="grid grid-cols-5 gap-1.5">
         {OUT_KINDS.map((k) => {
-          const active = kind === k.id;
+          const on = kind === k.id;
           const Icon = k.icon;
           return (
             <Button
               key={k.id}
               type="button"
-              variant={active ? 'primary' : 'secondary'}
+              variant={on ? 'primary' : 'secondary'}
               size="sm"
               onClick={() => setKind(k.id)}
               disableVariantHover
               disableVariantTextColor
-              layoutClassName="flex flex-col items-center gap-1 py-2"
-              roundedClassName="rounded-lg"
-              borderClassName="border border-slate-200 dark:border-slate-600"
-              backgroundClassName={active ? 'bg-primary-600' : 'bg-white dark:bg-slate-800'}
-              textClassName={active ? 'text-white' : 'text-slate-600 dark:text-slate-300'}
+              layoutClassName="relative flex flex-col items-center gap-1 py-2"
+              sizeClassName="px-1 text-[11px] font-medium"
+              roundedClassName="rounded-xl"
+              borderClassName={on ? 'border border-primary-600' : 'border border-slate-200 dark:border-slate-600'}
+              backgroundClassName={on ? 'bg-primary-600' : 'bg-white dark:bg-slate-800'}
+              hoverClassName={on ? '' : 'hover:border-primary-300 hover:bg-primary-50/60 dark:hover:bg-primary-900/10'}
+              textClassName={on ? 'text-white' : 'text-slate-600 dark:text-slate-300'}
+              stateClassName="transition-colors"
             >
               <Icon className="h-4 w-4" />
               {k.label}
+              {/* Chấm nhỏ = hệ thống đoán khoản này thuộc loại đó. */}
+              {!on && k.id === suggested ? (
+                <Box layoutClassName="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full" backgroundClassName="bg-primary-500" />
+              ) : null}
             </Button>
           );
         })}
       </Box>
+      <Typography as="p" size="xs" variant="muted" layoutClassName="mb-3 mt-1.5">
+        {active?.desc}
+        {kind === suggested ? ' · hệ thống gợi ý sẵn' : ''}
+      </Typography>
 
       <Box layoutClassName="min-h-0 flex-1 overflow-y-auto pr-1">
         {kind === 'stock' ? (
@@ -324,10 +364,59 @@ const OutReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> =
           <RefundPicker tx={tx} onMatched={onMatched} />
         ) : kind === 'shipping' ? (
           <ShippingPicker tx={tx} onMatched={onMatched} />
+        ) : kind === 'sweep' ? (
+          <SweepPicker tx={tx} onMatched={onMatched} />
         ) : (
           <ExpensePicker tx={tx} onMatched={onMatched} />
         )}
       </Box>
+    </Box>
+  );
+};
+
+/* ---- Dồn tiền nội bộ: 1 nút xác nhận ---- */
+const SweepPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
+  const [busy, setBusy] = useState(false);
+  const fromHkd = tx.accountKind === 'hkd';
+  const apply = async () => {
+    setBusy(true);
+    try {
+      // category 'sweep' = phi chi phí → không cộng OPEX; BE tự nhận GD vào tương ứng
+      // ở TK cá nhân thành 'sweep_in' (khớp số tiền, lệch ≤2 ngày).
+      await setTransactionExpense(tx.id, 'sweep', true);
+      toast.success('Đã đánh dấu là dồn tiền nội bộ.');
+      onMatched();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Đánh dấu thất bại.');
+    } finally { setBusy(false); }
+  };
+  return (
+    <Box layoutClassName="space-y-3">
+      <Box
+        layoutClassName="space-y-1 rounded-xl p-3"
+        borderClassName="border border-blue-200 dark:border-blue-800"
+        backgroundClassName="bg-blue-50/70 dark:bg-blue-900/20"
+      >
+        <Typography as="p" size="sm" layoutClassName="font-medium" textClassName="text-blue-800 dark:text-blue-200">
+          Cuối ngày dồn tiền từ TK hộ kinh doanh sang TK cá nhân
+        </Typography>
+        <Typography as="p" size="xs" textClassName="text-blue-700/80 dark:text-blue-300/80">
+          Tiền vẫn nằm trong tiệm nên khoản này KHÔNG tính vào chi phí. Giao dịch tiền vào
+          tương ứng ở TK cá nhân sẽ tự được nhận là “Dồn về TK cá nhân”.
+        </Typography>
+      </Box>
+      {!fromHkd ? (
+        <Typography size="xs" textClassName="text-amber-600 dark:text-amber-400">
+          Lưu ý: khoản này không đi ra từ TK hộ kinh doanh — kiểm tra lại trước khi đánh dấu.
+        </Typography>
+      ) : null}
+      <Button
+        type="button" variant="primary" fullWidth disabled={busy}
+        leftIcon={<Repeat className="h-4 w-4" />}
+        onClick={() => void apply()}
+      >
+        Đánh dấu dồn tiền {formatVND(tx.transferAmount)}
+      </Button>
     </Box>
   );
 };
@@ -397,17 +486,26 @@ const ShippingPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }>
 
   return (
     <Box layoutClassName="space-y-2.5">
-      <Box layoutClassName="inline-flex gap-1.5">
-        <Button type="button" size="sm" variant={target === 'carrier' ? 'primary' : 'secondary'} onClick={() => setTarget('carrier')}
-          disableVariantHover disableVariantTextColor roundedClassName="rounded-lg" borderClassName="border border-slate-200 dark:border-slate-600"
-          backgroundClassName={target === 'carrier' ? 'bg-primary-600' : 'bg-white dark:bg-slate-800'} textClassName={target === 'carrier' ? 'text-white' : 'text-slate-600 dark:text-slate-300'}>
-          Nhà xe / ĐVVC
-        </Button>
-        <Button type="button" size="sm" variant={target === 'order' ? 'primary' : 'secondary'} onClick={() => setTarget('order')}
-          disableVariantHover disableVariantTextColor roundedClassName="rounded-lg" borderClassName="border border-slate-200 dark:border-slate-600"
-          backgroundClassName={target === 'order' ? 'bg-primary-600' : 'bg-white dark:bg-slate-800'} textClassName={target === 'order' ? 'text-white' : 'text-slate-600 dark:text-slate-300'}>
-          Cho đơn
-        </Button>
+      {/* Segmented nhỏ trong 1 khung xám — không dùng 2 nút primary to gây rối tầng. */}
+      <Box
+        layoutClassName="inline-flex gap-1 rounded-lg p-1"
+        backgroundClassName="bg-slate-100 dark:bg-slate-700/50"
+      >
+        {([['carrier', 'Nhà xe / ĐVVC'], ['order', 'Ship cho đơn']] as const).map(([id, label]) => (
+          <Button
+            key={id}
+            type="button" size="sm" variant="ghost"
+            onClick={() => setTarget(id)}
+            disableVariantHover disableVariantTextColor
+            roundedClassName="rounded-md" borderClassName="border-0"
+            sizeClassName="px-3 py-1 text-xs font-medium"
+            backgroundClassName={target === id ? 'bg-white shadow-sm dark:bg-slate-800' : 'bg-transparent'}
+            textClassName={target === id ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}
+            stateClassName="transition-colors"
+          >
+            {label}
+          </Button>
+        ))}
       </Box>
       <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn)" sizeClassName="w-full px-2.5 py-1.5 text-sm" />
 
@@ -428,9 +526,15 @@ const ShippingPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }>
   );
 };
 
-/* ---- Chi phí: phân loại nhanh ---- */
+/* ---- Chi phí: bấm 1 phát là xong, chia 2 nhóm cho đỡ rối ---- */
 const ExpensePicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
   const [busy, setBusy] = useState(false);
+  // 'sweep' có nút "Dồn tiền" riêng → không lặp lại trong danh sách hạng mục.
+  const cost = EXPENSE_CATEGORIES.filter((c) => c.cost !== false);
+  const nonCost = EXPENSE_CATEGORIES.filter((c) => c.cost === false && c.value !== 'sweep');
+  // Danh mục rule auto-gán sẵn (nếu có) → highlight để bấm phát ăn ngay.
+  const suggested = (tx.expenseCategory ?? '').trim();
+
   const apply = async (cat: string) => {
     setBusy(true);
     try {
@@ -441,22 +545,59 @@ const ExpensePicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> 
       toast.error(e instanceof Error ? e.message : 'Phân loại thất bại.');
     } finally { setBusy(false); }
   };
-  return (
-    <Box layoutClassName="space-y-2">
-      <Typography size="xs" variant="muted">Chọn hạng mục chi phí cho khoản {formatVND(tx.transferAmount)}:</Typography>
-      <Box layoutClassName="flex flex-wrap gap-1.5">
-        {EXPENSE_CATEGORIES.map((c) => (
-          <Button
-            key={c.value}
-            type="button" variant="secondary" size="sm" disabled={busy}
-            onClick={() => void apply(c.value)}
-            roundedClassName="rounded-full" borderClassName="border border-slate-200 dark:border-slate-600"
-            backgroundClassName="bg-white dark:bg-slate-800" textClassName="text-slate-700 dark:text-slate-200"
-          >
-            {c.label}
-          </Button>
-        ))}
+
+  const group = (
+    title: string,
+    hint: string,
+    list: typeof EXPENSE_CATEGORIES,
+    tone: 'cost' | 'free',
+  ) => (
+    <Box layoutClassName="space-y-1.5">
+      <Box layoutClassName="flex items-baseline gap-2">
+        <Typography as="span" size="xs" layoutClassName="font-semibold uppercase tracking-wide" textClassName="text-slate-500 dark:text-slate-400">
+          {title}
+        </Typography>
+        <Typography as="span" size="xs" variant="muted">{hint}</Typography>
       </Box>
+      <Box layoutClassName="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {list.map((c) => {
+          const hit = c.value === suggested;
+          return (
+            <Button
+              key={c.value}
+              type="button" variant="secondary" size="sm" disabled={busy}
+              onClick={() => void apply(c.value)}
+              layoutClassName="justify-center text-center"
+              sizeClassName="px-2 py-2 text-xs font-medium"
+              roundedClassName="rounded-lg"
+              borderClassName={
+                hit ? 'border border-primary-400 dark:border-primary-500'
+                  : tone === 'cost' ? 'border border-slate-200 dark:border-slate-600'
+                    : 'border border-dashed border-slate-300 dark:border-slate-600'
+              }
+              backgroundClassName={hit ? 'bg-primary-50 dark:bg-primary-900/20' : 'bg-white dark:bg-slate-800'}
+              hoverClassName="hover:border-primary-300 hover:bg-primary-50/60 dark:hover:bg-primary-900/10"
+              textClassName={hit ? 'text-primary-700 dark:text-primary-200' : 'text-slate-700 dark:text-slate-200'}
+              stateClassName="transition-colors"
+              disableVariantHover
+              disableVariantTextColor
+            >
+              {c.label.replace(' (không tính)', '')}
+            </Button>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box layoutClassName="space-y-3">
+      <Typography size="xs" variant="muted">
+        Bấm 1 hạng mục để phân loại khoản {formatVND(tx.transferAmount)}.
+        {suggested ? ' Ô viền xanh là hạng mục hệ thống đã đoán.' : ''}
+      </Typography>
+      {group('Chi phí quán', '— trừ vào lợi nhuận', cost, 'cost')}
+      {group('Không tính', '— tiền cá nhân / nội bộ', nonCost, 'free')}
     </Box>
   );
 };
