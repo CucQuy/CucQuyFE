@@ -1,7 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, ChevronDown, Menu, LayoutGrid } from 'lucide-react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useScreenConfig } from '@/contexts/ScreenConfigContext';
@@ -23,17 +22,6 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const { screenVisibility, screenRoles, isScreenEnabled } = useScreenConfig();
   const ping = useSystemPing();
-
-  // PWA: phát hiện bản web mới → cho user bấm cập nhật (reload lấy asset + dữ liệu mới nhất).
-  // Poll mỗi 60s để bắt bản deploy mới mà không cần reload thủ công.
-  const swReg = React.useRef<ServiceWorkerRegistration | null>(null);
-  // Poll SW mỗi 60s để tải bản deploy mới ở nền; bản mới tự áp ở lần mở app kế tiếp
-  // (đã bỏ nút "Tải lại bản mới nhất" theo yêu cầu).
-  useRegisterSW({
-    onRegisteredSW(_swUrl, r) {
-      if (r) { swReg.current = r; setInterval(() => { void r.update(); }, 60_000); }
-    },
-  });
 
   const pingDot =
     ping.level === 'good' ? 'bg-emerald-500' : ping.level === 'ok' ? 'bg-amber-500' : 'bg-red-500';

@@ -8,6 +8,7 @@ import { ScreenConfigProvider } from "./contexts/ScreenConfigContext";
 import { useOfflineDetector } from "./hooks/useOfflineDetector";
 import AppRoutes from "./AppRoutes";
 import RealtimePaymentListener from "./components/RealtimePaymentListener";
+import ServiceWorkerUpdater from "./components/ServiceWorkerUpdater";
 import { Toaster } from "react-hot-toast";
 
 // Devtools chỉ bật ở dev — lazy + ((import.meta as any).env?.DEV) để Vite tree-shake khỏi bundle prod.
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+      <ServiceWorkerUpdater />
       <AuthProvider>
         <ScreenConfigProvider>
           <LanguageProvider>

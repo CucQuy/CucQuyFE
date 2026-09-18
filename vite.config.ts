@@ -28,8 +28,12 @@ export default defineConfig(({ mode }) => {
         },
       },
       VitePWA({
-        // 'prompt' + hook useRegisterSW: có bản mới → hiện nút bấm (không tự reload ngầm).
-        registerType: "prompt",
+        // 'autoUpdate' + skipWaiting: bản mới vừa tải xong là chiếm quyền luôn.
+        // TRƯỚC ĐÂY là 'prompt' nhưng nút "tải bản mới" đã bị gỡ → SW mới nằm chờ
+        // vô thời hạn, user kẹt ở bundle cũ. Nguy hiểm nhất là màn /login: nó không
+        // render Layout (nơi đặt useRegisterSW) nên không có gì thúc SW cập nhật →
+        // user đăng xuất bị khoá ở bản cũ, không đăng nhập lại được sau khi đổi luồng auth.
+        registerType: "autoUpdate",
         // Chỉ hook đăng ký SW (tránh double-register với script inject sẵn).
         injectRegister: null,
         includeAssets: [
@@ -62,6 +66,10 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          // Bản mới kích hoạt ngay + chiếm luôn tab đang mở, thay vì đợi đóng hết tab.
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           navigateFallbackDenylist: [
             /\.[a-zA-Z0-9]+$/,
