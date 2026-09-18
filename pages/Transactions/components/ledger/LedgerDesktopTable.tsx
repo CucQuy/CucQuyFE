@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, Building2, TrendingUp, ArrowDownLeft } from 'lucide-react';
 import { LedgerTransaction } from '@/types';
 import { expenseCategoryTag } from '@/types/transaction';
-import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
+import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -109,7 +109,7 @@ const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, f
                   )}
                 </TableCell>
 
-                {/* 099: TK của dòng tiền + mục đích (nhận tiền khách / chi hoá đơn). */}
+                {/* 100: TK của dòng tiền + loại (hộ kinh doanh / cá nhân). */}
                 <TableCell layoutClassName="px-5 py-3.5">
                   <Box layoutClassName="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -117,18 +117,18 @@ const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, f
                       <Typography as="div" size="xs" layoutClassName="truncate" textClassName="text-slate-600 dark:text-slate-400">
                         {tr.accountLabel || tr.gateway || '—'}
                       </Typography>
-                      {tr.accountPurpose && (
+                      {tr.accountKind && (
                         <Typography
                           as="div"
                           size="xs"
                           layoutClassName="truncate"
                           textClassName={
-                            tr.accountPurpose === 'spend'
+                            tr.accountKind === 'personal'
                               ? 'text-blue-600 dark:text-blue-300'
                               : 'text-emerald-600 dark:text-emerald-400'
                           }
                         >
-                          {paymentAccountPurposeLabel(tr.accountPurpose)}
+                          {paymentAccountKindLabel(tr.accountKind)}
                         </Typography>
                       )}
                     </Box>

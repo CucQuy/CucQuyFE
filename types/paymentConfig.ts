@@ -1,9 +1,9 @@
 /**
  * Payment account types + helpers.
- * Mô hình: NHIỀU tài khoản ngân hàng, mỗi MỤC ĐÍCH (`purpose`) có 1 TK active:
- *   - `receive` — TK nhận tiền khách: mọi QR đơn dùng TK receive đang active.
- *   - `spend`   — TK chi: cuối ngày TK nhận dồn hết tiền sang đây, rồi chi hoá đơn
- *                 (NCC / ship / vận hành) từ TK này → đối soát tiền ra ở TK chi.
+ * Mô hình: NHIỀU tài khoản ngân hàng, mỗi LOẠI (`kind`) có 1 TK đang dùng:
+ *   - `hkd`      — TK hộ kinh doanh: khách CK vào đây, mọi QR đơn dùng TK HKD đang dùng.
+ *   - `personal` — TK cá nhân: cuối ngày TK HKD dồn hết tiền sang đây, rồi chi hoá đơn
+ *                  (NCC / ship / vận hành) từ TK này → đối soát tiền ra ở TK cá nhân.
  * Runtime data lưu ở BE (`/configurations/payment-accounts`), truy cập qua
  * `usePaymentAccounts()` ở components. File này chỉ chứa types + helper thuần.
  */
@@ -11,30 +11,30 @@
 /** Template QR của SePay (VietQR). */
 export type QrTemplate = 'compact' | 'compact2' | 'qr_only' | 'print';
 
-/** Mục đích tài khoản: nhận tiền khách vs chi hoá đơn. */
-export type PaymentAccountPurpose = 'receive' | 'spend';
+/** Loại tài khoản: hộ kinh doanh vs cá nhân. */
+export type PaymentAccountKind = 'hkd' | 'personal';
 
-/** Lựa chọn mục đích cho dropdown/badge cấu hình. */
-export const PAYMENT_ACCOUNT_PURPOSES: {
-  value: PaymentAccountPurpose;
+/** Lựa chọn loại tài khoản cho dropdown/badge cấu hình. */
+export const PAYMENT_ACCOUNT_KINDS: {
+  value: PaymentAccountKind;
   label: string;
   hint: string;
 }[] = [
   {
-    value: 'receive',
-    label: 'Nhận tiền',
-    hint: 'Khách CK vào TK này (QR đơn). Cuối ngày dồn tiền sang TK chi.',
+    value: 'hkd',
+    label: 'TK hộ kinh doanh',
+    hint: 'Khách CK vào TK này (QR đơn). Cuối ngày dồn tiền sang TK cá nhân.',
   },
   {
-    value: 'spend',
-    label: 'Chi tiêu',
-    hint: 'Nhận tiền dồn cuối ngày từ TK nhận, rồi chi các hoá đơn.',
+    value: 'personal',
+    label: 'TK cá nhân',
+    hint: 'Nhận tiền dồn cuối ngày từ TK HKD, rồi chi các hoá đơn.',
   },
 ];
 
-/** Helper lookup nhãn mục đích (mặc định coi là TK nhận tiền). */
-export const paymentAccountPurposeLabel = (p?: PaymentAccountPurpose | string | null): string =>
-  PAYMENT_ACCOUNT_PURPOSES.find((x) => x.value === p)?.label ?? 'Nhận tiền';
+/** Helper lookup nhãn loại TK (mặc định coi là TK hộ kinh doanh). */
+export const paymentAccountKindLabel = (k?: PaymentAccountKind | string | null): string =>
+  PAYMENT_ACCOUNT_KINDS.find((x) => x.value === k)?.label ?? 'TK hộ kinh doanh';
 
 /** 1 tài khoản ngân hàng đã lưu (BE trả về). */
 export interface PaymentAccount {
@@ -48,15 +48,15 @@ export interface PaymentAccount {
   accountHolder: string;
   /** Template ảnh QR của SePay (mặc định "compact"). */
   qrTemplate: QrTemplate | string;
-  /** TK đang active TRONG mục đích của nó (1 TK nhận chính + 1 TK chi chính). */
+  /** TK đang dùng TRONG loại của nó (1 TK HKD + 1 TK cá nhân). */
   isActive: boolean;
   /**
-   * Giao dịch của TK này có vào Sổ giao dịch/đối soát hay không. false → BE gắn
-   * `is_test` cho tx → status 'test', loại khỏi doanh thu + tỷ lệ đối soát.
+   * Có GHI NHẬN giao dịch của TK này không. false → webhook SePay bỏ qua hẳn,
+   * không lưu giao dịch nào (TK cá nhân/TK cũ không muốn dính vào sổ).
    */
   isTracked?: boolean;
-  /** Nhận tiền khách (`receive`) hay chi hoá đơn (`spend`). Thiếu → coi là `receive`. */
-  purpose?: PaymentAccountPurpose;
+  /** TK hộ kinh doanh (`hkd`) hay TK cá nhân (`personal`). Thiếu → coi là `hkd`. */
+  kind?: PaymentAccountKind;
   /** Thời điểm tạo (ISO string từ BE). */
   createdAt?: string;
 }
@@ -74,7 +74,7 @@ export const TEST_PAYMENT_ACCOUNT: PaymentAccount = {
   qrTemplate: 'compact',
   isActive: false,
   isTracked: false,
-  purpose: 'receive',
+  kind: 'hkd',
 };
 
 /** Body khi tạo tài khoản mới (POST). */
@@ -83,8 +83,8 @@ export interface CreatePaymentAccountInput {
   accountNumber: string;
   accountHolder: string;
   qrTemplate?: string;
-  /** Mặc định BE dùng 'receive' nếu không gửi. */
-  purpose?: PaymentAccountPurpose;
+  /** Mặc định BE dùng 'hkd' nếu không gửi. */
+  kind?: PaymentAccountKind;
 }
 
 /** Lựa chọn template cho dropdown cấu hình. */

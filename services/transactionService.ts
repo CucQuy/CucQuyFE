@@ -10,7 +10,7 @@ import {
   LedgerTransaction,
   LedgerSeriesPoint,
 } from '@/types';
-import type { PaymentAccountPurpose } from '@/types/paymentConfig';
+import type { PaymentAccountKind } from '@/types/paymentConfig';
 
 /** Danh sách giao dịch (BE sắp theo ngày giảm dần). */
 export const fetchTransactions = async (): Promise<Transaction[]> => {
@@ -26,9 +26,9 @@ const LEDGER_STATUSES: LedgerStatus[] = [
   'refund', 'shipping', 'sweep_out', 'settled', 'excluded', 'expense', 'stock', 'test',
 ];
 
-/** Mục đích TK từ API — chỉ nhận 2 giá trị hợp lệ, còn lại coi là chưa khai. */
-const purposeOf = (v: unknown): PaymentAccountPurpose | null =>
-  v === 'receive' || v === 'spend' ? v : null;
+/** Loại TK từ API — chỉ nhận 2 giá trị hợp lệ, còn lại coi là chưa khai. */
+const kindOf = (v: unknown): PaymentAccountKind | null =>
+  v === 'hkd' || v === 'personal' ? v : null;
 
 /** Chuẩn hoá 1 dòng sổ trả từ API — coi mọi field untrusted (data-safety). */
 const mapLedgerItem = (r: Record<string, unknown>): LedgerTransaction => ({
@@ -57,7 +57,7 @@ const mapLedgerItem = (r: Record<string, unknown>): LedgerTransaction => ({
   status: LEDGER_STATUSES.includes(r.status as LedgerStatus) ? (r.status as LedgerStatus) : 'unmatched',
   accountId: typeof r.accountId === 'string' ? r.accountId : null,
   accountLabel: typeof r.accountLabel === 'string' ? r.accountLabel : null,
-  accountPurpose: purposeOf(r.accountPurpose),
+  accountKind: kindOf(r.accountKind),
 });
 
 /** Chuẩn hoá 1 dòng "dòng tiền theo tài khoản" (byAccount) — mọi field untrusted. */
@@ -67,7 +67,7 @@ const mapAccountFlow = (r: Record<string, unknown>): LedgerAccountFlow => ({
   bankCode: typeof r.bankCode === 'string' ? r.bankCode : null,
   accountNumber: typeof r.accountNumber === 'string' ? r.accountNumber : null,
   accountHolder: typeof r.accountHolder === 'string' ? r.accountHolder : null,
-  purpose: purposeOf(r.purpose),
+  kind: kindOf(r.kind),
   in: num(r.in),
   out: num(r.out),
   net: num(r.net),

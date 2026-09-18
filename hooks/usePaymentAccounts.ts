@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreatePaymentAccountInput,
   PaymentAccount,
-  PaymentAccountPurpose,
+  PaymentAccountKind,
 } from '@/types/paymentConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { qk } from '@/hooks/queryKeys';
@@ -12,34 +12,34 @@ import {
   deletePaymentAccount,
   fetchPaymentAccounts,
   setActivePaymentAccount,
-  setPurposePaymentAccount,
+  setKindPaymentAccount,
   setTrackedPaymentAccount,
 } from '@/services/configurationService';
 
 export interface UsePaymentAccountsResult {
   accounts: PaymentAccount[];
   /**
-   * TK NHẬN TIỀN đang dùng (purpose 'receive' + isActive) — mọi QR đơn dùng TK này.
-   * Fallback: TK nhận đầu tiên → TK đầu tiên trong list; null nếu list rỗng.
+   * TK HỘ KINH DOANH đang dùng (kind 'hkd' + isActive) — mọi QR đơn dùng TK này.
+   * Fallback: TK HKD đầu tiên → TK đầu tiên trong list; null nếu list rỗng.
    */
   activeAccount: PaymentAccount | null;
-  /** TK CHI đang dùng (purpose 'spend' + isActive) — chi hoá đơn; null nếu chưa khai. */
-  spendAccount: PaymentAccount | null;
+  /** TK CÁ NHÂN đang dùng (kind 'personal' + isActive) — chi hoá đơn; null nếu chưa khai. */
+  personalAccount: PaymentAccount | null;
   loading: boolean;
   mutating: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   create: (input: CreatePaymentAccountInput) => Promise<PaymentAccount[]>;
   setActive: (id: string) => Promise<PaymentAccount[]>;
-  /** Bật/tắt đưa giao dịch của TK vào Sổ giao dịch/đối soát. */
+  /** Bật/tắt ghi nhận giao dịch của TK (tắt → webhook bỏ qua, không lưu). */
   setTracked: (id: string, tracked: boolean) => Promise<PaymentAccount[]>;
-  /** Đổi mục đích TK: nhận tiền khách ↔ chi hoá đơn. */
-  setPurpose: (id: string, purpose: PaymentAccountPurpose) => Promise<PaymentAccount[]>;
+  /** Đổi loại TK: hộ kinh doanh ↔ cá nhân. */
+  setKind: (id: string, kind: PaymentAccountKind) => Promise<PaymentAccount[]>;
   remove: (id: string) => Promise<PaymentAccount[]>;
 }
 
 /**
- * Quản lý danh sách tài khoản ngân hàng (mỗi purpose 1 TK active) qua React Query.
+ * Quản lý danh sách tài khoản ngân hàng (mỗi loại 1 TK đang dùng) qua React Query.
  * - Cache theo `qk.paymentAccounts.all`: mọi consumer mount → fetch 1 lần (dedup).
  * - Mỗi mutation set cache từ response list + invalidate để đồng bộ server.
  * - An toàn khi list rỗng (accounts = [], activeAccount = null).
@@ -56,20 +56,20 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
 
   const accounts = useMemo<PaymentAccount[]>(() => query.data ?? [], [query.data]);
 
-  // TK cũ (trước 099) không có purpose → coi là TK nhận tiền để không đổi hành vi QR đơn.
-  const isReceive = (a: PaymentAccount) => (a.purpose ?? 'receive') === 'receive';
+  // TK cũ (chưa khai loại) → coi là TK HKD để không đổi hành vi QR đơn.
+  const isHkd = (a: PaymentAccount) => (a.kind ?? 'hkd') === 'hkd';
 
   const activeAccount = useMemo<PaymentAccount | null>(() => {
     if (accounts.length === 0) return null;
-    const receives = accounts.filter(isReceive);
+    const hkd = accounts.filter(isHkd);
     return (
-      receives.find((a) => a.isActive) ?? receives[0] ?? accounts.find((a) => a.isActive) ?? accounts[0] ?? null
+      hkd.find((a) => a.isActive) ?? hkd[0] ?? accounts.find((a) => a.isActive) ?? accounts[0] ?? null
     );
   }, [accounts]);
 
-  const spendAccount = useMemo<PaymentAccount | null>(() => {
-    const spends = accounts.filter((a) => a.purpose === 'spend');
-    return spends.find((a) => a.isActive) ?? spends[0] ?? null;
+  const personalAccount = useMemo<PaymentAccount | null>(() => {
+    const personal = accounts.filter((a) => a.kind === 'personal');
+    return personal.find((a) => a.isActive) ?? personal[0] ?? null;
   }, [accounts]);
 
   const applyList = useCallback(
@@ -96,9 +96,9 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     onSuccess: applyList,
   });
 
-  const setPurposeMutation = useMutation({
-    mutationFn: ({ id, purpose }: { id: string; purpose: PaymentAccountPurpose }) =>
-      setPurposePaymentAccount(id, purpose),
+  const setKindMutation = useMutation({
+    mutationFn: ({ id, kind }: { id: string; kind: PaymentAccountKind }) =>
+      setKindPaymentAccount(id, kind),
     onSuccess: applyList,
   });
 
@@ -120,10 +120,9 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     (id: string, tracked: boolean) => setTrackedMutation.mutateAsync({ id, tracked }),
     [setTrackedMutation],
   );
-  const setPurpose = useCallback(
-    (id: string, purpose: PaymentAccountPurpose) =>
-      setPurposeMutation.mutateAsync({ id, purpose }),
-    [setPurposeMutation],
+  const setKind = useCallback(
+    (id: string, kind: PaymentAccountKind) => setKindMutation.mutateAsync({ id, kind }),
+    [setKindMutation],
   );
   const remove = useCallback((id: string) => removeMutation.mutateAsync(id), [removeMutation]);
 
@@ -131,7 +130,7 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     createMutation.isPending ||
     setActiveMutation.isPending ||
     setTrackedMutation.isPending ||
-    setPurposeMutation.isPending ||
+    setKindMutation.isPending ||
     removeMutation.isPending;
 
   const error = query.error
@@ -139,12 +138,12 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     : createMutation.error ||
         setActiveMutation.error ||
         setTrackedMutation.error ||
-        setPurposeMutation.error ||
+        setKindMutation.error ||
         removeMutation.error
       ? ((createMutation.error ||
           setActiveMutation.error ||
           setTrackedMutation.error ||
-          setPurposeMutation.error ||
+          setKindMutation.error ||
           removeMutation.error) as Error)?.message ||
         'Thao tác tài khoản thanh toán thất bại'
       : null;
@@ -152,7 +151,7 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
   return {
     accounts,
     activeAccount,
-    spendAccount,
+    personalAccount,
     loading: query.isLoading,
     mutating,
     error,
@@ -160,7 +159,7 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     create,
     setActive,
     setTracked,
-    setPurpose,
+    setKind,
     remove,
   };
 };

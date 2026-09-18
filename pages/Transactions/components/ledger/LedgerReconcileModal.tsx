@@ -4,7 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search,
 } from 'lucide-react';
 import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
-import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
+import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import {
   fetchLedger, fetchInCandidateOrders, setTxShipping, setTransactionExpense,
   type InCandidateOrder,
@@ -483,13 +483,13 @@ const OrderSearchList: React.FC<{ busy: boolean; actionLabel: string; onPick: (o
 
 /* ---- Header GD đang đối soát ---- */
 /**
- * Nhãn tài khoản của 1 GD khi đối soát: "BIDV ·1308 · Chi tiêu" — cho biết hoá đơn này
- * chi từ TK chi hay tiền vào TK nhận (099). TK chưa khai → fallback tên ngân hàng.
+ * Nhãn tài khoản của 1 GD khi đối soát: "BIDV ·1308 · TK cá nhân" — cho biết hoá đơn này
+ * chi từ TK cá nhân hay tiền vào TK HKD (100). TK chưa khai → fallback tên ngân hàng.
  */
 const txAccountLabel = (tx: LedgerTransaction): string => {
   const base = tx.accountLabel || tx.gateway || '';
   if (!base) return '';
-  return tx.accountPurpose ? `${base} · ${paymentAccountPurposeLabel(tx.accountPurpose)}` : base;
+  return tx.accountKind ? `${base} · ${paymentAccountKindLabel(tx.accountKind)}` : base;
 };
 
 const TxHeader: React.FC<{ tx: LedgerTransaction; kindLabel: string }> = ({ tx, kindLabel }) => {

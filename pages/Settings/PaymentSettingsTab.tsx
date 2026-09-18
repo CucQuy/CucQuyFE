@@ -4,14 +4,14 @@ import toast from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
 import {
-  PAYMENT_ACCOUNT_PURPOSES,
+  PAYMENT_ACCOUNT_KINDS,
   SEPAY_BANKS,
   bankLabel,
   bankLogo,
   parseSepayQrLink,
   qrTemplateLabel,
 } from '@/types/paymentConfig';
-import type { PaymentAccountPurpose } from '@/types/paymentConfig';
+import type { PaymentAccountKind } from '@/types/paymentConfig';
 import BaseModal from '@/components/BaseModal';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -36,20 +36,20 @@ interface ParsedPreview {
 
 const PaymentSettingsTab: React.FC = () => {
   const { t } = useLanguage();
-  const { accounts, loading, mutating, create, setActive, setTracked, setPurpose, remove } =
+  const { accounts, loading, mutating, create, setActive, setTracked, setKind, remove } =
     usePaymentAccounts();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [qrLink, setQrLink] = useState('');
   const [preview, setPreview] = useState<ParsedPreview | null>(null);
   const [accountHolder, setAccountHolder] = useState('');
-  const [purpose, setPurposeInput] = useState<PaymentAccountPurpose>('receive');
+  const [kind, setKindInput] = useState<PaymentAccountKind>('hkd');
 
   const resetForm = () => {
     setQrLink('');
     setPreview(null);
     setAccountHolder('');
-    setPurposeInput('receive');
+    setKindInput('hkd');
   };
 
   const closeModal = () => {
@@ -96,7 +96,7 @@ const PaymentSettingsTab: React.FC = () => {
         accountNumber: preview.accountNumber,
         accountHolder: holder,
         qrTemplate: preview.qrTemplate,
-        purpose,
+        kind,
       });
       toast.success(t('paymentSettings.created'));
       closeModal();
@@ -123,10 +123,10 @@ const PaymentSettingsTab: React.FC = () => {
     }
   };
 
-  const handleSetPurpose = async (id: string, next: PaymentAccountPurpose) => {
+  const handleSetKind = async (id: string, next: PaymentAccountKind) => {
     try {
-      await setPurpose(id, next);
-      toast.success(t('paymentSettings.purposeUpdated'));
+      await setKind(id, next);
+      toast.success(t('paymentSettings.kindUpdated'));
     } catch (err: any) {
       toast.error(err?.message || t('paymentSettings.saveError'));
     }
@@ -205,7 +205,7 @@ const PaymentSettingsTab: React.FC = () => {
                   <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.bankCode')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.accountNumber')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.accountHolder')}</TableHeaderCell>
-                  <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.purpose')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.kind')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-5 py-3.5">{t('paymentSettings.status')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-5 py-3.5 text-right">{t('paymentSettings.actions')}</TableHeaderCell>
                 </TableRow>
@@ -256,16 +256,16 @@ const PaymentSettingsTab: React.FC = () => {
                         {acc.accountHolder}
                       </Typography>
                     </TableCell>
-                    {/* Mục đích: đổi tại chỗ — 'receive' nhận tiền khách, 'spend' chi hoá đơn. */}
+                    {/* Loại TK: đổi tại chỗ — 'hkd' nhận tiền khách, 'personal' chi hoá đơn. */}
                     <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5">
                       <Select
-                        value={acc.purpose ?? 'receive'}
+                        value={acc.kind ?? 'hkd'}
                         disabled={mutating}
                         onChange={(e) =>
-                          handleSetPurpose(acc.id, e.target.value as PaymentAccountPurpose)
+                          handleSetKind(acc.id, e.target.value as PaymentAccountKind)
                         }
                       >
-                        {PAYMENT_ACCOUNT_PURPOSES.map((o) => (
+                        {PAYMENT_ACCOUNT_KINDS.map((o) => (
                           <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </Select>
@@ -280,12 +280,12 @@ const PaymentSettingsTab: React.FC = () => {
                             backgroundClassName="bg-primary-100 dark:bg-primary-900/40"
                             textClassName="text-primary-700 dark:text-primary-200"
                           >
-                            {acc.purpose === 'spend'
-                              ? t('paymentSettings.activeSpendBadge')
+                            {acc.kind === 'personal'
+                              ? t('paymentSettings.activePersonalBadge')
                               : t('paymentSettings.activeBadge')}
                           </Badge>
                         ) : null}
-                        {/* Vào sổ / không vào sổ — TK không vào sổ thì tx bị gắn test, ngoài đối soát. */}
+                        {/* Ghi nhận / bỏ qua — TK tắt ghi nhận thì webhook không lưu giao dịch nào. */}
                         <Badge
                           size="sm"
                           layoutClassName="px-2 py-0.5 text-xs font-medium"
@@ -333,7 +333,7 @@ const PaymentSettingsTab: React.FC = () => {
                         >
                           {acc.isActive ? t('paymentSettings.inUse') : t('paymentSettings.useThis')}
                         </Button>
-                        {/* TK đang nhận tiền buộc phải vào sổ để đối soát → BE chặn tắt. */}
+                        {/* TK đang dùng buộc phải ghi nhận để đối soát → BE chặn tắt. */}
                         <IconButton
                           type="button"
                           label={
@@ -395,7 +395,7 @@ const PaymentSettingsTab: React.FC = () => {
           {t('paymentSettings.trackHint')}
         </Typography>
         <Typography size="xs" variant="muted" layoutClassName="mt-1">
-          {t('paymentSettings.purposeHint')}
+          {t('paymentSettings.kindHint')}
         </Typography>
       </Card>
 
@@ -546,19 +546,19 @@ const PaymentSettingsTab: React.FC = () => {
                 />
               </Field>
 
-              <Field label={t('paymentSettings.purpose')} htmlFor="payment-account-purpose">
+              <Field label={t('paymentSettings.kind')} htmlFor="payment-account-kind">
                 <Select
-                  id="payment-account-purpose"
+                  id="payment-account-kind"
                   fullWidth
-                  value={purpose}
-                  onChange={(e) => setPurposeInput(e.target.value as PaymentAccountPurpose)}
+                  value={kind}
+                  onChange={(e) => setKindInput(e.target.value as PaymentAccountKind)}
                 >
-                  {PAYMENT_ACCOUNT_PURPOSES.map((o) => (
+                  {PAYMENT_ACCOUNT_KINDS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </Select>
                 <Typography size="xs" variant="muted" layoutClassName="mt-1">
-                  {PAYMENT_ACCOUNT_PURPOSES.find((o) => o.value === purpose)?.hint}
+                  {PAYMENT_ACCOUNT_KINDS.find((o) => o.value === kind)?.hint}
                 </Typography>
               </Field>
             </Box>

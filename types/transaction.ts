@@ -1,4 +1,4 @@
-import type { PaymentAccountPurpose } from '@/types/paymentConfig';
+import type { PaymentAccountKind } from '@/types/paymentConfig';
 
 export interface Transaction {
   id: string;
@@ -19,7 +19,7 @@ export interface Transaction {
   transferType: string; // 'in' | 'out'
   /** Giao dịch không liên quan đến hệ thống (đánh dấu thủ công) */
   isExternal?: boolean;
-  /** Tiền RA đã "kết toán" — dồn từ TK nhận sang TK chi (đánh dấu thủ công) */
+  /** Tiền RA đã "kết toán" — dồn từ TK HKD sang TK cá nhân (đánh dấu thủ công) */
   settledOut?: boolean;
   /** Phân loại chi phí (nội dung CK → category; auto hoặc set tay). */
   expenseCategory?: string | null;
@@ -54,8 +54,8 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; cost?:
   { value: 'personal', label: 'Cá nhân (không tính)', cost: false },
   { value: 'owner', label: 'Rút vốn/Rút lời (không tính)', cost: false },
   { value: 'internal', label: 'Nội bộ/Nạp ví (không tính)', cost: false },
-  // Dồn tiền cuối ngày TK nhận → TK chi: tiền vẫn trong tiệm, không phải thu/chi.
-  { value: 'sweep', label: 'Dồn tiền TK nhận → TK chi (không tính)', cost: false },
+  // Dồn tiền cuối ngày TK HKD → TK cá nhân: tiền vẫn trong tiệm, không phải thu/chi.
+  { value: 'sweep', label: 'Dồn tiền HKD → cá nhân (không tính)', cost: false },
 ];
 
 export const expenseCategoryLabel = (c?: string | null): string =>
@@ -87,7 +87,7 @@ export interface ExpenseRule {
  * FE KHÔNG tự ghép từ các cờ rời rạc nữa.
  *   Tiền vào: matched | shopee | capital | sweep_in | external | unmatched
  *   Tiền ra:  refund | shipping | sweep_out | settled | excluded | expense | stock | unmatched
- * `sweep_in`/`sweep_out` = 2 đầu của CÙNG 1 cú dồn tiền cuối ngày TK nhận → TK chi
+ * `sweep_in`/`sweep_out` = 2 đầu của CÙNG 1 cú dồn tiền cuối ngày TK HKD → TK cá nhân
  * (luân chuyển nội bộ, không phải doanh thu/chi phí).
  */
 export type LedgerStatus =
@@ -95,15 +95,15 @@ export type LedgerStatus =
   | 'refund' | 'shipping' | 'sweep_out' | 'settled' | 'excluded' | 'expense' | 'stock'
   | 'test';
 
-/** 1 dòng sổ = Transaction + trạng thái derive + tài khoản của dòng tiền (099). */
+/** 1 dòng sổ = Transaction + trạng thái derive + tài khoản của dòng tiền (100). */
 export type LedgerTransaction = Transaction & {
   status: LedgerStatus;
   /** payment_accounts.id khớp GD (null = TK chưa khai trong cấu hình). */
   accountId: string | null;
   /** Nhãn ngắn TK, vd "BIDV ·1308". */
   accountLabel: string | null;
-  /** TK nhận tiền khách hay TK chi hoá đơn. */
-  accountPurpose: PaymentAccountPurpose | null;
+  /** TK hộ kinh doanh hay TK cá nhân. */
+  accountKind: PaymentAccountKind | null;
 };
 
 /** Dòng tiền của 1 tài khoản trong kỳ — "tiền nào của tài khoản nào" ở mục đối soát. */
@@ -113,11 +113,11 @@ export interface LedgerAccountFlow {
   bankCode: string | null;
   accountNumber: string | null;
   accountHolder: string | null;
-  purpose: PaymentAccountPurpose | null;
+  kind: PaymentAccountKind | null;
   in: number;  // VND
   out: number; // VND
   net: number; // VND (in − out)
-  /** Phần in/out chỉ là dồn tiền nội bộ giữa TK nhận ↔ TK chi. */
+  /** Phần in/out chỉ là dồn tiền nội bộ giữa TK HKD ↔ TK cá nhân. */
   sweepIn: number;
   sweepOut: number;
   count: number;
@@ -128,7 +128,7 @@ export interface LedgerSummary {
   totalIn: number;
   totalOut: number;
   net: number;
-  /** Phần luân chuyển NỘI BỘ (TK nhận → TK chi) — đã nằm trong totalIn/totalOut. */
+  /** Phần luân chuyển NỘI BỘ (TK HKD → TK cá nhân) — đã nằm trong totalIn/totalOut. */
   sweepIn: number;
   sweepOut: number;
   /** Thu/chi THỰC với bên ngoài = tổng trừ phần luân chuyển nội bộ. */
@@ -180,8 +180,8 @@ export const LEDGER_STATUS_META: Record<LedgerStatus, { label: string; tone: Ton
   matched: { label: 'Khớp đơn', tone: 'emerald' },
   shopee: { label: 'Shopee thanh toán', tone: 'orange' },
   capital: { label: 'Cấp vốn', tone: 'indigo' },
-  sweep_in: { label: 'Dồn về TK chi', tone: 'blue' },
-  sweep_out: { label: 'Dồn sang TK chi', tone: 'blue' },
+  sweep_in: { label: 'Dồn về TK cá nhân', tone: 'blue' },
+  sweep_out: { label: 'Dồn sang TK cá nhân', tone: 'blue' },
   external: { label: 'Ngoài hệ thống', tone: 'slate' },
   unmatched: { label: 'Chưa khớp', tone: 'amber' },
   refund: { label: 'Hoàn tiền', tone: 'violet' },

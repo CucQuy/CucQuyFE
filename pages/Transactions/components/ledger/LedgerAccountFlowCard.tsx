@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, Landmark, Wallet } from 'lucide-react';
 import { LedgerAccountFlow } from '@/types';
-import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
+import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -18,8 +18,8 @@ interface LedgerAccountFlowCardProps {
 
 /**
  * "Dòng tiền nào của tài khoản nào" — tách thu/chi trong kỳ theo TỪNG tài khoản,
- * kèm nhãn mục đích (TK nhận tiền khách / TK chi hoá đơn) và phần dồn tiền nội bộ
- * cuối ngày (TK nhận → TK chi) để không đọc lẫn thành thu/chi thật.
+ * kèm nhãn loại TK (hộ kinh doanh / cá nhân) và phần dồn tiền nội bộ cuối ngày
+ * (TK HKD → TK cá nhân) để không đọc lẫn thành thu/chi thật.
  * Bấm 1 thẻ = lọc sổ theo tài khoản đó (bấm lại để bỏ lọc).
  */
 const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts, selected, onSelect }) => {
@@ -33,13 +33,13 @@ const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts,
           Dòng tiền theo tài khoản
         </Typography>
         <Typography as="span" size="xs" variant="muted">
-          · khách CK vào TK nhận → cuối ngày dồn sang TK chi → chi hoá đơn
+          · khách CK vào TK HKD → cuối ngày dồn sang TK cá nhân → chi hoá đơn
         </Typography>
       </Box>
 
       <Box layoutClassName="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((a) => {
-          const isSpend = a.purpose === 'spend';
+          const isPersonal = a.kind === 'personal';
           const active = !!a.accountId && a.accountId === selected;
           const key = a.accountId ?? `unknown-${a.label}`;
           return (
@@ -69,7 +69,7 @@ const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts,
             >
               <Box layoutClassName="flex items-center justify-between gap-2">
                 <Box layoutClassName="flex min-w-0 items-center gap-1.5">
-                  {isSpend ? (
+                  {isPersonal ? (
                     <Wallet className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                   ) : (
                     <ArrowRight className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
@@ -82,28 +82,28 @@ const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts,
                   size="sm"
                   layoutClassName="shrink-0 px-2 py-0.5 text-[11px] font-medium"
                   borderClassName={
-                    a.purpose === null
+                    a.kind === null
                       ? 'border border-slate-200 dark:border-slate-600'
-                      : isSpend
+                      : isPersonal
                         ? 'border border-blue-200 dark:border-blue-700'
                         : 'border border-emerald-200 dark:border-emerald-700'
                   }
                   backgroundClassName={
-                    a.purpose === null
+                    a.kind === null
                       ? 'bg-slate-100 dark:bg-slate-700/40'
-                      : isSpend
+                      : isPersonal
                         ? 'bg-blue-50 dark:bg-blue-900/20'
                         : 'bg-emerald-50 dark:bg-emerald-900/20'
                   }
                   textClassName={
-                    a.purpose === null
+                    a.kind === null
                       ? 'text-slate-500 dark:text-slate-400'
-                      : isSpend
+                      : isPersonal
                         ? 'text-blue-700 dark:text-blue-300'
                         : 'text-emerald-700 dark:text-emerald-300'
                   }
                 >
-                  {a.purpose === null ? 'Chưa khai' : paymentAccountPurposeLabel(a.purpose)}
+                  {a.kind === null ? 'Chưa khai' : paymentAccountKindLabel(a.kind)}
                 </Badge>
               </Box>
 

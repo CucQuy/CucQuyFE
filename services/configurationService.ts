@@ -25,7 +25,7 @@ import type { ShippingConfiguration } from '@/types/shippingConfig';
 import type {
   CreatePaymentAccountInput,
   PaymentAccount,
-  PaymentAccountPurpose,
+  PaymentAccountKind,
 } from '@/types/paymentConfig';
 import { UserRole } from '@/types/user';
 import { getUserByUid } from '@/services/userService';
@@ -192,7 +192,7 @@ export const createPaymentAccount = async (
     accountNumber: input.accountNumber,
     accountHolder: input.accountHolder,
     ...(input.qrTemplate ? { qrTemplate: input.qrTemplate } : {}),
-    ...(input.purpose ? { purpose: input.purpose } : {}),
+    ...(input.kind ? { kind: input.kind } : {}),
   });
   return Array.isArray(data) ? data : [];
 };
@@ -205,8 +205,8 @@ export const setActivePaymentAccount = async (id: string): Promise<PaymentAccoun
 };
 
 /**
- * Bật/tắt đưa giao dịch của TK vào Sổ giao dịch/đối soát.
- * BE chặn tắt TK đang nhận tiền (trả lỗi) → caller hiện toast.
+ * Bật/tắt GHI NHẬN giao dịch của TK (tắt → webhook bỏ qua, không lưu gì).
+ * BE chặn tắt TK đang dùng (trả lỗi) → caller hiện toast.
  */
 export const setTrackedPaymentAccount = async (
   id: string,
@@ -220,16 +220,16 @@ export const setTrackedPaymentAccount = async (
 };
 
 /**
- * Đổi mục đích TK: 'receive' nhận tiền khách ↔ 'spend' chi hoá đơn.
- * BE chặn đổi TK nhận đang active khi còn TK nhận khác → caller hiện toast.
+ * Đổi loại TK: 'hkd' hộ kinh doanh ↔ 'personal' cá nhân.
+ * BE chặn đổi TK HKD đang dùng khi còn TK HKD khác → caller hiện toast.
  */
-export const setPurposePaymentAccount = async (
+export const setKindPaymentAccount = async (
   id: string,
-  purpose: PaymentAccountPurpose,
+  kind: PaymentAccountKind,
 ): Promise<PaymentAccount[]> => {
   const { data } = await apiClient.put<PaymentAccount[]>(
-    `/configurations/payment-accounts/${encodeURIComponent(id)}/purpose`,
-    { purpose },
+    `/configurations/payment-accounts/${encodeURIComponent(id)}/kind`,
+    { kind },
   );
   return Array.isArray(data) ? data : [];
 };

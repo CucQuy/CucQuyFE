@@ -2,7 +2,7 @@ import React from 'react';
 import { TrendingUp, ArrowDownLeft } from 'lucide-react';
 import { LedgerTransaction } from '@/types';
 import { expenseCategoryTag } from '@/types/transaction';
-import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
+import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -71,11 +71,11 @@ const LedgerMobileList: React.FC<LedgerMobileListProps> = ({ transactions, forma
                 </Badge>
               )}
               {out && expenseCategoryTag(tr.expenseCategory) && <ExpenseTag transaction={tr} />}
-              {/* 099: TK của dòng tiền (fallback gateway khi TK chưa khai). */}
+              {/* 100: TK của dòng tiền (fallback gateway khi TK chưa khai). */}
               {(tr.accountLabel || tr.gateway) && (
                 <Typography as="span" size="xs" variant="muted">
                   {tr.accountLabel || tr.gateway}
-                  {tr.accountPurpose ? ` · ${paymentAccountPurposeLabel(tr.accountPurpose)}` : ''}
+                  {tr.accountKind ? ` · ${paymentAccountKindLabel(tr.accountKind)}` : ''}
                 </Typography>
               )}
             </Box>

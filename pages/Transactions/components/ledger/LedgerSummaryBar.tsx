@@ -49,7 +49,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, sub, icon, iconWrapCl
 
 /**
  * Thanh tổng kết kỳ (server tính): thu · chi · luân chuyển nội bộ · số dư · số GD · % đối soát.
- * 099: tiền dồn cuối ngày TK nhận → TK chi nằm TRONG tổng thu/chi (đó là dòng tiền thật
+ * 100: tiền dồn cuối ngày TK HKD → TK cá nhân nằm TRONG tổng thu/chi (đó là dòng tiền thật
  * trên bank) nên tách riêng 1 thẻ + ghi "thực" ở dòng phụ, khỏi đọc lẫn thành doanh thu.
  */
 const LedgerSummaryBar: React.FC<LedgerSummaryBarProps> = ({ summary }) => {
@@ -84,7 +84,7 @@ const LedgerSummaryBar: React.FC<LedgerSummaryBarProps> = ({ summary }) => {
       <StatCard
         label="Nội bộ (dồn TK)"
         value={formatVND(sweep)}
-        sub="TK nhận → TK chi"
+        sub="TK HKD → TK cá nhân"
         icon={<Repeat className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
         iconWrapClassName="bg-blue-50 dark:bg-blue-900/20"
         valueClassName="text-blue-600 dark:text-blue-400"
