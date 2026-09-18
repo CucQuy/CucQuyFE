@@ -30,7 +30,8 @@ export interface UsePaymentAccountsResult {
   error: string | null;
   refresh: () => Promise<void>;
   create: (input: CreatePaymentAccountInput) => Promise<PaymentAccount[]>;
-  setActive: (id: string) => Promise<PaymentAccount[]>;
+  /** Bật/tắt TK đang dùng của loại đó (bật → TK cùng loại tự tắt). */
+  setActive: (id: string, active?: boolean) => Promise<PaymentAccount[]>;
   /** Bật/tắt ghi nhận giao dịch của TK (tắt → webhook bỏ qua, không lưu). */
   setTracked: (id: string, tracked: boolean) => Promise<PaymentAccount[]>;
   /** Đổi loại TK: hộ kinh doanh ↔ cá nhân. */
@@ -86,7 +87,8 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
   });
 
   const setActiveMutation = useMutation({
-    mutationFn: (id: string) => setActivePaymentAccount(id),
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      setActivePaymentAccount(id, active),
     onSuccess: applyList,
   });
 
@@ -115,7 +117,10 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     (input: CreatePaymentAccountInput) => createMutation.mutateAsync(input),
     [createMutation],
   );
-  const setActive = useCallback((id: string) => setActiveMutation.mutateAsync(id), [setActiveMutation]);
+  const setActive = useCallback(
+    (id: string, active = true) => setActiveMutation.mutateAsync({ id, active }),
+    [setActiveMutation],
+  );
   const setTracked = useCallback(
     (id: string, tracked: boolean) => setTrackedMutation.mutateAsync({ id, tracked }),
     [setTrackedMutation],

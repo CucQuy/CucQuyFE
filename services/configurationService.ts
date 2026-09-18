@@ -197,9 +197,14 @@ export const createPaymentAccount = async (
   return Array.isArray(data) ? data : [];
 };
 
-export const setActivePaymentAccount = async (id: string): Promise<PaymentAccount[]> => {
+/** Bật/tắt TK đang dùng. Bật → TK CÙNG LOẠI tự tắt (BE lo, chỉ 1 TK/loại). */
+export const setActivePaymentAccount = async (
+  id: string,
+  active = true,
+): Promise<PaymentAccount[]> => {
   const { data } = await apiClient.put<PaymentAccount[]>(
     `/configurations/payment-accounts/${encodeURIComponent(id)}/active`,
+    { active },
   );
   return Array.isArray(data) ? data : [];
 };
