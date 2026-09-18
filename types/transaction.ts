@@ -1,3 +1,5 @@
+import type { PaymentAccountPurpose } from '@/types/paymentConfig';
+
 export interface Transaction {
   id: string;
   accountNumber: string;
@@ -17,7 +19,7 @@ export interface Transaction {
   transferType: string; // 'in' | 'out'
   /** Giao dịch không liên quan đến hệ thống (đánh dấu thủ công) */
   isExternal?: boolean;
-  /** Tiền RA đã "kết toán" — chuyển về tài khoản chính (đánh dấu thủ công) */
+  /** Tiền RA đã "kết toán" — dồn từ TK nhận sang TK chi (đánh dấu thủ công) */
   settledOut?: boolean;
   /** Phân loại chi phí (nội dung CK → category; auto hoặc set tay). */
   expenseCategory?: string | null;
@@ -34,7 +36,7 @@ export type ExpenseCategory =
   | 'rent' | 'utilities' | 'internet' | 'marketing' | 'maintenance' | 'salary' | 'facility'
   | 'supplier' | 'shipping' | 'packaging' | 'other'
   // Nhóm PHI-CHI-PHÍ (cost:false) — KHÔNG tính vào P&L quán khi gán.
-  | 'personal' | 'owner' | 'internal';
+  | 'personal' | 'owner' | 'internal' | 'sweep';
 
 /** cost=false → không tính vào chi phí quán (cá nhân/rút vốn/nội bộ). Mặc định coi là chi phí. */
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; cost?: boolean }[] = [
@@ -52,6 +54,8 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; cost?:
   { value: 'personal', label: 'Cá nhân (không tính)', cost: false },
   { value: 'owner', label: 'Rút vốn/Rút lời (không tính)', cost: false },
   { value: 'internal', label: 'Nội bộ/Nạp ví (không tính)', cost: false },
+  // Dồn tiền cuối ngày TK nhận → TK chi: tiền vẫn trong tiệm, không phải thu/chi.
+  { value: 'sweep', label: 'Dồn tiền TK nhận → TK chi (không tính)', cost: false },
 ];
 
 export const expenseCategoryLabel = (c?: string | null): string =>
@@ -67,7 +71,7 @@ export const expenseCategoryTag = (c?: string | null): string =>
 
 /** Category này có tính vào chi phí quán không (khớp expense_category_is_cost ở BE). */
 export const expenseCategoryIsCost = (c?: string | null): boolean =>
-  !!c && c !== 'personal' && c !== 'owner' && c !== 'internal';
+  !!c && c !== 'personal' && c !== 'owner' && c !== 'internal' && c !== 'sweep';
 
 /** Rule phân loại chi phí (nội dung CK chứa keyword → category). */
 export interface ExpenseRule {
@@ -81,22 +85,56 @@ export interface ExpenseRule {
 /**
  * Trạng thái thống nhất 1 giao dịch — BE derive sẵn (transaction_ledger_status),
  * FE KHÔNG tự ghép từ các cờ rời rạc nữa.
- *   Tiền vào: matched | shopee | external | unmatched
- *   Tiền ra:  refund | settled | excluded | expense | stock | unmatched
+ *   Tiền vào: matched | shopee | capital | sweep_in | external | unmatched
+ *   Tiền ra:  refund | shipping | sweep_out | settled | excluded | expense | stock | unmatched
+ * `sweep_in`/`sweep_out` = 2 đầu của CÙNG 1 cú dồn tiền cuối ngày TK nhận → TK chi
+ * (luân chuyển nội bộ, không phải doanh thu/chi phí).
  */
 export type LedgerStatus =
-  | 'matched' | 'shopee' | 'capital' | 'external' | 'unmatched'
-  | 'refund' | 'shipping' | 'settled' | 'excluded' | 'expense' | 'stock'
+  | 'matched' | 'shopee' | 'capital' | 'sweep_in' | 'external' | 'unmatched'
+  | 'refund' | 'shipping' | 'sweep_out' | 'settled' | 'excluded' | 'expense' | 'stock'
   | 'test';
 
-/** 1 dòng sổ = Transaction + trạng thái derive. */
-export type LedgerTransaction = Transaction & { status: LedgerStatus };
+/** 1 dòng sổ = Transaction + trạng thái derive + tài khoản của dòng tiền (099). */
+export type LedgerTransaction = Transaction & {
+  status: LedgerStatus;
+  /** payment_accounts.id khớp GD (null = TK chưa khai trong cấu hình). */
+  accountId: string | null;
+  /** Nhãn ngắn TK, vd "BIDV ·1308". */
+  accountLabel: string | null;
+  /** TK nhận tiền khách hay TK chi hoá đơn. */
+  accountPurpose: PaymentAccountPurpose | null;
+};
+
+/** Dòng tiền của 1 tài khoản trong kỳ — "tiền nào của tài khoản nào" ở mục đối soát. */
+export interface LedgerAccountFlow {
+  accountId: string | null;
+  label: string;
+  bankCode: string | null;
+  accountNumber: string | null;
+  accountHolder: string | null;
+  purpose: PaymentAccountPurpose | null;
+  in: number;  // VND
+  out: number; // VND
+  net: number; // VND (in − out)
+  /** Phần in/out chỉ là dồn tiền nội bộ giữa TK nhận ↔ TK chi. */
+  sweepIn: number;
+  sweepOut: number;
+  count: number;
+}
 
 /** Tổng kết kỳ (server tính) — thu/chi/số dư ổn định khi đổi tab loại/trạng thái. */
 export interface LedgerSummary {
   totalIn: number;
   totalOut: number;
   net: number;
+  /** Phần luân chuyển NỘI BỘ (TK nhận → TK chi) — đã nằm trong totalIn/totalOut. */
+  sweepIn: number;
+  sweepOut: number;
+  /** Thu/chi THỰC với bên ngoài = tổng trừ phần luân chuyển nội bộ. */
+  externalIn: number;
+  externalOut: number;
+  netExternal: number;
   count: number;
   inCount: number;
   outCount: number;
@@ -109,6 +147,8 @@ export interface LedgerResult {
   items: LedgerTransaction[];
   total: number;
   summary: LedgerSummary;
+  /** Dòng tiền tách theo từng tài khoản trong kỳ. */
+  byAccount: LedgerAccountFlow[];
 }
 
 /** 1 điểm chuỗi thu/chi theo ngày (biểu đồ sổ). */
@@ -126,6 +166,8 @@ export interface LedgerFilters {
   status?: LedgerStatus | '';
   category?: string;
   gateway?: string;
+  /** payment_accounts.id — chỉ xem dòng tiền của 1 tài khoản. */
+  account?: string;
   search?: string;
   limit?: number;
   offset?: number;
@@ -138,6 +180,8 @@ export const LEDGER_STATUS_META: Record<LedgerStatus, { label: string; tone: Ton
   matched: { label: 'Khớp đơn', tone: 'emerald' },
   shopee: { label: 'Shopee thanh toán', tone: 'orange' },
   capital: { label: 'Cấp vốn', tone: 'indigo' },
+  sweep_in: { label: 'Dồn về TK chi', tone: 'blue' },
+  sweep_out: { label: 'Dồn sang TK chi', tone: 'blue' },
   external: { label: 'Ngoài hệ thống', tone: 'slate' },
   unmatched: { label: 'Chưa khớp', tone: 'amber' },
   refund: { label: 'Hoàn tiền', tone: 'violet' },

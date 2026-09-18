@@ -63,9 +63,12 @@ const EMPTY_LEDGER: LedgerResult = {
   items: [],
   total: 0,
   summary: {
-    totalIn: 0, totalOut: 0, net: 0, count: 0, inCount: 0, outCount: 0,
+    totalIn: 0, totalOut: 0, net: 0,
+    sweepIn: 0, sweepOut: 0, externalIn: 0, externalOut: 0, netExternal: 0,
+    count: 0, inCount: 0, outCount: 0,
     reconciledCount: 0, unreconciledCount: 0, reconciledPct: 100,
   },
+  byAccount: [],
 };
 
 /**

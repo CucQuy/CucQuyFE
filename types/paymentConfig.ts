@@ -1,6 +1,9 @@
 /**
  * Payment account types + helpers.
- * Mô hình: NHIỀU tài khoản nhận tiền, 1 cái active (mọi QR đơn dùng TK active).
+ * Mô hình: NHIỀU tài khoản ngân hàng, mỗi MỤC ĐÍCH (`purpose`) có 1 TK active:
+ *   - `receive` — TK nhận tiền khách: mọi QR đơn dùng TK receive đang active.
+ *   - `spend`   — TK chi: cuối ngày TK nhận dồn hết tiền sang đây, rồi chi hoá đơn
+ *                 (NCC / ship / vận hành) từ TK này → đối soát tiền ra ở TK chi.
  * Runtime data lưu ở BE (`/configurations/payment-accounts`), truy cập qua
  * `usePaymentAccounts()` ở components. File này chỉ chứa types + helper thuần.
  */
@@ -8,7 +11,32 @@
 /** Template QR của SePay (VietQR). */
 export type QrTemplate = 'compact' | 'compact2' | 'qr_only' | 'print';
 
-/** 1 tài khoản nhận tiền đã lưu (BE trả về). */
+/** Mục đích tài khoản: nhận tiền khách vs chi hoá đơn. */
+export type PaymentAccountPurpose = 'receive' | 'spend';
+
+/** Lựa chọn mục đích cho dropdown/badge cấu hình. */
+export const PAYMENT_ACCOUNT_PURPOSES: {
+  value: PaymentAccountPurpose;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: 'receive',
+    label: 'Nhận tiền',
+    hint: 'Khách CK vào TK này (QR đơn). Cuối ngày dồn tiền sang TK chi.',
+  },
+  {
+    value: 'spend',
+    label: 'Chi tiêu',
+    hint: 'Nhận tiền dồn cuối ngày từ TK nhận, rồi chi các hoá đơn.',
+  },
+];
+
+/** Helper lookup nhãn mục đích (mặc định coi là TK nhận tiền). */
+export const paymentAccountPurposeLabel = (p?: PaymentAccountPurpose | string | null): string =>
+  PAYMENT_ACCOUNT_PURPOSES.find((x) => x.value === p)?.label ?? 'Nhận tiền';
+
+/** 1 tài khoản ngân hàng đã lưu (BE trả về). */
 export interface PaymentAccount {
   /** ID bản ghi (BE). */
   id: string;
@@ -20,13 +48,15 @@ export interface PaymentAccount {
   accountHolder: string;
   /** Template ảnh QR của SePay (mặc định "compact"). */
   qrTemplate: QrTemplate | string;
-  /** TK đang active — mọi QR đơn dùng TK này. */
+  /** TK đang active TRONG mục đích của nó (1 TK nhận chính + 1 TK chi chính). */
   isActive: boolean;
   /**
    * Giao dịch của TK này có vào Sổ giao dịch/đối soát hay không. false → BE gắn
    * `is_test` cho tx → status 'test', loại khỏi doanh thu + tỷ lệ đối soát.
    */
   isTracked?: boolean;
+  /** Nhận tiền khách (`receive`) hay chi hoá đơn (`spend`). Thiếu → coi là `receive`. */
+  purpose?: PaymentAccountPurpose;
   /** Thời điểm tạo (ISO string từ BE). */
   createdAt?: string;
 }
@@ -44,6 +74,7 @@ export const TEST_PAYMENT_ACCOUNT: PaymentAccount = {
   qrTemplate: 'compact',
   isActive: false,
   isTracked: false,
+  purpose: 'receive',
 };
 
 /** Body khi tạo tài khoản mới (POST). */
@@ -52,6 +83,8 @@ export interface CreatePaymentAccountInput {
   accountNumber: string;
   accountHolder: string;
   qrTemplate?: string;
+  /** Mặc định BE dùng 'receive' nếu không gửi. */
+  purpose?: PaymentAccountPurpose;
 }
 
 /** Lựa chọn template cho dropdown cấu hình. */

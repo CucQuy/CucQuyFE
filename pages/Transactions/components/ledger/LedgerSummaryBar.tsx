@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Scale, ArrowRightLeft, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Scale, ArrowRightLeft, CheckCircle2, Repeat } from 'lucide-react';
 import { LedgerSummary } from '@/types';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Box from '@/components/ui/Box';
@@ -47,15 +47,24 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, sub, icon, iconWrapCl
   </Card>
 );
 
-/** Thanh tổng kết kỳ (server tính): thu · chi · số dư · số GD · % đối soát. */
+/**
+ * Thanh tổng kết kỳ (server tính): thu · chi · luân chuyển nội bộ · số dư · số GD · % đối soát.
+ * 099: tiền dồn cuối ngày TK nhận → TK chi nằm TRONG tổng thu/chi (đó là dòng tiền thật
+ * trên bank) nên tách riêng 1 thẻ + ghi "thực" ở dòng phụ, khỏi đọc lẫn thành doanh thu.
+ */
 const LedgerSummaryBar: React.FC<LedgerSummaryBarProps> = ({ summary }) => {
   const netPositive = summary.net >= 0;
+  const sweep = summary.sweepIn + summary.sweepOut;
   return (
-    <Box layoutClassName="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <Box layoutClassName="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       <StatCard
         label="Tổng thu"
         value={`+${formatVND(summary.totalIn)}`}
-        sub={`${summary.inCount} GD vào`}
+        sub={
+          summary.sweepIn > 0
+            ? `${summary.inCount} GD vào · thực +${formatVND(summary.externalIn)}`
+            : `${summary.inCount} GD vào`
+        }
         icon={<TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         iconWrapClassName="bg-emerald-50 dark:bg-emerald-900/20"
         valueClassName="text-emerald-600 dark:text-emerald-400"
@@ -63,15 +72,31 @@ const LedgerSummaryBar: React.FC<LedgerSummaryBarProps> = ({ summary }) => {
       <StatCard
         label="Tổng chi"
         value={`−${formatVND(summary.totalOut)}`}
-        sub={`${summary.outCount} GD ra`}
+        sub={
+          summary.sweepOut > 0
+            ? `${summary.outCount} GD ra · thực −${formatVND(summary.externalOut)}`
+            : `${summary.outCount} GD ra`
+        }
         icon={<TrendingDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
         iconWrapClassName="bg-rose-50 dark:bg-rose-900/20"
         valueClassName="text-rose-600 dark:text-rose-400"
       />
       <StatCard
+        label="Nội bộ (dồn TK)"
+        value={formatVND(sweep)}
+        sub="TK nhận → TK chi"
+        icon={<Repeat className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+        iconWrapClassName="bg-blue-50 dark:bg-blue-900/20"
+        valueClassName="text-blue-600 dark:text-blue-400"
+      />
+      <StatCard
         label="Số dư ròng"
         value={`${netPositive ? '+' : '−'}${formatVND(Math.abs(summary.net))}`}
-        sub="thu − chi"
+        sub={
+          sweep > 0
+            ? `thu − chi · thực ${summary.netExternal >= 0 ? '+' : '−'}${formatVND(Math.abs(summary.netExternal))}`
+            : 'thu − chi'
+        }
         icon={<Scale className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
         iconWrapClassName="bg-primary-50 dark:bg-primary-900/20"
         valueClassName={netPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}

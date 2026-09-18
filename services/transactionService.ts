@@ -2,6 +2,7 @@ import { apiClient } from '@/services/api/client';
 import {
   Transaction,
   ExpenseRule,
+  LedgerAccountFlow,
   LedgerResult,
   LedgerSummary,
   LedgerFilters,
@@ -9,6 +10,7 @@ import {
   LedgerTransaction,
   LedgerSeriesPoint,
 } from '@/types';
+import type { PaymentAccountPurpose } from '@/types/paymentConfig';
 
 /** Danh sách giao dịch (BE sắp theo ngày giảm dần). */
 export const fetchTransactions = async (): Promise<Transaction[]> => {
@@ -20,8 +22,13 @@ const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v)
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
 const LEDGER_STATUSES: LedgerStatus[] = [
-  'matched', 'shopee', 'capital', 'external', 'unmatched', 'refund', 'settled', 'excluded', 'expense', 'stock',
+  'matched', 'shopee', 'capital', 'sweep_in', 'external', 'unmatched',
+  'refund', 'shipping', 'sweep_out', 'settled', 'excluded', 'expense', 'stock', 'test',
 ];
+
+/** Mục đích TK từ API — chỉ nhận 2 giá trị hợp lệ, còn lại coi là chưa khai. */
+const purposeOf = (v: unknown): PaymentAccountPurpose | null =>
+  v === 'receive' || v === 'spend' ? v : null;
 
 /** Chuẩn hoá 1 dòng sổ trả từ API — coi mọi field untrusted (data-safety). */
 const mapLedgerItem = (r: Record<string, unknown>): LedgerTransaction => ({
@@ -48,11 +55,35 @@ const mapLedgerItem = (r: Record<string, unknown>): LedgerTransaction => ({
   needsReview: r.needsReview === true,
   reviewNote: typeof r.reviewNote === 'string' ? r.reviewNote : null,
   status: LEDGER_STATUSES.includes(r.status as LedgerStatus) ? (r.status as LedgerStatus) : 'unmatched',
+  accountId: typeof r.accountId === 'string' ? r.accountId : null,
+  accountLabel: typeof r.accountLabel === 'string' ? r.accountLabel : null,
+  accountPurpose: purposeOf(r.accountPurpose),
+});
+
+/** Chuẩn hoá 1 dòng "dòng tiền theo tài khoản" (byAccount) — mọi field untrusted. */
+const mapAccountFlow = (r: Record<string, unknown>): LedgerAccountFlow => ({
+  accountId: typeof r.accountId === 'string' ? r.accountId : null,
+  label: str(r.label) || 'TK chưa khai',
+  bankCode: typeof r.bankCode === 'string' ? r.bankCode : null,
+  accountNumber: typeof r.accountNumber === 'string' ? r.accountNumber : null,
+  accountHolder: typeof r.accountHolder === 'string' ? r.accountHolder : null,
+  purpose: purposeOf(r.purpose),
+  in: num(r.in),
+  out: num(r.out),
+  net: num(r.net),
+  sweepIn: num(r.sweepIn),
+  sweepOut: num(r.sweepOut),
+  count: num(r.count),
 });
 
 /** Sổ giao dịch thống nhất: list phân trang + total + summary (thu+chi 1 sổ). */
 export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult> => {
-  const res = await apiClient.get<{ items?: unknown[]; total?: unknown; summary?: Record<string, unknown> }>(
+  const res = await apiClient.get<{
+    items?: unknown[];
+    total?: unknown;
+    summary?: Record<string, unknown>;
+    byAccount?: unknown[];
+  }>(
     '/transactions/ledger',
     {
       params: {
@@ -62,6 +93,7 @@ export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult>
         status: filters.status || undefined,
         category: filters.category || undefined,
         gateway: filters.gateway || undefined,
+        account: filters.account || undefined,
         search: filters.search || undefined,
         limit: filters.limit,
         offset: filters.offset,
@@ -74,6 +106,11 @@ export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult>
     totalIn: num(s.totalIn),
     totalOut: num(s.totalOut),
     net: num(s.net),
+    sweepIn: num(s.sweepIn),
+    sweepOut: num(s.sweepOut),
+    externalIn: num(s.externalIn),
+    externalOut: num(s.externalOut),
+    netExternal: num(s.netExternal),
     count: num(s.count),
     inCount: num(s.inCount),
     outCount: num(s.outCount),
@@ -85,6 +122,9 @@ export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult>
     items: Array.isArray(d.items) ? d.items.map((it) => mapLedgerItem((it ?? {}) as Record<string, unknown>)) : [],
     total: num(d.total),
     summary,
+    byAccount: Array.isArray(d.byAccount)
+      ? d.byAccount.map((a) => mapAccountFlow((a ?? {}) as Record<string, unknown>))
+      : [],
   };
 };
 

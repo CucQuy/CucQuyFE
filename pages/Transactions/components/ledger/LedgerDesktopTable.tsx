@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, Building2, TrendingUp, ArrowDownLeft } from 'lucide-react';
 import { LedgerTransaction } from '@/types';
 import { expenseCategoryTag } from '@/types/transaction';
+import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
@@ -16,7 +17,7 @@ interface LedgerDesktopTableProps {
   onRowClick?: (tr: LedgerTransaction) => void;
 }
 
-/** Bảng sổ (desktop) — có cột Trạng thái thống nhất + tag danh mục / mã đơn. */
+/** Bảng sổ (desktop) — cột Trạng thái thống nhất + tag danh mục / mã đơn + TÀI KHOẢN. */
 const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, formatDate, onRowClick }) => {
   if (!transactions.length) return null;
   return (
@@ -34,7 +35,7 @@ const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, f
               <TableHeaderCell layoutClassName="px-5 py-3.5">Trạng thái</TableHeaderCell>
               <TableHeaderCell layoutClassName="px-5 py-3.5">Nội dung</TableHeaderCell>
               <TableHeaderCell layoutClassName="px-5 py-3.5">Mã đơn / Danh mục</TableHeaderCell>
-              <TableHeaderCell layoutClassName="px-5 py-3.5">Ngân hàng</TableHeaderCell>
+              <TableHeaderCell layoutClassName="px-5 py-3.5">Tài khoản</TableHeaderCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -108,12 +109,29 @@ const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, f
                   )}
                 </TableCell>
 
+                {/* 099: TK của dòng tiền + mục đích (nhận tiền khách / chi hoá đơn). */}
                 <TableCell layoutClassName="px-5 py-3.5">
                   <Box layoutClassName="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <Typography as="span" size="xs" textClassName="text-slate-600 dark:text-slate-400">
-                      {tr.gateway || '—'}
-                    </Typography>
+                    <Box layoutClassName="min-w-0">
+                      <Typography as="div" size="xs" layoutClassName="truncate" textClassName="text-slate-600 dark:text-slate-400">
+                        {tr.accountLabel || tr.gateway || '—'}
+                      </Typography>
+                      {tr.accountPurpose && (
+                        <Typography
+                          as="div"
+                          size="xs"
+                          layoutClassName="truncate"
+                          textClassName={
+                            tr.accountPurpose === 'spend'
+                              ? 'text-blue-600 dark:text-blue-300'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }
+                        >
+                          {paymentAccountPurposeLabel(tr.accountPurpose)}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                 </TableCell>
               </TableRow>

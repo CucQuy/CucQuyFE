@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { RefreshCw, ArrowDownCircle, ArrowUpCircle, CircleDot, Tags, Landmark, Scale, Wand2 } from 'lucide-react';
+import { RefreshCw, ArrowDownCircle, ArrowUpCircle, CircleDot, Tags, Landmark, CreditCard, Scale, Wand2 } from 'lucide-react';
 import { LedgerFilters, LedgerStatus, LEDGER_STATUS_META, EXPENSE_CATEGORIES } from '@/types';
 import IconButton from '@/components/ui/IconButton';
 import Button from '@/components/ui/Button';
@@ -15,6 +15,9 @@ interface LedgerFilterBarProps {
   onStatusChange: (v: LedgerFilters['status']) => void;
   onCategoryChange: (v: string) => void;
   onGatewayChange: (v: string) => void;
+  /** Tài khoản đã khai (099) cho dropdown lọc theo TK nhận / TK chi. */
+  accountOptions: { value: string; label: string }[];
+  onAccountChange: (v: string) => void;
   onRefresh: () => void;
   /** Mở modal đối soát gộp (nút "Đối soát"). */
   onReconcile: () => void;
@@ -22,17 +25,17 @@ interface LedgerFilterBarProps {
   onAutoReconcile: () => void;
 }
 
-const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'external', 'unmatched'];
-const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'settled', 'expense', 'stock', 'excluded', 'unmatched'];
+const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'capital', 'sweep_in', 'external', 'unmatched'];
+const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'sweep_out', 'settled', 'expense', 'stock', 'excluded', 'unmatched'];
 
 /**
  * Toolbar lọc sổ giao dịch — dùng chung FilterToolbar (chuẩn như trang Đơn hàng):
  * tìm kiếm + pill nhanh Tiền vào/Tiền ra + dropdown trạng thái/danh mục/ngân hàng.
  */
 const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
-  filters, search, gatewayOptions, isFetching,
-  onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange, onRefresh,
-  onReconcile, onAutoReconcile,
+  filters, search, gatewayOptions, accountOptions, isFetching,
+  onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange,
+  onAccountChange, onRefresh, onReconcile, onAutoReconcile,
 }) => {
   // Trạng thái khả dụng theo loại đang chọn (thu ≠ chi).
   const statusOptions = useMemo<LedgerStatus[]>(() => {
@@ -72,9 +75,13 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
     { value: '', label: 'Mọi ngân hàng' },
     ...gatewayOptions.map((g) => ({ value: g, label: g })),
   ];
+  const accountOpts: ToolbarOption[] = [
+    { value: '', label: 'Mọi tài khoản' },
+    ...accountOptions,
+  ];
 
   const hasAnyFilter = Boolean(
-    filters.type || filters.status || filters.category || filters.gateway || search,
+    filters.type || filters.status || filters.category || filters.gateway || filters.account || search,
   );
 
   return (
@@ -106,6 +113,15 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
               options={gatewayOpts}
               onChange={onGatewayChange}
               ariaLabel="Ngân hàng"
+            />
+          )}
+          {accountOptions.length > 0 && (
+            <PillDropdown
+              icon={CreditCard}
+              value={filters.account || ''}
+              options={accountOpts}
+              onChange={onAccountChange}
+              ariaLabel="Tài khoản"
             />
           )}
         </>
@@ -168,6 +184,7 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
         onStatusChange('');
         onCategoryChange('');
         onGatewayChange('');
+        onAccountChange('');
         onSearchChange('');
       }}
     />

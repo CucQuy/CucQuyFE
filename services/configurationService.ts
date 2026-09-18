@@ -22,7 +22,11 @@ import {
 } from '@/types';
 import { DEFAULT_SHIPPING_CONFIG } from '@/types/shippingConfig';
 import type { ShippingConfiguration } from '@/types/shippingConfig';
-import type { CreatePaymentAccountInput, PaymentAccount } from '@/types/paymentConfig';
+import type {
+  CreatePaymentAccountInput,
+  PaymentAccount,
+  PaymentAccountPurpose,
+} from '@/types/paymentConfig';
 import { UserRole } from '@/types/user';
 import { getUserByUid } from '@/services/userService';
 
@@ -188,6 +192,7 @@ export const createPaymentAccount = async (
     accountNumber: input.accountNumber,
     accountHolder: input.accountHolder,
     ...(input.qrTemplate ? { qrTemplate: input.qrTemplate } : {}),
+    ...(input.purpose ? { purpose: input.purpose } : {}),
   });
   return Array.isArray(data) ? data : [];
 };
@@ -210,6 +215,21 @@ export const setTrackedPaymentAccount = async (
   const { data } = await apiClient.put<PaymentAccount[]>(
     `/configurations/payment-accounts/${encodeURIComponent(id)}/tracked`,
     { tracked },
+  );
+  return Array.isArray(data) ? data : [];
+};
+
+/**
+ * Đổi mục đích TK: 'receive' nhận tiền khách ↔ 'spend' chi hoá đơn.
+ * BE chặn đổi TK nhận đang active khi còn TK nhận khác → caller hiện toast.
+ */
+export const setPurposePaymentAccount = async (
+  id: string,
+  purpose: PaymentAccountPurpose,
+): Promise<PaymentAccount[]> => {
+  const { data } = await apiClient.put<PaymentAccount[]>(
+    `/configurations/payment-accounts/${encodeURIComponent(id)}/purpose`,
+    { purpose },
   );
   return Array.isArray(data) ? data : [];
 };

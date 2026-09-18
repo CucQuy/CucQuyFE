@@ -4,6 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search,
 } from 'lucide-react';
 import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
+import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
 import {
   fetchLedger, fetchInCandidateOrders, setTxShipping, setTransactionExpense,
   type InCandidateOrder,
@@ -136,7 +137,7 @@ const LedgerReconcileModal: React.FC<Props> = ({ isOpen, onClose, fromDate, toDa
                         {it.content || it.description || '(không nội dung)'}
                       </Typography>
                       <Typography as="p" size="xs" layoutClassName="truncate" textClassName="text-slate-400 dark:text-slate-500">
-                        {fmtDate(it.transactionDate)}{it.gateway ? ` · ${it.gateway}` : ''}
+                        {fmtDate(it.transactionDate)}{txAccountLabel(it) ? ` · ${txAccountLabel(it)}` : ''}
                       </Typography>
                     </Box>
                     <Typography as="span" size="sm" layoutClassName="shrink-0 font-semibold" textClassName={out ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>
@@ -481,6 +482,16 @@ const OrderSearchList: React.FC<{ busy: boolean; actionLabel: string; onPick: (o
 };
 
 /* ---- Header GD đang đối soát ---- */
+/**
+ * Nhãn tài khoản của 1 GD khi đối soát: "BIDV ·1308 · Chi tiêu" — cho biết hoá đơn này
+ * chi từ TK chi hay tiền vào TK nhận (099). TK chưa khai → fallback tên ngân hàng.
+ */
+const txAccountLabel = (tx: LedgerTransaction): string => {
+  const base = tx.accountLabel || tx.gateway || '';
+  if (!base) return '';
+  return tx.accountPurpose ? `${base} · ${paymentAccountPurposeLabel(tx.accountPurpose)}` : base;
+};
+
 const TxHeader: React.FC<{ tx: LedgerTransaction; kindLabel: string }> = ({ tx, kindLabel }) => {
   const out = tx.transferType === 'out';
   return (
@@ -497,6 +508,7 @@ const TxHeader: React.FC<{ tx: LedgerTransaction; kindLabel: string }> = ({ tx, 
       </Box>
       <Typography as="p" size="xs" layoutClassName="mt-0.5 truncate" textClassName="text-slate-500 dark:text-slate-400">
         {tx.content || tx.description || '(không nội dung)'} · {fmtDate(tx.transactionDate)}
+        {txAccountLabel(tx) ? ` · ${txAccountLabel(tx)}` : ''}
       </Typography>
     </Box>
   );

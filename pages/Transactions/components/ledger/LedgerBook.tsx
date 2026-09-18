@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
 import LedgerSummaryBar from './LedgerSummaryBar';
+import LedgerAccountFlowCard from './LedgerAccountFlowCard';
 import LedgerFilterBar from './LedgerFilterBar';
 import LedgerDesktopTable from './LedgerDesktopTable';
 import LedgerMobileList from './LedgerMobileList';
@@ -37,6 +38,8 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
   const [status, setStatus] = useState<LedgerFilters['status']>('');
   const [category, setCategory] = useState('');
   const [gateway, setGateway] = useState('');
+  // 099: lọc theo TÀI KHOẢN (payment_accounts.id) — xem riêng dòng tiền TK nhận / TK chi.
+  const [account, setAccount] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<LedgerTransaction | null>(null);
   const [reconcileOpen, setReconcileOpen] = useState(false);
@@ -49,7 +52,7 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
   }, [search]);
 
   // Đổi filter/kỳ → về trang đầu.
-  useEffect(() => { setPage(0); }, [debouncedSearch, type, status, category, gateway, fromDate, toDate]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, type, status, category, gateway, account, fromDate, toDate]);
 
   const filters = useMemo<LedgerFilters>(() => ({
     from: fromDate,
@@ -58,10 +61,11 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
     status,
     category,
     gateway,
+    account,
     search: debouncedSearch,
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
-  }), [fromDate, toDate, type, status, category, gateway, debouncedSearch, page]);
+  }), [fromDate, toDate, type, status, category, gateway, account, debouncedSearch, page]);
 
   const { data, loading, isFetching, error, refetch } = useLedger(filters);
 
@@ -77,6 +81,15 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
     return Array.from(set).sort();
   }, [data.items, gateway]);
 
+  // Options tài khoản cho dropdown lọc: lấy từ byAccount (chỉ TK đã khai trong cấu hình).
+  const accountOptions = useMemo(
+    () =>
+      data.byAccount
+        .filter((a) => !!a.accountId)
+        .map((a) => ({ value: a.accountId as string, label: a.label })),
+    [data.byAccount],
+  );
+
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
   const from = data.total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min((page + 1) * PAGE_SIZE, data.total);
@@ -88,6 +101,9 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
   return (
     <Box layoutClassName="space-y-4">
       <LedgerSummaryBar summary={data.summary} />
+
+      {/* Tiền nào của TK nào: bấm 1 thẻ để lọc sổ theo tài khoản đó. */}
+      <LedgerAccountFlowCard accounts={data.byAccount} selected={account} onSelect={setAccount} />
 
       {/* 1 card bọc toolbar + bảng (giống Orders) */}
       <Card padding="none" layoutClassName="flex flex-col overflow-hidden">
@@ -105,6 +121,8 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
             onStatusChange={setStatus}
             onCategoryChange={setCategory}
             onGatewayChange={setGateway}
+            accountOptions={accountOptions}
+            onAccountChange={setAccount}
             onRefresh={handleRefresh}
             onReconcile={() => setReconcileOpen(true)}
             onAutoReconcile={() => setAutoOpen(true)}

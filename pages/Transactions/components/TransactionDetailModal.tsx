@@ -14,8 +14,9 @@ import {
   Tag,
   Save,
 } from 'lucide-react';
-import { Transaction, ManualExpense } from '@/types';
+import { Transaction, LedgerTransaction, ManualExpense } from '@/types';
 import { expenseCategoryLabel, EXPENSE_CATEGORIES } from '@/types/transaction';
+import { paymentAccountPurposeLabel } from '@/types/paymentConfig';
 import { setTransactionExpense, linkTransactionOrder } from '@/services/transactionService';
 import { formatVND } from '@/utils/format/currencyUtil';
 import BaseModal from '@/components/BaseModal';
@@ -29,10 +30,14 @@ import Label from '@/components/ui/Label';
 import Select from '@/components/ui/Select';
 import Typography from '@/components/ui/Typography';
 
+/** Dòng sổ (có TK derive) hoặc giao dịch trần — modal dùng chung cho cả 2 nguồn. */
+type DetailTransaction = Transaction &
+  Partial<Pick<LedgerTransaction, 'accountLabel' | 'accountPurpose'>>;
+
 interface TransactionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transaction: Transaction | null;
+  transaction: DetailTransaction | null;
   /** Khoản chi phí tay tương ứng (nếu GD tiền-ra này đã được gán). */
   linkedExpense?: ManualExpense;
   formatDate: (dateStr: string) => string;
@@ -312,6 +317,18 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             </Typography>
           </Box>
           <Box layoutClassName="space-y-2">
+            {/* 099: TK nào của tiệm + mục đích (nhận tiền khách / chi hoá đơn). */}
+            {transaction.accountLabel && (
+              <Box layoutClassName="flex items-center justify-between">
+                <Typography as="span" size="xs" variant="muted">Tài khoản tiệm:</Typography>
+                <Typography as="span" size="sm" layoutClassName="font-medium" textClassName="text-slate-900 dark:text-white">
+                  {transaction.accountLabel}
+                  {transaction.accountPurpose
+                    ? ` · ${paymentAccountPurposeLabel(transaction.accountPurpose)}`
+                    : ''}
+                </Typography>
+              </Box>
+            )}
             {transaction.subAccount && (
               <Box layoutClassName="flex items-center justify-between">
                 <Typography as="span" size="xs" variant="muted">Tài khoản phụ:</Typography>
