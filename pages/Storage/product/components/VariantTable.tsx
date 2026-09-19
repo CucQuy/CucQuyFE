@@ -32,12 +32,14 @@ interface VariantTableProps {
   items: VariantRow[];
   onChange: (items: VariantRow[]) => void;
   galleryImages: string[];
+  /** Nằm trong khối đã có tiêu đề → bỏ khung card + header để không lồng 2 tầng. */
+  flat?: boolean;
 }
 
 const th = 'px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400';
 
 const VariantTable: React.FC<VariantTableProps> = ({
-  icon, title, hint, namePlaceholder, withColor, withCount, items, onChange, galleryImages,
+  icon, title, hint, namePlaceholder, withColor, withCount, items, onChange, galleryImages, flat,
 }) => {
   const [name, setName] = useState('');
 
@@ -53,13 +55,22 @@ const VariantTable: React.FC<VariantTableProps> = ({
   const patch = (idx: number, p: Partial<VariantRow>) => onChange(items.map((x, i) => (i === idx ? { ...x, ...p } : x)));
   const remove = (idx: number) => onChange(items.filter((_, i) => i !== idx));
 
+  const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+    flat ? (
+      <Box layoutClassName="space-y-2">{children}</Box>
+    ) : (
+      <Card padding="md" layoutClassName="space-y-3">{children}</Card>
+    );
+
   return (
-    <Card padding="md" layoutClassName="space-y-3">
+    <Shell>
+      {flat ? null : (
       <Box layoutClassName="flex items-center gap-2">
         <Box layoutClassName="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/30">{icon}</Box>
         <Typography as="span" size="sm" layoutClassName="font-semibold uppercase tracking-wide" textClassName="text-slate-900 dark:text-white">{title}</Typography>
         <Typography as="span" size="xs" variant="muted" layoutClassName="ml-auto">{items.length} · {hint}</Typography>
       </Box>
+      )}
 
       {items.length > 0 ? (
         <Card padding="none" layoutClassName="overflow-hidden" backgroundClassName="bg-white dark:bg-slate-800" borderClassName="border-slate-100 dark:border-slate-700">
@@ -170,7 +181,7 @@ const VariantTable: React.FC<VariantTableProps> = ({
           Thêm
         </Button>
       </Box>
-    </Card>
+    </Shell>
   );
 };
 

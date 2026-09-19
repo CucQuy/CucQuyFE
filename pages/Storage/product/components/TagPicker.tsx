@@ -7,15 +7,20 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
 import Heading from '@/components/ui/Heading';
+import Box from '@/components/ui/Box';
+import Typography from '@/components/ui/Typography';
+
 interface TagPickerProps {
   tags: string[];
   productBadges: ProductBadge[];
   onChange: (tags: string[]) => void;
+  /** Nằm trong khối đã có tiêu đề → bỏ khung card + header. */
+  flat?: boolean;
 }
 
 const normalizeTag = (raw: string) => raw.trim().replace(/\s+/g, ' ');
 
-const TagPicker: React.FC<TagPickerProps> = ({ tags, productBadges, onChange }) => {
+const TagPicker: React.FC<TagPickerProps> = ({ tags, productBadges, onChange, flat }) => {
   const hasTag = (value: string) => {
     const n = normalizeTag(value).toLowerCase();
     return tags.some((t) => t.toLowerCase() === n);
@@ -28,18 +33,26 @@ const TagPicker: React.FC<TagPickerProps> = ({ tags, productBadges, onChange }) 
     else onChange([...tags, n]);
   };
 
+  const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+    flat ? (
+      <Box layoutClassName="space-y-2">{children}</Box>
+    ) : (
+      <Card padding="md" layoutClassName="space-y-3">{children}</Card>
+    );
+
   return (
-    <Card padding="md" layoutClassName="space-y-3">
-      <div className="flex items-center justify-between">
-        <Heading level={3} textClassName="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wide">
-          Tag sản phẩm{' '}
-          <span className="text-slate-500 dark:text-slate-400 font-normal">(từ cấu hình Badges)</span>
+    <Shell>
+      {flat ? null : (
+      <Box layoutClassName="flex items-center justify-between">
+        <Heading level={3} textClassName="text-sm font-semibold uppercase tracking-wide text-slate-900 dark:text-white">
+          Nhãn nổi bật
         </Heading>
-        <span className="text-xs text-slate-500 dark:text-slate-400">{tags.length} đã chọn</span>
-      </div>
+        <Typography as="span" size="xs" variant="muted">{tags.length} đã chọn</Typography>
+      </Box>
+      )}
 
       {productBadges.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <Box layoutClassName="flex flex-wrap gap-2">
           {productBadges.map((badge) => {
             const selected = hasTag(badge.name);
             return (
@@ -63,19 +76,19 @@ const TagPicker: React.FC<TagPickerProps> = ({ tags, productBadges, onChange }) 
                   opacity: selected ? 1 : 0.75,
                 }}
               >
-                {badge.icon ? <span>{badge.icon}</span> : null}
+                {badge.icon ? <Typography as="span" size="xs">{badge.icon}</Typography> : null}
                 {badge.name}
-                {selected ? <span style={{ fontSize: '0.7em' }}>✓</span> : null}
+                {selected ? <Typography as="span" size="xs">✓</Typography> : null}
               </Button>
             );
           })}
-        </div>
+        </Box>
       ) : (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Chưa có badge sản phẩm nào. Tạo trong <strong>Settings → Badges</strong>.
-        </p>
+        <Typography as="p" size="xs" variant="muted">
+          Chưa có nhãn nào. Tạo trong Cài đặt → Badges.
+        </Typography>
       )}
-    </Card>
+    </Shell>
   );
 };
 

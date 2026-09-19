@@ -11,9 +11,11 @@ interface SizeEditorProps {
   sizes: ProductSize[];
   onChange: (sizes: ProductSize[]) => void;
   galleryImages: string[];
+  /** Bỏ khung card + header khi đã nằm trong khối có tiêu đề. */
+  flat?: boolean;
 }
 
-const SizeEditor: React.FC<SizeEditorProps> = ({ sizes, onChange, galleryImages }) => (
+const SizeEditor: React.FC<SizeEditorProps> = ({ sizes, onChange, galleryImages, flat }) => (
   <VariantTable
     icon={<Ruler className="h-4 w-4 text-primary-500" />}
     title="Size"
@@ -21,6 +23,7 @@ const SizeEditor: React.FC<SizeEditorProps> = ({ sizes, onChange, galleryImages 
     namePlaceholder="Tên size (vd: Combo Gia Đình 5 cái)"
     withCount
     galleryImages={galleryImages}
+    flat={flat}
     items={sizes as VariantRow[]}
     onChange={(rows) => onChange(rows.map((r) => ({ name: r.name, price: r.price ?? 0, image: r.image, count: r.count })))}
   />

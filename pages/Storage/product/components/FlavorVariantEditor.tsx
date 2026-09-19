@@ -11,9 +11,11 @@ interface FlavorVariantEditorProps {
   variants: ProductFlavorVariant[];
   onChange: (variants: ProductFlavorVariant[]) => void;
   galleryImages: string[];
+  /** Bỏ khung card + header khi đã nằm trong khối có tiêu đề. */
+  flat?: boolean;
 }
 
-const FlavorVariantEditor: React.FC<FlavorVariantEditorProps> = ({ variants, onChange, galleryImages }) => (
+const FlavorVariantEditor: React.FC<FlavorVariantEditorProps> = ({ variants, onChange, galleryImages, flat }) => (
   <VariantTable
     icon={<IceCream className="h-4 w-4 text-primary-500" />}
     title="Vị"
@@ -21,6 +23,7 @@ const FlavorVariantEditor: React.FC<FlavorVariantEditorProps> = ({ variants, onC
     namePlaceholder="Tên vị (vd: Matcha)"
     withColor
     galleryImages={galleryImages}
+    flat={flat}
     items={variants as VariantRow[]}
     onChange={(rows) => onChange(rows.map((r) => ({ name: r.name, color: r.color, image: r.image, price: r.price })))}
   />

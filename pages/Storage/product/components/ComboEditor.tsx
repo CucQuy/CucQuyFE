@@ -4,13 +4,12 @@
  * Giá lẻ cộng lại + mức tiết kiệm tính ngay tại chỗ theo giá sản phẩm hiện tại.
  */
 import React, { useMemo } from 'react';
-import { Boxes, ImageOff, Plus, Trash2 } from 'lucide-react';
+import { ImageOff, Plus, Trash2 } from 'lucide-react';
 import type { ComboItem, Product } from '@/types';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Box from '@/components/ui/Box';
 import Image from '@/components/ui/Image';
 import Button from '@/components/ui/Button';
-import Heading from '@/components/ui/Heading';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Typography from '@/components/ui/Typography';
@@ -49,10 +48,7 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
 
   return (
     <Box layoutClassName="space-y-2">
-      <Box layoutClassName="flex items-center justify-between gap-2">
-        <Heading level={4} layoutClassName="flex items-center gap-2" textClassName="text-sm font-semibold">
-          <Boxes className="h-4 w-4 text-primary-500" /> Thành phần combo
-        </Heading>
+      <Box layoutClassName="flex items-center justify-end gap-2">
         <Button
           type="button"
           variant="ghost"
@@ -67,12 +63,6 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
           <Plus className="h-3.5 w-3.5" /> Thêm món
         </Button>
       </Box>
-
-      <Typography as="p" size="xs" variant="muted">
-        Chọn món từ sản phẩm đang bán. <b>Số lượng</b> = số món bỏ vào hộp. <b>Quy đổi</b> = 1 món này bằng
-        mấy phần của sản phẩm gốc: bán nguyên cái để <b>1</b>; phô mai dẻo bán hộp 10 cái → <b>0.1</b>;
-        bánh mì chuối bán ổ 5 lát → <b>0.2</b>.
-      </Typography>
 
       {loading ? (
         <Typography as="p" size="xs" variant="muted">Đang tải thành phần…</Typography>
@@ -171,6 +161,9 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
             layoutClassName="flex flex-wrap items-center justify-end gap-4 pt-2"
             borderClassName="border-t border-slate-100 dark:border-slate-700"
           >
+            <Typography as="span" size="xs" variant="muted" layoutClassName="mr-auto">
+              Quy đổi: bán nguyên cái = 1 · hộp 10 cái = 0.1 · ổ 5 lát = 0.2
+            </Typography>
             <Typography as="span" size="xs" variant="muted">
               Lẻ cộng lại: <b>{formatVND(retailSum)}</b>
             </Typography>

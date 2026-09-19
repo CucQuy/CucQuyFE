@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlignLeft, Boxes, DollarSign, Image as ImageIcon, Images, Info, Loader2, Palette, Save, Sparkles, Tag, Upload, Wallet } from 'lucide-react';
+import { AlertCircle, AlignLeft, Boxes, DollarSign, Image as ImageIcon, Images, Info, Loader2, Palette, Ruler, Save, Sparkles, Tag, Upload, Wallet } from 'lucide-react';
 import BaseSlidePanel from '@/components/BaseSlidePanel';
 import Tabs from '@/components/ui/Tabs';
 import Textarea from '@/components/ui/Textarea';
@@ -66,7 +66,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   const [comboLoading, setComboLoading] = useState(false);
 
   // Tabs + history
-  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
+  type TabId = 'basic' | 'images' | 'selling' | 'history';
+  const [activeTab, setActiveTab] = useState<TabId>('basic');
 
   // Configs (badges + categories) qua React Query
   const { productBadges } = useBadges();
@@ -135,7 +136,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
     }
   }, [initialData, productBadges]);
 
-  useEffect(() => { setActiveTab('details'); }, [initialData?.id]);
+  useEffect(() => { setActiveTab('basic'); }, [initialData?.id]);
 
   // Thành phần combo nằm ở bảng riêng → nạp theo id sản phẩm đang mở.
   useEffect(() => {
@@ -301,33 +302,35 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
       <form id="product-form" onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
         <Tabs
           items={[
-            { id: 'details', label: 'Thông tin' },
+            { id: 'basic', label: 'Cơ bản' },
+            { id: 'images', label: 'Hình ảnh' },
+            { id: 'selling', label: 'Bán hàng' },
             { id: 'history', label: 'Lịch sử', disabled: !initialData?.id },
           ]}
           value={activeTab}
-          onChange={(v) => setActiveTab(v as 'details' | 'history')}
+          onChange={(v) => setActiveTab(v as TabId)}
         />
+
+        {error && activeTab !== 'history' ? (
+          <Box
+            layoutClassName="flex items-center gap-2 p-3"
+            roundedClassName="rounded-lg"
+            backgroundClassName="bg-red-50 dark:bg-red-900/20"
+            textClassName="text-sm text-red-600 dark:text-red-400"
+          >
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </Box>
+        ) : null}
 
         {activeTab === 'history' ? (
           <ProductHistoryView versions={versions} loading={historyLoading} hasProduct={!!initialData?.id} />
-        ) : (
+        ) : activeTab === 'images' ? (
           <>
-            {error && (
-              <Box
-                layoutClassName="flex items-center gap-2 p-3"
-                roundedClassName="rounded-lg"
-                backgroundClassName="bg-red-50 dark:bg-red-900/20"
-                textClassName="text-sm text-red-600 dark:text-red-400"
-              >
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </Box>
-            )}
-
             {/* 1. Ảnh */}
             <FormSection
               title="Ảnh sản phẩm"
-              hint="Ảnh đầu tiên là ảnh hiển thị trên web và menu. JPG/PNG tối đa 5MB."
+              hint="Ảnh đầu là ảnh hiển thị · JPG/PNG ≤ 5MB"
               icon={<Images className="h-4 w-4 text-primary-500" />}
             >
               <Box layoutClassName="flex flex-col items-center gap-4">
@@ -400,10 +403,95 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
               />
             </FormSection>
 
+          </>
+        ) : activeTab === 'selling' ? (
+          <>
+            {!show.combo && !show.variants && !show.priceTiers && !show.packaging ? (
+              <Typography as="p" size="xs" variant="muted">
+                Loại sản phẩm này bán thẳng theo giá đã nhập — không cần khai báo thêm gì ở đây.
+              </Typography>
+            ) : null}
+            {/* 3. Trong hộp có gì — set quà / box combo */}
+            {show.combo && (
+              <FormSection
+                title="Trong hộp có gì"
+                hint={initialData?.id ? 'Chọn từ sản phẩm đang bán' : 'Lưu sản phẩm trước rồi mở lại'}
+                icon={<Boxes className="h-4 w-4 text-primary-500" />}
+              >
+                {initialData?.id ? (
+                  <ComboEditor
+                    selfId={initialData.id}
+                    comboPrice={price}
+                    items={comboItems}
+                    setItems={setComboItems}
+                    products={allProducts}
+                    loading={comboLoading}
+                  />
+                ) : (
+                  <Typography as="p" size="xs" variant="muted">
+                    Bấm Lưu để tạo sản phẩm, sau đó mở lại để chọn các món bỏ vào hộp.
+                  </Typography>
+                )}
+              </FormSection>
+            )}
+
+            {/* 4. Vị + Size — mỗi thứ 1 khối có tên riêng */}
+            {show.variants && (
+              <FormSection
+                title="Vị cho khách chọn"
+                hint="Giá dòng = tổng các vị chọn"
+                icon={<Palette className="h-4 w-4 text-primary-500" />}
+              >
+                <FlavorVariantEditor
+                  variants={flavorVariants}
+                  onChange={setFlavorVariants}
+                  galleryImages={[image, ...gallery].filter(Boolean)}
+                  flat
+                />
+              </FormSection>
+            )}
+
+            {show.variants && (
+              <FormSection
+                title="Size / quy cách"
+                hint="Mỗi size một giá riêng"
+                icon={<Ruler className="h-4 w-4 text-primary-500" />}
+              >
+                <SizeEditor
+                  sizes={sizes}
+                  onChange={setSizes}
+                  galleryImages={[image, ...gallery].filter(Boolean)}
+                  flat
+                />
+              </FormSection>
+            )}
+
+            {/* 5. Giá theo số lượng + cách gói */}
+            {(show.priceTiers || show.packaging) && (
+              <FormSection
+                title="Giảm giá theo số lượng & cách gói"
+                hint="Mốc giá sỉ và kiểu gói tính thêm tiền"
+                icon={<Wallet className="h-4 w-4 text-primary-500" />}
+              >
+                <ProductTypePricingSection
+                  basePrice={price}
+                  priceTiers={priceTiers}
+                  setPriceTiers={setPriceTiers}
+                  packagingOptions={packagingOptions}
+                  setPackagingOptions={setPackagingOptions}
+                  showPriceTiers={show.priceTiers}
+                  showPackaging={show.packaging}
+                />
+              </FormSection>
+            )}
+
+          </>
+        ) : (
+          <>
             {/* 2. Thông tin cơ bản — loại sản phẩm quyết định các khối bên dưới */}
             <FormSection
               title="Thông tin cơ bản"
-              hint="Loại sản phẩm quyết định form hỏi tiếp những gì bên dưới."
+              hint="Loại quyết định tab Bán hàng hỏi những gì"
               icon={<Info className="h-4 w-4 text-primary-500" />}
             >
               <Field label={`${t('inventory.name')} *`}>
@@ -482,77 +570,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
               </Field>
             </FormSection>
 
-            {/* 3. Trong hộp có gì — set quà / box combo */}
-            {show.combo && (
-              <FormSection
-                title="Trong hộp có gì"
-                hint={
-                  initialData?.id
-                    ? 'Chọn món từ sản phẩm đang bán. Hệ thống tự cộng giá lẻ để biết khách tiết kiệm bao nhiêu.'
-                    : 'Lưu sản phẩm trước, mở lại để thêm món vào hộp.'
-                }
-                icon={<Boxes className="h-4 w-4 text-primary-500" />}
-              >
-                {initialData?.id ? (
-                  <ComboEditor
-                    selfId={initialData.id}
-                    comboPrice={price}
-                    items={comboItems}
-                    setItems={setComboItems}
-                    products={allProducts}
-                    loading={comboLoading}
-                  />
-                ) : (
-                  <Typography as="p" size="xs" variant="muted">
-                    Bấm Lưu để tạo sản phẩm, sau đó mở lại để chọn các món bỏ vào hộp.
-                  </Typography>
-                )}
-              </FormSection>
-            )}
-
-            {/* 4. Khách chọn gì khi mua — vị + size */}
-            {show.variants && (
-              <FormSection
-                title="Khách chọn gì khi mua"
-                hint="Vị và size hiện ra lúc bán. Để trống nếu sản phẩm chỉ có một kiểu duy nhất."
-                icon={<Palette className="h-4 w-4 text-primary-500" />}
-              >
-                <FlavorVariantEditor
-                  variants={flavorVariants}
-                  onChange={setFlavorVariants}
-                  galleryImages={[image, ...gallery].filter(Boolean)}
-                />
-                <SizeEditor sizes={sizes} onChange={setSizes} galleryImages={[image, ...gallery].filter(Boolean)} />
-              </FormSection>
-            )}
-
-            {/* 5. Giá theo số lượng + cách gói */}
-            {(show.priceTiers || show.packaging) && (
-              <FormSection
-                title="Giảm giá theo số lượng & cách gói"
-                hint="Mua càng nhiều càng rẻ, và các kiểu gói khách chọn thêm khi đặt."
-                icon={<Wallet className="h-4 w-4 text-primary-500" />}
-              >
-                <ProductTypePricingSection
-                  basePrice={price}
-                  priceTiers={priceTiers}
-                  setPriceTiers={setPriceTiers}
-                  packagingOptions={packagingOptions}
-                  setPackagingOptions={setPackagingOptions}
-                  showPriceTiers={show.priceTiers}
-                  showPackaging={show.packaging}
-                />
-              </FormSection>
-            )}
-
             {/* 6. Nhãn hiển thị */}
             {show.badges && (
               <FormSection
                 title="Nhãn nổi bật"
-                hint='Gắn nhãn như "Best seller", "Signature" để hiện trên web và menu.'
+                hint="Hiện trên web và menu"
                 icon={<Sparkles className="h-4 w-4 text-primary-500" />}
               >
-                <TagPicker tags={tags} productBadges={productBadges} onChange={setTags} />
+                <TagPicker tags={tags} productBadges={productBadges} onChange={setTags} flat />
               </FormSection>
             )}
           </>
