@@ -225,3 +225,36 @@ export const orderLineImage = (
   if (fi) return fi;
   return p.image;
 };
+
+/** 1 món trong combo — trỏ sản phẩm có sẵn (bảng product_combo_items). */
+export interface ComboItem {
+  id?: number;
+  productId: string;
+  name?: string;
+  /** Số phần trong hộp (2 viên phô mai dẻo → 2). */
+  qty: number;
+  /** 1 phần = bao nhiêu đơn vị bán lẻ của SP đó (hộp 10 cái → 0.1). */
+  portion: number;
+  unitLabel?: string | null;
+  note?: string | null;
+  sortOrder?: number;
+  /** BE tính sẵn, chỉ đọc. */
+  unitRetail?: number;
+  lineRetail?: number;
+  unitCost?: number;
+  lineCost?: number;
+}
+
+/** Combo + đối chiếu giá lẻ (GET /products/:id/combo). */
+export interface ProductCombo {
+  comboId: string;
+  name: string;
+  price?: number;
+  costPrice?: number;
+  status?: string;
+  itemCount: number;
+  retailSum: number;
+  saving: number;
+  savingPct: number;
+  items: ComboItem[];
+}

@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/api/client';
-import { Product, ProductVersion } from '@/types';
+import { ComboItem, Product, ProductCombo, ProductVersion } from '@/types';
 
 export const fetchProducts = async (): Promise<Product[]> => {
   return (await apiClient.get('/products')).data as Product[];
@@ -26,4 +26,17 @@ export const deleteProduct = async (id: string): Promise<void> => {
 
 export const fetchProductVersions = async (productId: string): Promise<ProductVersion[]> => {
   return (await apiClient.get(`/products/${productId}/versions`)).data as ProductVersion[];
+};
+
+/** Thành phần combo của 1 sản phẩm (null nếu SP không tồn tại). */
+export const fetchProductCombo = async (productId: string): Promise<ProductCombo | null> => {
+  return (await apiClient.get(`/products/${productId}/combo`)).data as ProductCombo | null;
+};
+
+/** Ghi đè thành phần combo — mảng rỗng = gỡ combo. */
+export const saveProductCombo = async (
+  productId: string,
+  items: ComboItem[],
+): Promise<ProductCombo> => {
+  return (await apiClient.put(`/products/${productId}/combo`, { items })).data as ProductCombo;
 };

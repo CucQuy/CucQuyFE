@@ -3,19 +3,21 @@ import { AlertCircle, AlignLeft, DollarSign, Image, Loader2, Save, Tag, Upload }
 import BaseSlidePanel from '@/components/BaseSlidePanel';
 import Tabs from '@/components/ui/Tabs';
 import Textarea from '@/components/ui/Textarea';
-import type { Product, PriceTier, PackagingOption, ProductType } from '@/types';
+import type { ComboItem, Product, PriceTier, PackagingOption, ProductType } from '@/types';
 import ProductTypePricingSection from '@/pages/Storage/product/components/ProductTypePricingSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getProductImagePath, uploadImage } from '@/services/imageService';
 import { useBadges } from '@/hooks/queries/useBadgesQuery';
 import { useCategories } from '@/hooks/queries/useCategoriesQuery';
-import { useProductVersions } from '@/hooks/queries/useProductsQuery';
+import { useProductVersions, useProducts } from '@/hooks/queries/useProductsQuery';
+import { fetchProductCombo, saveProductCombo } from '@/services/productService';
 import type { ProductBadge } from '@/types/badge';
 import GallerySection from '@/pages/Storage/product/components/GallerySection';
 import CategoryPicker from '@/pages/Storage/product/components/CategoryPicker';
 import TagPicker from '@/pages/Storage/product/components/TagPicker';
 import FlavorVariantEditor from '@/pages/Storage/product/components/FlavorVariantEditor';
 import SizeEditor from '@/pages/Storage/product/components/SizeEditor';
+import ComboEditor from '@/pages/Storage/product/components/ComboEditor';
 import type { ProductSize, ProductFlavorVariant } from '@/types';
 import ProductHistoryView from '@/pages/Storage/product/components/ProductHistoryView';
 import Field from '@/components/ui/Field';
@@ -55,6 +57,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   const [type, setType] = useState<ProductType>('cake');
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [packagingOptions, setPackagingOptions] = useState<PackagingOption[]>([]);
+  // Combo: thành phần trỏ sản phẩm có sẵn (bảng riêng → fetch/lưu tách khỏi product)
+  const [comboItems, setComboItems] = useState<ComboItem[]>([]);
+  const [comboLoading, setComboLoading] = useState(false);
 
   // Tabs + history
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
@@ -62,6 +67,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   // Configs (badges + categories) qua React Query
   const { productBadges } = useBadges();
   const { categories } = useCategories();
+  const { products: allProducts } = useProducts();
 
   // Lịch sử version — chỉ fetch khi mở tab history + có sản phẩm
   const { versions, loading: historyLoading } = useProductVersions(
@@ -114,6 +120,22 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   }, [initialData, productBadges]);
 
   useEffect(() => { setActiveTab('details'); }, [initialData?.id]);
+
+  // Thành phần combo nằm ở bảng riêng → nạp theo id sản phẩm đang mở.
+  useEffect(() => {
+    const id = initialData?.id;
+    if (!id) {
+      setComboItems([]);
+      return;
+    }
+    let alive = true;
+    setComboLoading(true);
+    fetchProductCombo(id)
+      .then((combo) => { if (alive) setComboItems(combo?.items ?? []); })
+      .catch(() => { if (alive) setComboItems([]); })
+      .finally(() => { if (alive) setComboLoading(false); });
+    return () => { alive = false; };
+  }, [initialData?.id]);
 
   // === Primary image upload ===
   const handleImageUpload = async (file: File) => {
@@ -203,6 +225,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
         priceTiers: priceTiers.filter((t) => Number(t.minQty) > 0 && Number(t.price) > 0),
         packagingOptions: packagingOptions.filter((o) => o.label.trim()),
       });
+      // Thành phần combo lưu riêng (bảng product_combo_items) — chỉ khi sửa SP đã có id.
+      if (initialData?.id) {
+        await saveProductCombo(
+          initialData.id,
+          comboItems.filter((it) => it.productId && Number(it.qty) > 0),
+        );
+      }
     } catch (err: any) {
       setError(err.message || 'Không thể lưu sản phẩm');
       setIsSubmitting(false);
@@ -386,6 +415,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
 
               {/* Size (biến thể giá) */}
               <SizeEditor sizes={sizes} onChange={setSizes} galleryImages={[image, ...gallery].filter(Boolean)} />
+
+              {/* Combo: chọn món từ sản phẩm có sẵn (lưu ở bảng riêng, cần SP đã tạo) */}
+              {initialData?.id ? (
+                <ComboEditor
+                  selfId={initialData.id}
+                  comboPrice={price}
+                  items={comboItems}
+                  setItems={setComboItems}
+                  products={allProducts}
+                  loading={comboLoading}
+                />
+              ) : null}
 
               {/* Phân loại + giá bậc theo SL + phụ phí gói tự thêm */}
               <ProductTypePricingSection
