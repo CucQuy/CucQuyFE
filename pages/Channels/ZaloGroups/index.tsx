@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronRight, RefreshCw, Users } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
@@ -14,15 +14,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeaderCell,
-  TableRow,
-} from '@/components/ui/Table';
-import GroupFeatureModal, { type GroupDraft } from './components/GroupFeatureModal';
+import GroupFeaturePanel, { type GroupDraft } from './components/GroupFeaturePanel';
 
 /** Id cho row cấu hình mới (BE tự sinh nếu trống, nhưng giữ ổn định ở FE). */
 const newConfigId = () =>
@@ -35,8 +27,8 @@ const newConfigId = () =>
  *
  * Danh sách = TOÀN BỘ nhóm của nick Zalo đang gửi (listAllGroupForPartner qua BE), tự
  * nạp khi vào màn — không nhập/dán ID nhóm tay nữa (sai 1 ký tự là bridge vẫn báo "đã
- * nhận" nhưng tin không tới nhóm nào). Bấm vào DÒNG nhóm → modal bật/tắt chức năng
- * thông báo của riêng nhóm đó.
+ * nhận" nhưng tin không tới nhóm nào). Màn chia 2: DANH SÁCH nhóm bên trái, bấm 1 nhóm
+ * → panel bên phải hiện đúng chức năng của nhóm đó để bật/tắt.
  * Cấu hình lưu ở zalo_groups; nhóm chưa gán gì thì không nhận thông báo nào.
  */
 const ZaloGroupsPage: React.FC = () => {
@@ -133,6 +125,14 @@ const ZaloGroupsPage: React.FC = () => {
     [rows, openId],
   );
 
+  // Vào màn (hoặc lọc mất nhóm đang xem) → tự chọn nhóm đầu để panel không trống trơn.
+  useEffect(() => {
+    if (rows.length === 0) return;
+    if (!openId || !rows.some((r) => r.zaloGroupId === openId)) {
+      setOpenId(rows[0].zaloGroupId);
+    }
+  }, [rows, openId]);
+
   /** Lưu cấu hình 1 nhóm (BE ghi đè cả list nên phải gửi kèm các nhóm khác). */
   const handleSaveGroup = async (next: GroupDraft) => {
     setSaving(true);
@@ -163,7 +163,6 @@ const ZaloGroupsPage: React.FC = () => {
 
       await saveZaloGroups({ groups, updatedBy: currentUser?.uid ?? null });
       toast.success(`Đã lưu chức năng cho "${next.name}"`);
-      setOpenId(null);
     } catch {
       toast.error('Lưu cấu hình nhóm thất bại');
     } finally {
@@ -174,145 +173,142 @@ const ZaloGroupsPage: React.FC = () => {
   const loading = configLoading || (loadingBridge && !bridgeGroups);
 
   return (
-    <Card
-      padding="none"
-      layoutClassName="flex h-full flex-col overflow-hidden"
-      borderClassName="border-slate-100 dark:border-slate-700"
-    >
-      <Box
-        layoutClassName="flex shrink-0 flex-wrap items-center gap-3 px-4 py-3"
-        borderClassName="border-b border-slate-100 dark:border-slate-700"
+    <Box layoutClassName="grid h-full min-h-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      {/* Cột trái: danh sách nhóm */}
+      <Card
+        padding="none"
+        layoutClassName="flex min-h-0 flex-col overflow-hidden"
+        borderClassName="border-slate-100 dark:border-slate-700"
       >
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tìm nhóm theo tên hoặc ID…"
-          containerClassName="w-full sm:w-72"
-        />
-        <Typography size="xs" variant="muted">
-          {bridgeGroups ? `${bridgeGroups.length} nhóm từ Zalo` : '—'}
-        </Typography>
-        <Box layoutClassName="ml-auto">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void loadBridgeGroups()}
-            disabled={loadingBridge}
-            leftIcon={loadingBridge ? <Spinner size="sm" /> : <RefreshCw className="h-4 w-4" />}
-          >
-            {loadingBridge ? 'Đang nạp…' : 'Nạp lại'}
-          </Button>
-        </Box>
-      </Box>
-
-      <Box layoutClassName="min-h-0 flex-1 overflow-auto">
-        {loading ? (
-          <Box layoutClassName="flex h-full items-center justify-center py-10">
-            <Spinner />
+        <Box
+          layoutClassName="shrink-0 space-y-2 px-3 py-3"
+          borderClassName="border-b border-slate-100 dark:border-slate-700"
+        >
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm nhóm theo tên hoặc ID…"
+            containerClassName="w-full"
+          />
+          <Box layoutClassName="flex items-center justify-between gap-2">
+            <Typography size="xs" variant="muted">
+              {bridgeGroups ? `${bridgeGroups.length} nhóm từ Zalo` : '—'}
+            </Typography>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => void loadBridgeGroups()}
+              disabled={loadingBridge}
+              sizeClassName="px-2 py-1 text-xs"
+              leftIcon={loadingBridge ? <Spinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
+              layoutClassName="inline-flex items-center gap-1.5"
+            >
+              {loadingBridge ? 'Đang nạp…' : 'Nạp lại'}
+            </Button>
           </Box>
-        ) : bridgeError && rows.length === 0 ? (
-          <EmptyState
-            icon={<AlertTriangle className="h-8 w-8" />}
-            title="Không lấy được danh sách nhóm"
-            description={bridgeError}
-          />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<Users className="h-8 w-8" />}
-            title="Nick Zalo đang gửi không có nhóm nào"
-            description="Thêm tài khoản Zalo vào nhóm rồi bấm Nạp lại."
-          />
-        ) : (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>Nhóm</TableHeaderCell>
-                <TableHeaderCell>Thành viên</TableHeaderCell>
-                <TableHeaderCell>Chức năng thông báo</TableHeaderCell>
-                <TableHeaderCell>CTV</TableHeaderCell>
-                <TableHeaderCell> </TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow
-                  key={r.zaloGroupId}
-                  onClick={() => setOpenId(r.zaloGroupId)}
-                  layoutClassName="cursor-pointer"
-                  hoverClassName="hover:bg-slate-50 dark:hover:bg-slate-700/40"
-                >
-                  <TableCell layoutClassName="px-5 py-3.5">
-                    <Typography size="sm" textClassName="font-semibold">
-                      {r.name}
-                    </Typography>
-                    <Typography size="xs" variant="muted">
-                      {r.zaloGroupId}
-                    </Typography>
-                    {bridgeIds.size > 0 && !bridgeIds.has(r.zaloGroupId) ? (
-                      <Badge
+        </Box>
+
+        <Box layoutClassName="max-h-72 min-h-0 flex-1 overflow-auto lg:max-h-none">
+          {loading ? (
+            <Box layoutClassName="flex items-center justify-center py-10">
+              <Spinner />
+            </Box>
+          ) : bridgeError && rows.length === 0 ? (
+            <EmptyState
+              icon={<AlertTriangle className="h-8 w-8" />}
+              title="Không lấy được danh sách nhóm"
+              description={bridgeError}
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-8 w-8" />}
+              title="Nick Zalo đang gửi không có nhóm nào"
+              description="Thêm tài khoản Zalo vào nhóm rồi bấm Nạp lại."
+            />
+          ) : (
+            <Box layoutClassName="divide-y divide-slate-100 dark:divide-slate-700/60">
+              {rows.map((r) => {
+                const active = r.zaloGroupId === openId;
+                const gone = bridgeIds.size > 0 && !bridgeIds.has(r.zaloGroupId);
+                return (
+                  <Button
+                    key={r.zaloGroupId}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setOpenId(r.zaloGroupId)}
+                    layoutClassName="w-full text-left"
+                    sizeClassName="px-3 py-2.5"
+                    roundedClassName="rounded-none"
+                    backgroundClassName={active ? 'bg-primary-50 dark:bg-primary-950/30' : undefined}
+                    hoverClassName={active ? undefined : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'}
+                    disableVariantHover
+                    disableVariantTextColor
+                  >
+                    <Box layoutClassName="w-full min-w-0 space-y-1">
+                      <Typography
                         size="sm"
-                        borderClassName="border-amber-200 dark:border-amber-800"
-                        backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
-                        textClassName="text-amber-700 dark:text-amber-300"
+                        layoutClassName={`truncate ${active ? 'font-semibold text-primary-800 dark:text-primary-200' : 'font-medium'}`}
                       >
-                        Không còn trong Zalo
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5">
-                    <Typography size="sm">{r.members || '—'}</Typography>
-                  </TableCell>
-                  <TableCell layoutClassName="px-5 py-3.5">
-                    {r.features.length === 0 ? (
-                      <Typography size="xs" variant="muted">
-                        Chưa gán
+                        {r.name}
                       </Typography>
-                    ) : (
-                      <Box layoutClassName="flex flex-wrap items-center gap-1">
-                        {r.features.slice(0, 3).map((f) => (
+                      <Box layoutClassName="flex flex-wrap items-center gap-1.5">
+                        <Typography size="xs" variant="muted">
+                          {r.members ? `${r.members} TV` : 'Không rõ TV'}
+                        </Typography>
+                        {r.features.length > 0 ? (
                           <Badge
-                            key={f}
                             size="sm"
                             borderClassName="border-primary-200 dark:border-primary-800"
                             backgroundClassName="bg-primary-50 dark:bg-primary-950/40"
                             textClassName="text-primary-700 dark:text-primary-300"
                           >
-                            {zaloFeatureLabel(f)}
+                            {r.features.length === 1
+                              ? zaloFeatureLabel(r.features[0])
+                              : `${r.features.length} chức năng`}
                           </Badge>
-                        ))}
-                        {r.features.length > 3 ? (
-                          <Badge size="sm">+{r.features.length - 3}</Badge>
+                        ) : (
+                          <Typography size="xs" variant="muted">
+                            Chưa gán
+                          </Typography>
+                        )}
+                        {r.memberUids.length ? (
+                          <Typography size="xs" variant="muted">
+                            · {r.memberUids.length} CTV
+                          </Typography>
+                        ) : null}
+                        {gone ? (
+                          <Badge
+                            size="sm"
+                            borderClassName="border-amber-200 dark:border-amber-800"
+                            backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
+                            textClassName="text-amber-700 dark:text-amber-300"
+                          >
+                            Không còn trong Zalo
+                          </Badge>
                         ) : null}
                       </Box>
-                    )}
-                  </TableCell>
-                  <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5">
-                    <Typography size="xs" variant={r.memberUids.length ? undefined : 'muted'}>
-                      {r.memberUids.length ? `${r.memberUids.length} CTV` : '—'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell layoutClassName="w-10 whitespace-nowrap px-5 py-3.5 text-right">
-                    <ChevronRight className="inline h-4 w-4 text-slate-400" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Box>
+                    </Box>
+                  </Button>
+                );
+              })}
+            </Box>
+          )}
+        </Box>
+      </Card>
 
-      {activeGroup ? (
-        <GroupFeatureModal
-          key={activeGroup.zaloGroupId}
+      {/* Cột phải: chức năng của nhóm đang chọn */}
+      <Box layoutClassName="min-h-[420px] min-w-0">
+        <GroupFeaturePanel
+          key={activeGroup?.zaloGroupId ?? 'empty'}
           group={activeGroup}
           users={users}
           uidTakenBy={uidTakenBy}
           saving={saving}
-          onClose={() => setOpenId(null)}
           onSave={handleSaveGroup}
         />
-      ) : null}
-    </Card>
+      </Box>
+    </Box>
   );
 };
 

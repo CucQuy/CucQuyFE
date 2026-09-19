@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sendZaloTestMessage } from '@/services/zaloService';
 import { UserData, UserRole } from '@/types/user';
@@ -9,10 +9,11 @@ import {
   ZaloGroupConfig,
   ZaloNotifyFeature,
 } from '@/types';
-import BaseModal from '@/components/BaseModal';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Checkbox from '@/components/ui/Checkbox';
+import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
 import Switch from '@/components/ui/Switch';
@@ -36,28 +37,20 @@ interface Props {
   /** uid → id nhóm khác đang giữ CTV đó (1 CTV chỉ thuộc 1 nhóm). */
   uidTakenBy: Map<string, string>;
   saving: boolean;
-  onClose: () => void;
   onSave: (next: GroupDraft) => Promise<void>;
 }
 
 /**
- * Gán CHỨC NĂNG thông báo cho 1 nhóm Zalo: tick loại thông báo nhóm nhận, chọn CTV
- * thuộc nhóm (nhóm có CTV chỉ nhận đơn của CTV đó), và lọc field khi báo sửa đơn.
- * Không nhập ID nhóm — ID đến từ danh sách nhóm thật của nick Zalo đang gửi.
+ * Panel chức năng của 1 nhóm Zalo — nằm ngay cạnh danh sách nhóm (không modal):
+ * bật/tắt loại thông báo nhóm nhận, chọn CTV thuộc nhóm (nhóm có CTV chỉ nhận đơn của
+ * CTV đó) và lọc field khi báo sửa đơn. Parent truyền `key` theo id nhóm để panel
+ * mount lại (seed draft) mỗi lần đổi nhóm.
  */
-const GroupFeatureModal: React.FC<Props> = ({
-  group,
-  users,
-  uidTakenBy,
-  saving,
-  onClose,
-  onSave,
-}) => {
+const GroupFeaturePanel: React.FC<Props> = ({ group, users, uidTakenBy, saving, onSave }) => {
   const [draft, setDraft] = useState<GroupDraft | null>(group);
   const [userSearch, setUserSearch] = useState('');
   const [testing, setTesting] = useState(false);
 
-  // Modal mount lại mỗi lần mở nhóm khác (key ở screen) nên chỉ cần seed 1 lần.
   const current = draft ?? group;
 
   const collaborators = useMemo(
@@ -73,7 +66,21 @@ const GroupFeatureModal: React.FC<Props> = ({
     [users, userSearch],
   );
 
-  if (!current) return null;
+  if (!current) {
+    return (
+      <Card
+        padding="none"
+        layoutClassName="flex h-full items-center justify-center"
+        borderClassName="border-slate-100 dark:border-slate-700"
+      >
+        <EmptyState
+          icon={<Users className="h-8 w-8" />}
+          title="Chọn một nhóm bên trái"
+          description="Chức năng thông báo của nhóm đó sẽ hiện ở đây để bật/tắt."
+        />
+      </Card>
+    );
+  }
 
   const patch = (p: Partial<GroupDraft>) => setDraft({ ...current, ...p });
 
@@ -105,61 +112,35 @@ const GroupFeatureModal: React.FC<Props> = ({
   };
 
   return (
-    <BaseModal
-      isOpen
-      onClose={onClose}
-      title={current.name || current.zaloGroupId}
-      size="xl"
-      footer={
-        <Box layoutClassName="flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            onClick={() => void handleTest()}
-            disabled={testing}
-            variant="secondary"
-            leftIcon={testing ? <Spinner size="sm" /> : <Send className="h-3.5 w-3.5" />}
-          >
-            {testing ? 'Đang gửi…' : 'Gửi tin test'}
-          </Button>
-          <Box layoutClassName="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
-              Đóng
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void onSave(current)}
-              disabled={saving}
-              leftIcon={saving ? <Spinner size="sm" /> : undefined}
-            >
-              {saving ? 'Đang lưu…' : 'Lưu'}
-            </Button>
-          </Box>
-        </Box>
-      }
+    <Card
+      padding="none"
+      layoutClassName="flex h-full flex-col overflow-hidden"
+      borderClassName="border-slate-100 dark:border-slate-700"
     >
-      <Box layoutClassName="max-h-[min(80vh,720px)] space-y-4 overflow-y-auto pr-1">
-        <Typography size="xs" variant="muted">
-          Nhóm {current.members} thành viên · ID {current.zaloGroupId}
+      <Box
+        layoutClassName="shrink-0 space-y-0.5 px-4 py-3"
+        borderClassName="border-b border-slate-100 dark:border-slate-700"
+      >
+        <Typography size="sm" textClassName="font-semibold">
+          {current.name || current.zaloGroupId}
         </Typography>
+        <Typography size="xs" variant="muted">
+          {current.members ? `${current.members} thành viên · ` : ''}ID {current.zaloGroupId}
+        </Typography>
+      </Box>
 
-        <Box
-          layoutClassName="space-y-2 rounded-xl p-4"
-          borderClassName="border border-slate-100 dark:border-slate-700/80"
-          backgroundClassName="bg-slate-50/70 dark:bg-slate-800/40"
-        >
+      <Box layoutClassName="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <Box layoutClassName="space-y-1">
           <Typography
             size="xs"
             layoutClassName="block font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
           >
             Chức năng thông báo
           </Typography>
-          <Box layoutClassName="grid gap-1 sm:grid-cols-2">
+          <Box layoutClassName="divide-y divide-slate-100 dark:divide-slate-700/60">
             {ZALO_NOTIFY_FEATURES.map((f) => (
-              <Box
-                key={f.value}
-                layoutClassName="flex items-center justify-between gap-3 py-1.5"
-              >
-                <Typography size="xs" textClassName="font-medium text-slate-700 dark:text-slate-200">
+              <Box key={f.value} layoutClassName="flex items-center justify-between gap-3 py-2">
+                <Typography size="sm" textClassName="text-slate-700 dark:text-slate-200">
                   {f.label}
                 </Typography>
                 <Switch
@@ -174,7 +155,7 @@ const GroupFeatureModal: React.FC<Props> = ({
 
         {current.features.includes('order_update') ? (
           <Box
-            layoutClassName="space-y-2 rounded-xl p-4"
+            layoutClassName="space-y-2 rounded-xl p-3"
             borderClassName="border border-slate-100 dark:border-slate-700/80"
             backgroundClassName="bg-slate-50/70 dark:bg-slate-800/40"
           >
@@ -187,7 +168,7 @@ const GroupFeatureModal: React.FC<Props> = ({
             <Typography size="xs" variant="muted">
               Không chọn gì = báo mọi thay đổi.
             </Typography>
-            <Box layoutClassName="grid gap-1.5 sm:grid-cols-3">
+            <Box layoutClassName="grid gap-1.5 sm:grid-cols-2">
               {ZALO_TRACKABLE_FIELDS.map((f) => (
                 <Checkbox
                   key={f.key}
@@ -202,7 +183,7 @@ const GroupFeatureModal: React.FC<Props> = ({
         ) : null}
 
         <Box
-          layoutClassName="space-y-2 rounded-xl p-4"
+          layoutClassName="space-y-2 rounded-xl p-3"
           borderClassName="border border-slate-100 dark:border-slate-700/80"
           backgroundClassName="bg-slate-50/70 dark:bg-slate-800/40"
         >
@@ -247,9 +228,32 @@ const GroupFeatureModal: React.FC<Props> = ({
           </Box>
         </Box>
       </Box>
-    </BaseModal>
+
+      <Box
+        layoutClassName="flex shrink-0 items-center justify-between gap-2 px-4 py-3"
+        borderClassName="border-t border-slate-100 dark:border-slate-700"
+      >
+        <Button
+          type="button"
+          onClick={() => void handleTest()}
+          disabled={testing}
+          variant="secondary"
+          leftIcon={testing ? <Spinner size="sm" /> : <Send className="h-3.5 w-3.5" />}
+        >
+          {testing ? 'Đang gửi…' : 'Gửi tin test'}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void onSave(current)}
+          disabled={saving}
+          leftIcon={saving ? <Spinner size="sm" /> : undefined}
+        >
+          {saving ? 'Đang lưu…' : 'Lưu nhóm này'}
+        </Button>
+      </Box>
+    </Card>
   );
 };
 
-export default GroupFeatureModal;
+export default GroupFeaturePanel;
 export type { ZaloGroupConfig };
