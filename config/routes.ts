@@ -16,10 +16,8 @@ import {
   UserCog,
   IdCard,
   Bell,
-  Facebook,
   MessageCircle,
   Plug,
-  Instagram,
   Send,
   Star,
   ScrollText,
@@ -170,48 +168,6 @@ export const routes: RouteConfig[] = [
     path: "/channels/zalo/log",
     labelKey: "nav.chZaloLog",
     icon: ScrollText,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/facebook",
-    labelKey: "nav.chFbMessages",
-    icon: Facebook,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/facebook/posts",
-    labelKey: "nav.chFbPosts",
-    icon: FileText,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/facebook/settings",
-    labelKey: "nav.chFbSettings",
-    icon: Plug,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/instagram",
-    labelKey: "nav.chIgMessages",
-    icon: Instagram,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/instagram/posts",
-    labelKey: "nav.chIgPosts",
-    icon: FileText,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/instagram/settings",
-    labelKey: "nav.chIgSettings",
-    icon: Plug,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -532,45 +488,17 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: ["/goals", "/goals/overview", "/goals/settings"],
   },
   {
-    // Kết nối đa kênh (cha) › Zalo / Facebook (con) › từng màn.
+    // Kết nối đa kênh: hiện chỉ còn Zalo → 5 màn nằm thẳng dưới nhóm này, không lồng
+    // thêm cấp "Zalo" cho 1 kênh duy nhất. Nối lại kênh khác thì tách cấp con như cũ.
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
-    childPaths: [],
-  },
-  {
-    key: "channelsZalo",
-    labelKey: "nav.channelsZalo",
-    icon: MessageCircle,
-    parentKey: "channels",
     childPaths: [
       "/channels/zalo",
       "/channels/zalo/features",
       "/channels/zalo/settings",
       "/channels/zalo/orders",
       "/channels/zalo/log",
-    ],
-  },
-  {
-    key: "channelsFacebook",
-    labelKey: "nav.channelsFacebook",
-    icon: Facebook,
-    parentKey: "channels",
-    childPaths: [
-      "/channels/facebook/posts",
-      "/channels/facebook",
-      "/channels/facebook/settings",
-    ],
-  },
-  {
-    key: "channelsInstagram",
-    labelKey: "nav.channelsInstagram",
-    icon: Instagram,
-    parentKey: "channels",
-    childPaths: [
-      "/channels/instagram/posts",
-      "/channels/instagram",
-      "/channels/instagram/settings",
     ],
   },
   {
@@ -717,8 +645,8 @@ export const buildNavTree = (
       .filter((r): r is RouteConfig => Boolean(r));
     if (children.length === 0) continue;
 
-    // Nhóm cha VỪA có màn riêng VỪA có nhóm con (vd "Kết nối đa kênh" có màn Đăng bài
-    // + 3 nhóm con): nhóm con có thể đã tạo mục cha trước → dùng lại, đừng tạo mục thứ 2.
+    // Nhóm cha VỪA có màn riêng VỪA có nhóm con: nhóm con có thể đã tạo mục cha trước
+    // → dùng lại, đừng tạo mục thứ 2.
     const alreadyCreated = group.parentKey ? undefined : parentNodes.get(group.key);
     if (alreadyCreated) {
       alreadyCreated.children = children;

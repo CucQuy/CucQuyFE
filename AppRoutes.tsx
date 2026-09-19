@@ -50,12 +50,6 @@ const ZaloOrdersScreen = lazy(() => import("./pages/Channels/ZaloOrdersScreen"))
 const ZaloSettingsScreen = lazy(() => import("./pages/Channels/ZaloSettingsScreen"));
 const ZaloFeaturesScreen = lazy(() => import("./pages/Channels/ZaloFeaturesScreen"));
 const ZaloLogScreen = lazy(() => import("./pages/Channels/ZaloLogScreen"));
-const FacebookCustomersScreen = lazy(() => import("./pages/Channels/FacebookCustomersScreen"));
-const InstagramCustomersScreen = lazy(() => import("./pages/Channels/InstagramCustomersScreen"));
-const InstagramSettingsScreen = lazy(() => import("./pages/Channels/InstagramSettingsScreen"));
-const FacebookPostsScreen = lazy(() => import("./pages/Channels/FacebookPostsScreen"));
-const InstagramPostsScreen = lazy(() => import("./pages/Channels/InstagramPostsScreen"));
-const FacebookSettingsScreen = lazy(() => import("./pages/Channels/FacebookSettingsScreen"));
 const SerpApiMapsTestPage = lazy(() => import("./pages/Test/SerpApiMaps/index"));
 import { routes } from "./config/routes";
 
@@ -163,57 +157,9 @@ const AppRoutes: React.FC = () => (
           </RoleBasedRoute>
         }
       />
-      <Route
-        path="channels/facebook"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook")?.roles}>
-            <FacebookCustomersScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/facebook/posts"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/posts")?.roles}>
-            <FacebookPostsScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/facebook/settings"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/facebook/settings")?.roles}>
-            <FacebookSettingsScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/instagram"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram")?.roles}>
-            <InstagramCustomersScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/instagram/posts"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/posts")?.roles}>
-            <InstagramPostsScreen />
-          </RoleBasedRoute>
-        }
-      />
-      <Route
-        path="channels/instagram/settings"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/channels/instagram/settings")?.roles}>
-            <InstagramSettingsScreen />
-          </RoleBasedRoute>
-        }
-      />
       {/* Các đường cũ (và /channels gộp) → screen tương ứng, giữ bookmark không vỡ. */}
       <Route path="channels" element={<Navigate to="/channels/zalo" replace />} />
-      <Route path="facebook" element={<Navigate to="/channels/facebook" replace />} />
+      <Route path="facebook" element={<Navigate to="/channels/zalo" replace />} />
       <Route path="order-notify" element={<Navigate to="/channels/zalo/orders" replace />} />
       <Route path="settings/zalo" element={<Navigate to="/channels/zalo" replace />} />
       <Route
