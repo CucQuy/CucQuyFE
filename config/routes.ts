@@ -193,6 +193,13 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
+    path: "/finance/accounts",
+    labelKey: "nav.txAccounts",
+    icon: QrCode,
+    roles: [UserRole.SUPER_ADMIN],
+  },
+  {
+    type: "page",
     path: "/promotions",
     labelKey: "nav.promotions",
     icon: Tag,
@@ -356,13 +363,6 @@ export const routes: RouteConfig[] = [
   },
   {
     type: "page",
-    path: "/settings/sepay",
-    labelKey: "nav.settingsSepay",
-    icon: QrCode,
-    roles: [UserRole.SUPER_ADMIN],
-  },
-  {
-    type: "page",
     path: "/settings/speaker",
     labelKey: "nav.settingsSpeaker",
     icon: Volume2,
@@ -520,12 +520,14 @@ export const navGroups: NavGroupConfig[] = [
     ],
   },
   {
+    // Quản lý tài chính: tổng quan P&L + sổ giao dịch + tài khoản ngân hàng nhận tiền.
     key: "transactions",
     labelKey: "nav.transactionsHub",
     icon: Wallet,
     childPaths: [
       "/finance/overview",
       "/finance/ledger",
+      "/finance/accounts",
     ],
   },
   {
@@ -597,12 +599,11 @@ export const navGroups: NavGroupConfig[] = [
     ],
   },
   {
-    // Cài đặt: mỗi mục 1 screen con (Đơn hàng/Thanh toán/Zalo/Màn hình).
+    // Cài đặt: mỗi mục 1 screen con (Loa/Màn hình/Quyền).
     key: "settings",
     labelKey: "nav.settingsGroup",
     icon: Settings,
     childPaths: [
-      "/settings/sepay",
       "/settings/speaker",
       "/settings/screens",
       "/settings/roles",

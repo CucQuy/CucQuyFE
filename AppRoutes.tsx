@@ -187,6 +187,14 @@ const AppRoutes: React.FC = () => (
           </RoleBasedRoute>
         }
       />
+      <Route
+        path="finance/accounts"
+        element={
+          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/finance/accounts")?.roles}>
+            <SepaySettingsTab />
+          </RoleBasedRoute>
+        }
+      />
       {/* Back-compat redirect các path cũ → Sổ giao dịch mới ("Cần đối soát" đã gỡ) */}
       <Route path="finance" element={<Navigate to="/finance/overview" replace />} />
       <Route path="finance/history" element={<Navigate to="/finance/ledger" replace />} />
@@ -358,17 +366,11 @@ const AppRoutes: React.FC = () => (
           </RoleBasedRoute>
         }
       />
-      <Route path="settings" element={<Navigate to="/settings/sepay" replace />} />
+      <Route path="settings" element={<Navigate to="/settings/speaker" replace />} />
       {/* Cài đặt đơn hàng đã gỡ: nhãn phụ thu bỏ, phí ship chuyển sang /shipping (Bán hàng). */}
       <Route path="settings/order" element={<Navigate to="/shipping" replace />} />
-      <Route
-        path="settings/sepay"
-        element={
-          <RoleBasedRoute requiredRole={routes.find((r) => r.path === "/settings/sepay")?.roles}>
-            <SepaySettingsTab />
-          </RoleBasedRoute>
-        }
-      />
+      {/* Tài khoản ngân hàng đã chuyển sang khu Quản lý tài chính. */}
+      <Route path="settings/sepay" element={<Navigate to="/finance/accounts" replace />} />
       <Route
         path="settings/speaker"
         element={
