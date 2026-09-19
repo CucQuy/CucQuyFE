@@ -12,6 +12,7 @@ import {
   deletePaymentAccount,
   fetchPaymentAccounts,
   setKindPaymentAccount,
+  setOpeningPaymentAccount,
   setTrackedPaymentAccount,
 } from '@/services/configurationService';
 
@@ -33,6 +34,8 @@ export interface UsePaymentAccountsResult {
   setTracked: (id: string, tracked: boolean) => Promise<PaymentAccount[]>;
   /** Gán loại TK (hkd/personal/none) — TK cũ cùng loại tự rớt về 'none'. */
   setKind: (id: string, kind: PaymentAccountKind) => Promise<PaymentAccount[]>;
+  /** Chốt lại số dư TK theo số trên app ngân hàng (mốc = thời điểm lưu). */
+  setOpening: (id: string, amount: number) => Promise<PaymentAccount[]>;
   remove: (id: string) => Promise<PaymentAccount[]>;
 }
 
@@ -90,6 +93,12 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     onSuccess: applyList,
   });
 
+  const setOpeningMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) =>
+      setOpeningPaymentAccount(id, amount),
+    onSuccess: applyList,
+  });
+
   const removeMutation = useMutation({
     mutationFn: (id: string) => deletePaymentAccount(id),
     onSuccess: applyList,
@@ -111,12 +120,17 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     (id: string, kind: PaymentAccountKind) => setKindMutation.mutateAsync({ id, kind }),
     [setKindMutation],
   );
+  const setOpening = useCallback(
+    (id: string, amount: number) => setOpeningMutation.mutateAsync({ id, amount }),
+    [setOpeningMutation],
+  );
   const remove = useCallback((id: string) => removeMutation.mutateAsync(id), [removeMutation]);
 
   const mutating =
     createMutation.isPending ||
     setTrackedMutation.isPending ||
     setKindMutation.isPending ||
+    setOpeningMutation.isPending ||
     removeMutation.isPending;
 
   const error = query.error
@@ -124,10 +138,12 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     : createMutation.error ||
         setTrackedMutation.error ||
         setKindMutation.error ||
+        setOpeningMutation.error ||
         removeMutation.error
       ? ((createMutation.error ||
           setTrackedMutation.error ||
           setKindMutation.error ||
+          setOpeningMutation.error ||
           removeMutation.error) as Error)?.message ||
         'Thao tác tài khoản thanh toán thất bại'
       : null;
@@ -143,6 +159,7 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     create,
     setTracked,
     setKind,
+    setOpening,
     remove,
   };
 };

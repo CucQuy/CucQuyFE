@@ -33,7 +33,7 @@ const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts,
           Dòng tiền theo tài khoản
         </Typography>
         <Typography as="span" size="xs" variant="muted">
-          · khách CK vào TK HKD → cuối ngày dồn sang TK cá nhân → chi hoá đơn
+          · số dư tính toàn thời gian · thu/chi theo kỳ đang xem
         </Typography>
       </Box>
 
@@ -107,7 +107,24 @@ const LedgerAccountFlowCard: React.FC<LedgerAccountFlowCardProps> = ({ accounts,
                 </Badge>
               </Box>
 
-              <Box layoutClassName="flex items-center justify-between gap-2">
+              {/* Số dư hiện tại — toàn thời gian, không đổi theo kỳ đang lọc. */}
+              {a.balance !== null && (
+                <Box layoutClassName="flex items-baseline justify-between gap-2">
+                  <Typography as="span" size="xs" variant="muted">Số dư</Typography>
+                  <Typography
+                    as="span"
+                    layoutClassName="text-base font-bold"
+                    textClassName={a.balance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}
+                  >
+                    {formatVND(a.balance)}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box
+                layoutClassName="flex items-center justify-between gap-2 pt-1.5"
+                borderClassName="border-t border-slate-200/70 dark:border-slate-700/70"
+              >
                 <Typography as="span" size="xs" layoutClassName="font-medium" textClassName="text-emerald-600 dark:text-emerald-400">
                   +{formatVND(a.in)}
                 </Typography>

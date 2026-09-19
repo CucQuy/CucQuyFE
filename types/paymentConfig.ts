@@ -64,6 +64,12 @@ export interface PaymentAccount {
   isTracked?: boolean;
   /** TK hộ kinh doanh / TK cá nhân / không dùng. Thiếu → coi là `none`. */
   kind?: PaymentAccountKind;
+  /** Số dư đã chốt tại `openingBalanceAt` (VND). */
+  openingBalance?: number;
+  /** Thời điểm chốt số dư (ISO); null = cộng dồn từ giao dịch đầu tiên. */
+  openingBalanceAt?: string | null;
+  /** Số dư hiện tại = số dư chốt + giao dịch sau mốc (BE tính sẵn). */
+  balance?: number;
   /** Thời điểm tạo (ISO string từ BE). */
   createdAt?: string;
 }
@@ -82,6 +88,8 @@ export const TEST_PAYMENT_ACCOUNT: PaymentAccount = {
   isActive: false,
   isTracked: false,
   kind: 'none',
+  openingBalance: 0,
+  balance: 0,
 };
 
 /** Body khi tạo tài khoản mới (POST). */

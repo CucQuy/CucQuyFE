@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { CreditCard, Plus, Trash2, Wallet } from 'lucide-react';
+import { CreditCard, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
+import { formatVND } from '@/utils/format/currencyUtil';
 import {
   PAYMENT_ACCOUNT_KINDS,
   SEPAY_BANKS,
@@ -11,7 +12,7 @@ import {
   parseSepayQrLink,
   qrTemplateLabel,
 } from '@/types/paymentConfig';
-import type { PaymentAccountKind } from '@/types/paymentConfig';
+import type { PaymentAccount, PaymentAccountKind } from '@/types/paymentConfig';
 import BaseModal from '@/components/BaseModal';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
@@ -36,7 +37,7 @@ interface ParsedPreview {
 
 const PaymentSettingsTab: React.FC = () => {
   const { t } = useLanguage();
-  const { accounts, loading, mutating, create, setTracked, setKind, remove } =
+  const { accounts, loading, mutating, create, setTracked, setKind, setOpening, remove } =
     usePaymentAccounts();
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -44,6 +45,9 @@ const PaymentSettingsTab: React.FC = () => {
   const [preview, setPreview] = useState<ParsedPreview | null>(null);
   const [accountHolder, setAccountHolder] = useState('');
   const [kind, setKindInput] = useState<PaymentAccountKind>('none');
+  // Chốt số dư: mở modal riêng để bảng không phải gánh thêm ô nhập.
+  const [balanceFor, setBalanceFor] = useState<PaymentAccount | null>(null);
+  const [balanceInput, setBalanceInput] = useState('');
 
   const resetForm = () => {
     setQrLink('');
@@ -123,6 +127,28 @@ const PaymentSettingsTab: React.FC = () => {
     }
   };
 
+  const openBalanceModal = (acc: PaymentAccount) => {
+    setBalanceFor(acc);
+    setBalanceInput(String(Math.round(acc.balance ?? 0)));
+  };
+
+  const handleSaveBalance = async () => {
+    if (!balanceFor) return;
+    // Cho gõ "1.428.719" / "1 428 719" — chỉ giữ chữ số.
+    const amount = Number((balanceInput || '').replace(/[^\d]/g, ''));
+    if (!Number.isFinite(amount)) {
+      toast.error(t('paymentSettings.balanceInvalid'));
+      return;
+    }
+    try {
+      await setOpening(balanceFor.id, amount);
+      toast.success(t('paymentSettings.balanceUpdated'));
+      setBalanceFor(null);
+    } catch (err: any) {
+      toast.error(err?.message || t('paymentSettings.saveError'));
+    }
+  };
+
   const handleRemove = async (id: string) => {
     if (!window.confirm(t('paymentSettings.confirmDelete'))) return;
     try {
@@ -196,6 +222,7 @@ const PaymentSettingsTab: React.FC = () => {
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.accountNumber')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.accountHolder')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5">{t('paymentSettings.kind')}</TableHeaderCell>
+                  <TableHeaderCell layoutClassName="px-4 py-3.5 text-right">{t('paymentSettings.balanceColumn')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5 text-center">{t('paymentSettings.recordColumn')}</TableHeaderCell>
                   <TableHeaderCell layoutClassName="px-4 py-3.5 text-right">{t('paymentSettings.actions')}</TableHeaderCell>
                 </TableRow>
@@ -262,6 +289,38 @@ const PaymentSettingsTab: React.FC = () => {
                       </Select>
                     </TableCell>
 
+                    {/* Số dư hiện tại = số dư đã chốt + giao dịch sau mốc; bấm để chốt lại. */}
+                    <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
+                      {(acc.kind ?? 'none') === 'none' ? (
+                        <Typography as="span" size="sm" variant="muted">—</Typography>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={mutating}
+                          onClick={() => openBalanceModal(acc)}
+                          layoutClassName="inline-flex items-center gap-1.5"
+                          sizeClassName="px-2 py-1 text-sm font-semibold"
+                          roundedClassName="rounded-lg"
+                          borderClassName="border border-transparent"
+                          backgroundClassName="bg-transparent"
+                          hoverClassName="hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-600 dark:hover:bg-slate-700/40"
+                          textClassName={
+                            (acc.balance ?? 0) < 0
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-slate-900 dark:text-white'
+                          }
+                          stateClassName="transition-colors"
+                          disableVariantHover
+                          disableVariantTextColor
+                        >
+                          {formatVND(acc.balance ?? 0)}
+                          <Pencil className="h-3 w-3 opacity-50" />
+                        </Button>
+                      )}
+                    </TableCell>
+
                     {/* Ghi nhận GD: tắt → webhook bỏ qua, không lưu giao dịch nào.
                         TK đã gán HKD/cá nhân bị khoá — tiền đơn & hoá đơn chạy qua đó. */}
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-center">
@@ -302,6 +361,70 @@ const PaymentSettingsTab: React.FC = () => {
           {t('paymentSettings.trackHint')}
         </Typography>
       </Card>
+
+      {/* ============ Modal Chốt số dư ============ */}
+      <BaseModal
+        isOpen={!!balanceFor}
+        onClose={() => setBalanceFor(null)}
+        title={t('paymentSettings.balanceModalTitle')}
+        size="sm"
+        footer={
+          <>
+            <Button
+              type="button"
+              onClick={() => setBalanceFor(null)}
+              sizeClassName="px-4 py-2"
+              backgroundClassName="bg-white dark:bg-slate-800"
+              borderClassName="border border-slate-300 dark:border-slate-600"
+              hoverClassName="hover:bg-slate-50 dark:hover:bg-slate-700"
+              textClassName="text-sm font-medium text-slate-700 dark:text-slate-200"
+              roundedClassName="rounded-lg"
+              layoutClassName="inline-flex items-center justify-center gap-2"
+              stateClassName="transition-colors"
+              variant="secondary"
+              disableVariantHover
+              disableVariantTextColor
+            >
+              {t('paymentSettings.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSaveBalance()}
+              disabled={mutating}
+              sizeClassName="px-4 py-2"
+              backgroundClassName="bg-primary-600"
+              hoverClassName="hover:bg-primary-700"
+              textClassName="text-sm font-medium text-white"
+              roundedClassName="rounded-lg"
+              layoutClassName="inline-flex items-center gap-2"
+              stateClassName="transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              disableVariantHover
+              disableVariantTextColor
+            >
+              {t('paymentSettings.balanceSave')}
+            </Button>
+          </>
+        }
+      >
+        <Box layoutClassName="space-y-3">
+          <Typography size="sm" variant="muted">
+            {balanceFor?.bankCode} · {balanceFor?.accountNumber}
+          </Typography>
+          <Field label={t('paymentSettings.balanceField')} htmlFor="payment-account-balance">
+            <Input
+              id="payment-account-balance"
+              type="text"
+              inputMode="numeric"
+              value={balanceInput}
+              onChange={(e) => setBalanceInput(e.target.value)}
+              placeholder="1428719"
+            />
+            <Typography size="xs" variant="muted" layoutClassName="mt-1">
+              {t('paymentSettings.balanceHint')}
+            </Typography>
+          </Field>
+        </Box>
+      </BaseModal>
 
       {/* ============ Modal Thêm tài khoản ============ */}
       <BaseModal

@@ -68,6 +68,7 @@ const mapAccountFlow = (r: Record<string, unknown>): LedgerAccountFlow => ({
   accountNumber: typeof r.accountNumber === 'string' ? r.accountNumber : null,
   accountHolder: typeof r.accountHolder === 'string' ? r.accountHolder : null,
   kind: kindOf(r.kind),
+  balance: typeof r.balance === 'number' ? r.balance : null,
   in: num(r.in),
   out: num(r.out),
   net: num(r.net),

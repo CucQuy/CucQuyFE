@@ -227,6 +227,21 @@ export const setKindPaymentAccount = async (
   return Array.isArray(data) ? data : [];
 };
 
+/**
+ * Chốt lại số dư TK theo số đang thấy trên app ngân hàng — BE đóng mốc thời gian = now(),
+ * từ đó chỉ cộng/trừ giao dịch mới (bỏ qua sai lệch tích luỹ trước đó).
+ */
+export const setOpeningPaymentAccount = async (
+  id: string,
+  amount: number,
+): Promise<PaymentAccount[]> => {
+  const { data } = await apiClient.put<PaymentAccount[]>(
+    `/configurations/payment-accounts/${encodeURIComponent(id)}/opening`,
+    { amount },
+  );
+  return Array.isArray(data) ? data : [];
+};
+
 export const deletePaymentAccount = async (id: string): Promise<PaymentAccount[]> => {
   const { data } = await apiClient.delete<PaymentAccount[]>(
     `/configurations/payment-accounts/${encodeURIComponent(id)}`,

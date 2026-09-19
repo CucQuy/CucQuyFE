@@ -114,6 +114,8 @@ export interface LedgerAccountFlow {
   accountNumber: string | null;
   accountHolder: string | null;
   kind: PaymentAccountKind | null;
+  /** Số dư hiện tại của TK (toàn thời gian, KHÔNG theo kỳ lọc); null nếu TK chưa khai. */
+  balance: number | null;
   in: number;  // VND
   out: number; // VND
   net: number; // VND (in − out)
