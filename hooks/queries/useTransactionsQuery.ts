@@ -75,6 +75,11 @@ const EMPTY_LEDGER: LedgerResult = {
  * Sổ giao dịch thống nhất — list phân trang + summary server-side.
  * placeholderData=keepPreviousData: khi đổi trang/filter, giữ data cũ hiển thị
  * (không nháy loading) tới khi trang mới về.
+ *
+ * Sổ là màn THEO DÕI (chỉ đọc) và có kèm SỐ DƯ tài khoản → bật tự làm mới 60s một
+ * lần + khi quay lại tab, để số dư/giao dịch bám theo webhook SePay mà không phải
+ * bấm "Làm mới". Ghi đè mặc định toàn app (refetchOnWindowFocus: false) — mặc định
+ * đó đặt ra để form đang nhập không bị refetch đè, không áp dụng cho màn này.
  */
 export const useLedger = (filters: LedgerFilters): UseLedgerResult => {
   const { currentUser } = useAuth();
@@ -83,6 +88,8 @@ export const useLedger = (filters: LedgerFilters): UseLedgerResult => {
     queryFn: () => fetchLedger(filters),
     enabled: !!currentUser,
     placeholderData: keepPreviousData,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
   return {
     data: query.data ?? EMPTY_LEDGER,

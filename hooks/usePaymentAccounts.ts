@@ -53,6 +53,10 @@ export const usePaymentAccounts = (): UsePaymentAccountsResult => {
     queryKey: qk.paymentAccounts.all,
     queryFn: fetchPaymentAccounts,
     enabled: !!currentUser,
+    // Danh sách kèm SỐ DƯ (BE tính lại mỗi lần đọc) → tự làm mới để số dư bám theo
+    // giao dịch mới, khỏi phải F5. List nhỏ (vài dòng) nên poll rất nhẹ.
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
   const accounts = useMemo<PaymentAccount[]>(() => query.data ?? [], [query.data]);
