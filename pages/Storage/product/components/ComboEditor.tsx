@@ -4,10 +4,11 @@
  * Giá lẻ cộng lại + mức tiết kiệm tính ngay tại chỗ theo giá sản phẩm hiện tại.
  */
 import React, { useMemo } from 'react';
-import { Boxes, Plus, Trash2 } from 'lucide-react';
+import { Boxes, ImageOff, Plus, Trash2 } from 'lucide-react';
 import type { ComboItem, Product } from '@/types';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Box from '@/components/ui/Box';
+import Image from '@/components/ui/Image';
 import Button from '@/components/ui/Button';
 import Heading from '@/components/ui/Heading';
 import Input from '@/components/ui/Input';
@@ -25,9 +26,9 @@ interface Props {
 }
 
 const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, products, loading }) => {
-  const priceById = useMemo(() => {
-    const m = new Map<string, number>();
-    products.forEach((p) => m.set(p.id, Number(p.price) || 0));
+  const byId = useMemo(() => {
+    const m = new Map<string, Product>();
+    products.forEach((p) => m.set(p.id, p));
     return m;
   }, [products]);
 
@@ -37,7 +38,7 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
   );
 
   const lineRetail = (it: ComboItem) =>
-    (priceById.get(it.productId) ?? 0) * (Number(it.portion) || 0) * (Number(it.qty) || 0);
+    (Number(byId.get(it.productId)?.price) || 0) * (Number(it.portion) || 0) * (Number(it.qty) || 0);
   const retailSum = items.reduce((s, it) => s + lineRetail(it), 0);
   const saving = retailSum - (Number(comboPrice) || 0);
 
@@ -68,8 +69,9 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
       </Box>
 
       <Typography as="p" size="xs" variant="muted">
-        Chọn từ sản phẩm đang bán. <b>Số phần</b> là số món trong hộp; <b>tỉ lệ</b> là 1 phần bằng mấy đơn vị
-        bán lẻ (phô mai dẻo bán hộp 10 cái → 0.1; bánh mì chuối bán ổ 5 lát → 0.2; bánh bán từng cái → 1).
+        Chọn món từ sản phẩm đang bán. <b>Số lượng</b> = số món bỏ vào hộp. <b>Quy đổi</b> = 1 món này bằng
+        mấy phần của sản phẩm gốc: bán nguyên cái để <b>1</b>; phô mai dẻo bán hộp 10 cái → <b>0.1</b>;
+        bánh mì chuối bán ổ 5 lát → <b>0.2</b>.
       </Typography>
 
       {loading ? (
@@ -78,6 +80,24 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
         <Box layoutClassName="space-y-2">
           {items.map((it, idx) => (
             <Box key={idx} layoutClassName="flex items-end gap-2">
+              <Box
+                layoutClassName="h-11 w-11 shrink-0 overflow-hidden"
+                roundedClassName="rounded-lg"
+                borderClassName="border border-slate-200 dark:border-slate-700"
+                backgroundClassName="bg-slate-50 dark:bg-slate-900"
+              >
+                {byId.get(it.productId)?.image ? (
+                  <Image
+                    src={byId.get(it.productId)?.image as string}
+                    alt={byId.get(it.productId)?.name ?? ''}
+                    layoutClassName="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Box layoutClassName="flex h-full w-full items-center justify-center">
+                    <ImageOff className="h-4 w-4 text-slate-300 dark:text-slate-600" />
+                  </Box>
+                )}
+              </Box>
               <Box layoutClassName="min-w-0 flex-1">
                 {idx === 0 ? <Typography as="span" size="xs" variant="muted">Sản phẩm</Typography> : null}
                 <Select
@@ -94,7 +114,7 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
                 </Select>
               </Box>
               <Box layoutClassName="w-20">
-                {idx === 0 ? <Typography as="span" size="xs" variant="muted">Số phần</Typography> : null}
+                {idx === 0 ? <Typography as="span" size="xs" variant="muted">Số lượng</Typography> : null}
                 <Input
                   type="number"
                   min={0}
@@ -106,7 +126,7 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
                 />
               </Box>
               <Box layoutClassName="w-20">
-                {idx === 0 ? <Typography as="span" size="xs" variant="muted">Tỉ lệ</Typography> : null}
+                {idx === 0 ? <Typography as="span" size="xs" variant="muted">Quy đổi</Typography> : null}
                 <Input
                   type="number"
                   min={0}
@@ -169,7 +189,7 @@ const ComboEditor: React.FC<Props> = ({ selfId, comboPrice, items, setItems, pro
         </Box>
       ) : (
         <Typography as="p" size="xs" variant="muted">
-          Chưa có món nào — sản phẩm này không phải combo.
+          Chưa có món nào. Bấm "Thêm món" để chọn từ sản phẩm đang bán.
         </Typography>
       )}
     </Box>

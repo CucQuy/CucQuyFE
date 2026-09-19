@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlignLeft, DollarSign, Image, Loader2, Save, Tag, Upload } from 'lucide-react';
+import { AlertCircle, AlignLeft, Boxes, DollarSign, Image as ImageIcon, Images, Info, Loader2, Palette, Save, Sparkles, Tag, Upload, Wallet } from 'lucide-react';
 import BaseSlidePanel from '@/components/BaseSlidePanel';
 import Tabs from '@/components/ui/Tabs';
 import Textarea from '@/components/ui/Textarea';
 import type { ComboItem, Product, PriceTier, PackagingOption, ProductType } from '@/types';
+import { PRODUCT_TYPES, productTypeSections } from '@/types/product';
 import ProductTypePricingSection from '@/pages/Storage/product/components/ProductTypePricingSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getProductImagePath, uploadImage } from '@/services/imageService';
@@ -18,6 +19,7 @@ import TagPicker from '@/pages/Storage/product/components/TagPicker';
 import FlavorVariantEditor from '@/pages/Storage/product/components/FlavorVariantEditor';
 import SizeEditor from '@/pages/Storage/product/components/SizeEditor';
 import ComboEditor from '@/pages/Storage/product/components/ComboEditor';
+import FormSection from '@/pages/Storage/product/components/FormSection';
 import type { ProductSize, ProductFlavorVariant } from '@/types';
 import ProductHistoryView from '@/pages/Storage/product/components/ProductHistoryView';
 import Field from '@/components/ui/Field';
@@ -25,6 +27,8 @@ import Select from '@/components/ui/Select';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import UiImage from '@/components/ui/Image';
+import Typography from '@/components/ui/Typography';
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -74,6 +78,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
     initialData?.id,
     activeTab === 'history',
   );
+
+  // Khối nào cần hỏi cho loại này. Giữ lại khối đã có dữ liệu để không giấu mất của SP cũ.
+  const show = useMemo(() => {
+    const base = productTypeSections(type);
+    return {
+      variants: base.variants || flavorVariants.length > 0 || sizes.length > 0,
+      combo: base.combo || comboItems.length > 0,
+      priceTiers: base.priceTiers || priceTiers.length > 0,
+      packaging: base.packaging || packagingOptions.length > 0,
+      badges: base.badges || tags.length > 0,
+    };
+  }, [type, flavorVariants.length, sizes.length, comboItems.length, priceTiers.length, packagingOptions.length, tags.length]);
 
   const badgeByName = useMemo(() => {
     const m = new Map<string, ProductBadge>();
@@ -282,7 +298,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
       title={initialData ? t('inventory.formTitleEdit') : t('inventory.formTitleAdd')}
       footer={footer}
     >
-      <form id="product-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+      <form id="product-form" onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
         <Tabs
           items={[
             { id: 'details', label: 'Thông tin' },
@@ -297,35 +313,52 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
         ) : (
           <>
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
+              <Box
+                layoutClassName="flex items-center gap-2 p-3"
+                roundedClassName="rounded-lg"
+                backgroundClassName="bg-red-50 dark:bg-red-900/20"
+                textClassName="text-sm text-red-600 dark:text-red-400"
+              >
+                <AlertCircle className="h-4 w-4" />
                 {error}
-              </div>
+              </Box>
             )}
 
-            {/* Primary image */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-40 h-40 rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-sm relative bg-slate-50 dark:bg-slate-900">
-                {image ? (
-                  <img
-                    src={image}
-                    alt="Preview"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x400?text=No+Image'; }}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400">
-                    <Image className="w-12 h-12" />
-                  </div>
-                )}
-                {isUploading && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <input
+            {/* 1. Ảnh */}
+            <FormSection
+              title="Ảnh sản phẩm"
+              hint="Ảnh đầu tiên là ảnh hiển thị trên web và menu. JPG/PNG tối đa 5MB."
+              icon={<Images className="h-4 w-4 text-primary-500" />}
+            >
+              <Box layoutClassName="flex flex-col items-center gap-4">
+                <Box
+                  layoutClassName="relative h-40 w-40 overflow-hidden"
+                  roundedClassName="rounded-lg"
+                  borderClassName="border-2 border-slate-200 dark:border-slate-700"
+                  shadowClassName="shadow-sm"
+                  backgroundClassName="bg-slate-50 dark:bg-slate-900"
+                >
+                  {image ? (
+                    <UiImage
+                      src={image}
+                      alt="Ảnh sản phẩm"
+                      layoutClassName="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Box layoutClassName="flex h-full w-full items-center justify-center" textClassName="text-slate-400">
+                      <ImageIcon className="h-12 w-12" />
+                    </Box>
+                  )}
+                  {isUploading && (
+                    <Box
+                      layoutClassName="absolute inset-0 flex items-center justify-center"
+                      backgroundClassName="bg-black/50"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    </Box>
+                  )}
+                </Box>
+                <Input
                   type="file"
                   ref={fileInputRef}
                   onChange={(e) => {
@@ -333,7 +366,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                     if (f) void handleImageUpload(f);
                   }}
                   accept="image/*"
-                  className="hidden"
+                  containerClassName="hidden"
+                  layoutClassName="hidden"
                 />
                 <Button
                   type="button"
@@ -351,25 +385,27 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                   disableVariantHover
                   disableVariantTextColor
                 >
-                  {isUploading ? 'Đang upload...' : 'Upload ảnh chính'}
+                  {isUploading ? 'Đang tải ảnh lên...' : 'Chọn ảnh chính'}
                 </Button>
-                <p className="text-xs text-slate-500 dark:text-slate-400">JPG, PNG tối đa 5MB</p>
-              </div>
-            </div>
+              </Box>
 
-            {/* Gallery */}
-            <GallerySection
-              image={image}
-              gallery={gallery}
-              uploading={galleryUploading}
-              maxImages={MAX_GALLERY}
-              onChange={setGallery}
-              onSetPrimary={handleSetPrimary}
-              onUploadFiles={handleGalleryUpload}
-            />
+              <GallerySection
+                image={image}
+                gallery={gallery}
+                uploading={galleryUploading}
+                maxImages={MAX_GALLERY}
+                onChange={setGallery}
+                onSetPrimary={handleSetPrimary}
+                onUploadFiles={handleGalleryUpload}
+              />
+            </FormSection>
 
-            <Box layoutClassName="space-y-4">
-              {/* Name */}
+            {/* 2. Thông tin cơ bản — loại sản phẩm quyết định các khối bên dưới */}
+            <FormSection
+              title="Thông tin cơ bản"
+              hint="Loại sản phẩm quyết định form hỏi tiếp những gì bên dưới."
+              icon={<Info className="h-4 w-4 text-primary-500" />}
+            >
               <Field label={`${t('inventory.name')} *`}>
                 <Input
                   type="text"
@@ -382,9 +418,27 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                 />
               </Field>
 
-              {/* Price + Category */}
-              <Box layoutClassName="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label={t('inventory.price')}>
+              <Field label="Loại sản phẩm">
+                <Select
+                  value={type}
+                  onChange={(e) => setType(e.target.value as ProductType)}
+                  fullWidth
+                  backgroundClassName="bg-slate-50 dark:bg-slate-700"
+                  stateClassName="dark:[color-scheme:dark]"
+                >
+                  {PRODUCT_TYPES.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+                <Typography as="p" size="xs" variant="muted">
+                  {PRODUCT_TYPES.find((o) => o.value === type)?.hint}
+                </Typography>
+              </Field>
+
+              <Box layoutClassName="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Giá bán">
                   <Input
                     type="number"
                     min={0}
@@ -399,48 +453,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                   value={category}
                   onChange={setCategory}
                   categories={categories}
-                  label={t('inventory.category')}
+                  label="Nhóm hiển thị trên menu"
                 />
               </Box>
 
-              {/* Tag picker */}
-              <TagPicker tags={tags} productBadges={productBadges} onChange={setTags} />
-
-              {/* Vị — biến thể có ảnh + giá riêng */}
-              <FlavorVariantEditor
-                variants={flavorVariants}
-                onChange={setFlavorVariants}
-                galleryImages={[image, ...gallery].filter(Boolean)}
-              />
-
-              {/* Size (biến thể giá) */}
-              <SizeEditor sizes={sizes} onChange={setSizes} galleryImages={[image, ...gallery].filter(Boolean)} />
-
-              {/* Combo: chọn món từ sản phẩm có sẵn (lưu ở bảng riêng, cần SP đã tạo) */}
-              {initialData?.id ? (
-                <ComboEditor
-                  selfId={initialData.id}
-                  comboPrice={price}
-                  items={comboItems}
-                  setItems={setComboItems}
-                  products={allProducts}
-                  loading={comboLoading}
-                />
-              ) : null}
-
-              {/* Phân loại + giá bậc theo SL + phụ phí gói tự thêm */}
-              <ProductTypePricingSection
-                type={type}
-                setType={setType}
-                basePrice={price}
-                priceTiers={priceTiers}
-                setPriceTiers={setPriceTiers}
-                packagingOptions={packagingOptions}
-                setPackagingOptions={setPackagingOptions}
-              />
-
-              {/* Status */}
-              <Field label={t('inventory.status')}>
+              <Field label="Đang bán?">
                 <Select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
@@ -448,23 +465,96 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                   backgroundClassName="bg-slate-50 dark:bg-slate-700"
                   stateClassName="dark:[color-scheme:dark]"
                 >
-                  <option value="active">{t('inventory.active')}</option>
-                  <option value="inactive">{t('inventory.inactive')}</option>
+                  <option value="active">Đang bán</option>
+                  <option value="inactive">Tạm ngưng</option>
                 </Select>
               </Field>
 
-              {/* Description */}
-              <Field label={t('inventory.description')}>
+              <Field label="Mô tả cho khách">
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="resize-none"
-                  placeholder="Mô tả sản phẩm..."
+                  placeholder="VD: Bánh nếp bơ mềm dẻo, thơm bơ động vật..."
                   leftIcon={<AlignLeft className="h-4 w-4" />}
                 />
               </Field>
-            </Box>
+            </FormSection>
+
+            {/* 3. Trong hộp có gì — set quà / box combo */}
+            {show.combo && (
+              <FormSection
+                title="Trong hộp có gì"
+                hint={
+                  initialData?.id
+                    ? 'Chọn món từ sản phẩm đang bán. Hệ thống tự cộng giá lẻ để biết khách tiết kiệm bao nhiêu.'
+                    : 'Lưu sản phẩm trước, mở lại để thêm món vào hộp.'
+                }
+                icon={<Boxes className="h-4 w-4 text-primary-500" />}
+              >
+                {initialData?.id ? (
+                  <ComboEditor
+                    selfId={initialData.id}
+                    comboPrice={price}
+                    items={comboItems}
+                    setItems={setComboItems}
+                    products={allProducts}
+                    loading={comboLoading}
+                  />
+                ) : (
+                  <Typography as="p" size="xs" variant="muted">
+                    Bấm Lưu để tạo sản phẩm, sau đó mở lại để chọn các món bỏ vào hộp.
+                  </Typography>
+                )}
+              </FormSection>
+            )}
+
+            {/* 4. Khách chọn gì khi mua — vị + size */}
+            {show.variants && (
+              <FormSection
+                title="Khách chọn gì khi mua"
+                hint="Vị và size hiện ra lúc bán. Để trống nếu sản phẩm chỉ có một kiểu duy nhất."
+                icon={<Palette className="h-4 w-4 text-primary-500" />}
+              >
+                <FlavorVariantEditor
+                  variants={flavorVariants}
+                  onChange={setFlavorVariants}
+                  galleryImages={[image, ...gallery].filter(Boolean)}
+                />
+                <SizeEditor sizes={sizes} onChange={setSizes} galleryImages={[image, ...gallery].filter(Boolean)} />
+              </FormSection>
+            )}
+
+            {/* 5. Giá theo số lượng + cách gói */}
+            {(show.priceTiers || show.packaging) && (
+              <FormSection
+                title="Giảm giá theo số lượng & cách gói"
+                hint="Mua càng nhiều càng rẻ, và các kiểu gói khách chọn thêm khi đặt."
+                icon={<Wallet className="h-4 w-4 text-primary-500" />}
+              >
+                <ProductTypePricingSection
+                  basePrice={price}
+                  priceTiers={priceTiers}
+                  setPriceTiers={setPriceTiers}
+                  packagingOptions={packagingOptions}
+                  setPackagingOptions={setPackagingOptions}
+                  showPriceTiers={show.priceTiers}
+                  showPackaging={show.packaging}
+                />
+              </FormSection>
+            )}
+
+            {/* 6. Nhãn hiển thị */}
+            {show.badges && (
+              <FormSection
+                title="Nhãn nổi bật"
+                hint='Gắn nhãn như "Best seller", "Signature" để hiện trên web và menu.'
+                icon={<Sparkles className="h-4 w-4 text-primary-500" />}
+              >
+                <TagPicker tags={tags} productBadges={productBadges} onChange={setTags} />
+              </FormSection>
+            )}
           </>
         )}
       </form>

@@ -21,15 +21,50 @@ export interface ProductFlavorVariant {
 }
 
 /** Phân loại sản phẩm (mô hình "mọi thứ là sản phẩm"). */
-export type ProductType = 'cake' | 'packaging' | 'decoration' | 'accessory' | 'service';
+export type ProductType = 'cake' | 'giftset' | 'packaging' | 'decoration' | 'accessory' | 'service';
 
-export const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
-  { value: 'cake', label: 'Bánh' },
-  { value: 'packaging', label: 'Đóng gói' },
-  { value: 'decoration', label: 'Trang trí' },
-  { value: 'accessory', label: 'Phụ kiện' },
-  { value: 'service', label: 'Dịch vụ / khác' },
+export const PRODUCT_TYPES: { value: ProductType; label: string; hint: string }[] = [
+  { value: 'cake', label: 'Bánh / Nước', hint: 'Món bán lẻ — có thể khai báo vị, size' },
+  { value: 'giftset', label: 'Set quà / Box combo', hint: 'Hộp gồm nhiều món lấy từ sản phẩm có sẵn' },
+  { value: 'packaging', label: 'Bao bì, hộp đựng', hint: 'Bán kèm hoặc tính phụ phí gói' },
+  { value: 'decoration', label: 'Trang trí', hint: 'Nến, topper, phụ kiện gắn lên bánh' },
+  { value: 'accessory', label: 'Phụ kiện', hint: 'Dao, đĩa, ly, thìa…' },
+  { value: 'service', label: 'Dịch vụ / khác', hint: 'Ship, viết chữ, thuê đồ…' },
 ];
+
+/**
+ * Khối nào nên hiện cho loại sản phẩm nào — để form chỉ hỏi thứ thật sự cần.
+ * Sản phẩm đã có sẵn dữ liệu ở khối bị ẩn thì form vẫn hiện khối đó (không giấu mất dữ liệu).
+ */
+export interface ProductTypeSections {
+  /** Vị + size (khách chọn khi mua). */
+  variants: boolean;
+  /** Thành phần hộp (chọn từ sản phẩm có sẵn). */
+  combo: boolean;
+  /** Mua nhiều giảm giá. */
+  priceTiers: boolean;
+  /** Cách gói — khách chọn, cộng thêm tiền. */
+  packaging: boolean;
+  /** Nhãn hiển thị trên web/menu. */
+  badges: boolean;
+}
+
+export const productTypeSections = (t?: string): ProductTypeSections => {
+  switch (t) {
+    case 'giftset':
+      return { variants: false, combo: true, priceTiers: true, packaging: true, badges: true };
+    case 'packaging':
+      return { variants: false, combo: false, priceTiers: true, packaging: false, badges: false };
+    case 'decoration':
+    case 'accessory':
+      return { variants: false, combo: false, priceTiers: true, packaging: false, badges: false };
+    case 'service':
+      return { variants: false, combo: false, priceTiers: false, packaging: false, badges: false };
+    case 'cake':
+    default:
+      return { variants: true, combo: false, priceTiers: true, packaging: true, badges: true };
+  }
+};
 
 export const productTypeLabel = (t?: string): string =>
   PRODUCT_TYPES.find((x) => x.value === t)?.label ?? 'Bánh';

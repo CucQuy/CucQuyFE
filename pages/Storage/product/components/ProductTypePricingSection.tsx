@@ -1,7 +1,6 @@
 import React from 'react';
 import { Layers, Plus, Trash2, PackagePlus } from 'lucide-react';
-import type { PriceTier, PackagingOption, ProductType } from '@/types';
-import { PRODUCT_TYPES } from '@/types/product';
+import type { PriceTier, PackagingOption } from '@/types';
 import { formatVND } from '@/utils/format/currencyUtil';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
@@ -12,23 +11,24 @@ import Select from '@/components/ui/Select';
 import Typography from '@/components/ui/Typography';
 
 interface Props {
-  type: ProductType;
-  setType: (t: ProductType) => void;
   basePrice: number;
   priceTiers: PriceTier[];
   setPriceTiers: (tiers: PriceTier[]) => void;
   packagingOptions: PackagingOption[];
   setPackagingOptions: (opts: PackagingOption[]) => void;
+  /** Ẩn khối không hợp với loại sản phẩm (vd bao bì thì không có "cách gói"). */
+  showPriceTiers?: boolean;
+  showPackaging?: boolean;
 }
 
 const ProductTypePricingSection: React.FC<Props> = ({
-  type,
-  setType,
   basePrice,
   priceTiers,
   setPriceTiers,
   packagingOptions,
   setPackagingOptions,
+  showPriceTiers = true,
+  showPackaging = true,
 }) => {
   const addTier = () => setPriceTiers([...priceTiers, { minQty: 0, price: 0 }]);
   const updateTier = (idx: number, patch: Partial<PriceTier>) =>
@@ -42,21 +42,11 @@ const ProductTypePricingSection: React.FC<Props> = ({
 
   return (
     <Box layoutClassName="space-y-5">
-      <Field label="Phân loại sản phẩm">
-        <Select value={type} onChange={(e) => setType(e.target.value as ProductType)} fullWidth>
-          {PRODUCT_TYPES.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      {/* Giá bậc theo số lượng */}
+      {showPriceTiers && (
       <Box layoutClassName="space-y-2">
         <Box layoutClassName="flex items-center justify-between gap-2">
           <Heading level={4} layoutClassName="flex items-center gap-2" textClassName="text-sm font-semibold">
-            <Layers className="h-4 w-4 text-primary-500" /> Giá bậc theo số lượng
+            <Layers className="h-4 w-4 text-primary-500" /> Mua nhiều giảm giá
           </Heading>
           <Button
             type="button"
@@ -69,18 +59,18 @@ const ProductTypePricingSection: React.FC<Props> = ({
             backgroundClassName="bg-white dark:bg-slate-800"
             textClassName="text-xs font-medium text-slate-600 dark:text-slate-300"
           >
-            <Plus className="h-3.5 w-3.5" /> Thêm bậc
+            <Plus className="h-3.5 w-3.5" /> Thêm mốc
           </Button>
         </Box>
         <Typography as="p" size="xs" variant="muted">
-          Giá/đơn vị áp khi TỔNG SL của sản phẩm này trong đơn ≥ mốc. Dưới mốc nhỏ nhất → dùng giá gốc ({formatVND(Number(basePrice) || 0)}).
+          Khách mua từ bao nhiêu cái trở lên thì tính giá nào. Ít hơn mốc nhỏ nhất → giá gốc ({formatVND(Number(basePrice) || 0)}).
         </Typography>
         {priceTiers.length > 0 ? (
           <Box layoutClassName="space-y-2">
             {priceTiers.map((tier, idx) => (
               <Box key={idx} layoutClassName="flex items-end gap-2">
                 <Box layoutClassName="flex-1">
-                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">SL từ</Typography> : null}
+                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">Mua từ (cái)</Typography> : null}
                   <Input
                     type="number"
                     min={0}
@@ -123,15 +113,16 @@ const ProductTypePricingSection: React.FC<Props> = ({
             ))}
           </Box>
         ) : (
-          <Typography as="p" size="xs" variant="muted">Chưa có bậc — sản phẩm dùng giá gốc cho mọi số lượng.</Typography>
+          <Typography as="p" size="xs" variant="muted">Chưa có mốc nào — mọi số lượng đều tính giá gốc.</Typography>
         )}
       </Box>
+      )}
 
-      {/* Option gói — cộng phí/đơn vị vào giá bậc */}
+      {showPackaging && (
       <Box layoutClassName="space-y-2">
         <Box layoutClassName="flex items-center justify-between gap-2">
           <Heading level={4} layoutClassName="flex items-center gap-2" textClassName="text-sm font-semibold">
-            <PackagePlus className="h-4 w-4 text-primary-500" /> Option gói
+            <PackagePlus className="h-4 w-4 text-primary-500" /> Cách gói khách chọn thêm
           </Heading>
           <Button
             type="button"
@@ -144,28 +135,28 @@ const ProductTypePricingSection: React.FC<Props> = ({
             backgroundClassName="bg-white dark:bg-slate-800"
             textClassName="text-xs font-medium text-slate-600 dark:text-slate-300"
           >
-            <Plus className="h-3.5 w-3.5" /> Thêm option
+            <Plus className="h-3.5 w-3.5" /> Thêm kiểu gói
           </Button>
         </Box>
         <Typography as="p" size="xs" variant="muted">
-          Mỗi dòng đơn chọn 1 option; phí/đơn vị cộng vào giá bậc. Vd "Đóng gói" +2.000đ, "Gói hộp + thiệp" +6.000đ.
+          Khách chọn 1 kiểu khi đặt, tiền cộng thêm cho mỗi cái. Vd "Túi giấy" +2.000đ, "Hộp + thiệp" +6.000đ.
         </Typography>
         {packagingOptions.length > 0 ? (
           <Box layoutClassName="space-y-2">
             {packagingOptions.map((opt, idx) => (
               <Box key={idx} layoutClassName="flex items-end gap-2">
                 <Box layoutClassName="flex-[2]">
-                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">Tên option</Typography> : null}
+                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">Tên kiểu gói</Typography> : null}
                   <Input
                     value={opt.label}
                     onChange={(e) => updateOpt(idx, { label: e.target.value })}
-                    placeholder="vd Gói hộp + thiệp"
+                    placeholder="vd Hộp + thiệp"
                     fullWidth
                     sizeClassName="py-2 text-sm"
                   />
                 </Box>
                 <Box layoutClassName="flex-1">
-                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">Phí/đơn vị</Typography> : null}
+                  {idx === 0 ? <Typography as="span" size="xs" variant="muted">Cộng thêm / cái</Typography> : null}
                   <Input
                     type="number"
                     min={0}
@@ -188,7 +179,7 @@ const ProductTypePricingSection: React.FC<Props> = ({
                   backgroundClassName="bg-transparent"
                   textClassName="text-slate-400 hover:text-rose-500"
                   hoverClassName="hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                  aria-label="Xoá option"
+                  aria-label="Xoá kiểu gói"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -196,9 +187,10 @@ const ProductTypePricingSection: React.FC<Props> = ({
             ))}
           </Box>
         ) : (
-          <Typography as="p" size="xs" variant="muted">Chưa có option — dòng đơn dùng giá bậc, không cộng phí gói.</Typography>
+          <Typography as="p" size="xs" variant="muted">Chưa có kiểu gói nào — khách đặt là tính đúng giá bán.</Typography>
         )}
       </Box>
+      )}
     </Box>
   );
 };
