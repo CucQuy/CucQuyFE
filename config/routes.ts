@@ -488,11 +488,18 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: ["/goals", "/goals/overview", "/goals/settings"],
   },
   {
-    // Kết nối đa kênh: hiện chỉ còn Zalo → 5 màn nằm thẳng dưới nhóm này, không lồng
-    // thêm cấp "Zalo" cho 1 kênh duy nhất. Nối lại kênh khác thì tách cấp con như cũ.
+    // Kết nối đa kênh (cha) › Zalo (con) › từng màn. Giữ cấp "Zalo" dù hiện chỉ có 1 kênh
+    // — nối thêm kênh khác là gắn thẳng vào, không phải xếp lại menu.
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
+    childPaths: [],
+  },
+  {
+    key: "channelsZalo",
+    labelKey: "nav.channelsZalo",
+    icon: MessageCircle,
+    parentKey: "channels",
     childPaths: [
       "/channels/zalo",
       "/channels/zalo/features",

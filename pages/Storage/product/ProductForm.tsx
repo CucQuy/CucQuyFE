@@ -4,18 +4,16 @@ import BaseSlidePanel from '@/components/BaseSlidePanel';
 import Tabs from '@/components/ui/Tabs';
 import Textarea from '@/components/ui/Textarea';
 import type { ComboItem, Product, PriceTier, PackagingOption, ProductType } from '@/types';
-import { PRODUCT_TYPES, productTypeSections } from '@/types/product';
+import { PRODUCT_TYPES, productTypeLabel, productTypeSections } from '@/types/product';
 import ProductTypePricingSection from '@/pages/Storage/product/components/ProductTypePricingSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getProductImagePath, uploadImage } from '@/services/imageService';
 import { useBadges } from '@/hooks/queries/useBadgesQuery';
-import { useCategories } from '@/hooks/queries/useCategoriesQuery';
 import { useProductVersions, useProducts } from '@/hooks/queries/useProductsQuery';
 import { fetchProductCombo, saveProductCombo } from '@/services/productService';
+import { suggestProductDescription } from '@/services/aiProductService';
 import type { ProductBadge } from '@/types/badge';
 import GallerySection from '@/pages/Storage/product/components/GallerySection';
-import CategoryPicker from '@/pages/Storage/product/components/CategoryPicker';
-import TagPicker from '@/pages/Storage/product/components/TagPicker';
 import FlavorVariantEditor from '@/pages/Storage/product/components/FlavorVariantEditor';
 import SizeEditor from '@/pages/Storage/product/components/SizeEditor';
 import ComboEditor from '@/pages/Storage/product/components/ComboEditor';
@@ -45,6 +43,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [suggestingDesc, setSuggestingDesc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form fields
@@ -69,9 +68,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
   type TabId = 'basic' | 'images' | 'selling' | 'history';
   const [activeTab, setActiveTab] = useState<TabId>('basic');
 
-  // Configs (badges + categories) qua React Query
+  // Nhãn (badge) chỉ để lọc lại tags cũ khi lưu — form không còn khối chọn nhãn.
   const { productBadges } = useBadges();
-  const { categories } = useCategories();
   const { products: allProducts } = useProducts();
 
   // Lịch sử version — chỉ fetch khi mở tab history + có sản phẩm
@@ -88,9 +86,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
       combo: base.combo || comboItems.length > 0,
       priceTiers: base.priceTiers || priceTiers.length > 0,
       packaging: base.packaging || packagingOptions.length > 0,
-      badges: base.badges || tags.length > 0,
     };
-  }, [type, flavorVariants.length, sizes.length, comboItems.length, priceTiers.length, packagingOptions.length, tags.length]);
+  }, [type, flavorVariants.length, sizes.length, comboItems.length, priceTiers.length, packagingOptions.length]);
 
   const badgeByName = useMemo(() => {
     const m = new Map<string, ProductBadge>();
@@ -116,7 +113,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
       setSizes(initialData.sizes || []);
       setDescription(initialData.description || '');
       setStatus(initialData.status);
-      setType((initialData.type as ProductType) || 'cake');
+      // SP cũ có thể mang loại đã bỏ (giftset/packaging/…) → đưa về 'cake'.
+      const t0 = initialData.type as ProductType;
+      setType(PRODUCT_TYPES.some((o) => o.value === t0) ? t0 : 'cake');
       setPriceTiers(initialData.priceTiers || []);
       setPackagingOptions(initialData.packagingOptions || []);
     } else {
@@ -217,6 +216,31 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
     });
   };
 
+  /** Nhờ AI viết mô tả cho khách từ tên + loại + vị + size đang khai báo. */
+  const handleSuggestDescription = async () => {
+    if (!name.trim()) {
+      setError('Nhập tên sản phẩm trước khi nhờ AI gợi ý mô tả');
+      return;
+    }
+    setError(null);
+    setSuggestingDesc(true);
+    try {
+      const text = await suggestProductDescription({
+        name,
+        typeLabel: productTypeLabel(type),
+        flavors: flavorVariants.map((v) => v.name),
+        sizes: sizes.map((sz) => sz.name),
+        current: description,
+      });
+      if (text) setDescription(text);
+      else setError('AI chưa nghĩ ra mô tả nào — thử lại hoặc tự viết.');
+    } catch (err: any) {
+      setError(err?.message || 'Gợi ý mô tả thất bại');
+    } finally {
+      setSuggestingDesc(false);
+    }
+  };
+
   // === Submit ===
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +255,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
         price,
         image,
         gallery,
-        category: category || 'General',
+        // Nhóm menu: SP cũ giữ nhóm sẵn có, SP mới lấy theo Loại (Bánh / Nước / Combo).
+        category: category || productTypeLabel(type),
         tags: tags.filter((tag) => badgeByName.has(tag)),
         flavors: flavorVariants.map((v) => v.name),
         flavorVariants,
@@ -525,25 +550,21 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
                 </Typography>
               </Field>
 
-              <Box layoutClassName="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Giá bán">
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    leftIcon={<DollarSign className="h-4 w-4" />}
-                    backgroundClassName="bg-slate-50 dark:bg-slate-700"
-                  />
-                </Field>
-                <CategoryPicker
-                  value={category}
-                  onChange={setCategory}
-                  categories={categories}
-                  label="Nhóm hiển thị trên menu"
+              {/* Giá bán: gõ số trần, hiện ngay dạng 1.250.000 cho dễ soát. */}
+              <Field label="Giá bán (₫)" hint="Gõ số, tự chấm phân cách nghìn — VD: 1.250.000">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={price > 0 ? price.toLocaleString('vi-VN') : ''}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    setPrice(digits ? Number(digits) : 0);
+                  }}
+                  placeholder="0"
+                  leftIcon={<DollarSign className="h-4 w-4" />}
+                  backgroundClassName="bg-slate-50 dark:bg-slate-700"
                 />
-              </Box>
+              </Field>
 
               <Field label="Đang bán?">
                 <Select
@@ -559,27 +580,38 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSave, onCancel
               </Field>
 
               <Field label="Mô tả cho khách">
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                  placeholder="VD: Bánh nếp bơ mềm dẻo, thơm bơ động vật..."
-                  leftIcon={<AlignLeft className="h-4 w-4" />}
-                />
+                <Box layoutClassName="space-y-2">
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                    placeholder="VD: Bánh nếp bơ mềm dẻo, thơm bơ động vật..."
+                    leftIcon={<AlignLeft className="h-4 w-4" />}
+                  />
+                  <Box layoutClassName="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void handleSuggestDescription()}
+                      disabled={suggestingDesc || !name.trim()}
+                      leftIcon={
+                        suggestingDesc ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5" />
+                        )
+                      }
+                      iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
+                      sizeClassName="px-2 py-1 text-xs"
+                      layoutClassName="inline-flex items-center gap-1.5"
+                    >
+                      {suggestingDesc ? 'AI đang viết…' : 'Gợi ý bằng AI'}
+                    </Button>
+                  </Box>
+                </Box>
               </Field>
             </FormSection>
-
-            {/* 6. Nhãn hiển thị */}
-            {show.badges && (
-              <FormSection
-                title="Nhãn nổi bật"
-                hint="Hiện trên web và menu"
-                icon={<Sparkles className="h-4 w-4 text-primary-500" />}
-              >
-                <TagPicker tags={tags} productBadges={productBadges} onChange={setTags} flat />
-              </FormSection>
-            )}
           </>
         )}
       </form>

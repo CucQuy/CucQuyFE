@@ -20,16 +20,13 @@ export interface ProductFlavorVariant {
   price?: number;
 }
 
-/** Phân loại sản phẩm (mô hình "mọi thứ là sản phẩm"). */
-export type ProductType = 'cake' | 'giftset' | 'packaging' | 'decoration' | 'accessory' | 'service';
+/** Phân loại sản phẩm — 3 loại bán ở tiệm. */
+export type ProductType = 'cake' | 'drink' | 'combo';
 
 export const PRODUCT_TYPES: { value: ProductType; label: string; hint: string }[] = [
-  { value: 'cake', label: 'Bánh / Nước', hint: 'Món bán lẻ — có thể khai báo vị, size' },
-  { value: 'giftset', label: 'Set quà / Box combo', hint: 'Hộp gồm nhiều món lấy từ sản phẩm có sẵn' },
-  { value: 'packaging', label: 'Bao bì, hộp đựng', hint: 'Bán kèm hoặc tính phụ phí gói' },
-  { value: 'decoration', label: 'Trang trí', hint: 'Nến, topper, phụ kiện gắn lên bánh' },
-  { value: 'accessory', label: 'Phụ kiện', hint: 'Dao, đĩa, ly, thìa…' },
-  { value: 'service', label: 'Dịch vụ / khác', hint: 'Ship, viết chữ, thuê đồ…' },
+  { value: 'cake', label: 'Bánh', hint: 'Món bánh bán lẻ — có thể khai báo vị, size' },
+  { value: 'drink', label: 'Nước', hint: 'Đồ uống — có thể khai báo size, vị' },
+  { value: 'combo', label: 'Combo', hint: 'Set gồm nhiều món lấy từ sản phẩm có sẵn' },
 ];
 
 /**
@@ -39,30 +36,23 @@ export const PRODUCT_TYPES: { value: ProductType; label: string; hint: string }[
 export interface ProductTypeSections {
   /** Vị + size (khách chọn khi mua). */
   variants: boolean;
-  /** Thành phần hộp (chọn từ sản phẩm có sẵn). */
+  /** Thành phần combo (chọn từ sản phẩm có sẵn). */
   combo: boolean;
   /** Mua nhiều giảm giá. */
   priceTiers: boolean;
   /** Cách gói — khách chọn, cộng thêm tiền. */
   packaging: boolean;
-  /** Nhãn hiển thị trên web/menu. */
-  badges: boolean;
 }
 
 export const productTypeSections = (t?: string): ProductTypeSections => {
   switch (t) {
-    case 'giftset':
-      return { variants: false, combo: true, priceTiers: true, packaging: true, badges: true };
-    case 'packaging':
-      return { variants: false, combo: false, priceTiers: true, packaging: false, badges: false };
-    case 'decoration':
-    case 'accessory':
-      return { variants: false, combo: false, priceTiers: true, packaging: false, badges: false };
-    case 'service':
-      return { variants: false, combo: false, priceTiers: false, packaging: false, badges: false };
+    case 'combo':
+      return { variants: false, combo: true, priceTiers: true, packaging: true };
+    case 'drink':
+      return { variants: true, combo: false, priceTiers: true, packaging: false };
     case 'cake':
     default:
-      return { variants: true, combo: false, priceTiers: true, packaging: true, badges: true };
+      return { variants: true, combo: false, priceTiers: true, packaging: true };
   }
 };
 
@@ -103,7 +93,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  /** Phân loại (cake mặc định / packaging / decoration / accessory / service). */
+  /** Phân loại: cake (mặc định) / drink / combo. */
   type?: ProductType;
   /** Giá bậc theo SL (tính theo tổng SL của SP này trong đơn). */
   priceTiers?: PriceTier[];
@@ -114,6 +104,7 @@ export interface Product {
   image: string;
   /** Ảnh phụ (gallery) — các góc chụp/chi tiết khác. Primary vẫn là `image` */
   gallery?: string[];
+  /** Nhóm hiển thị trên menu — form tự gán theo Loại (Bánh / Nước / Combo). */
   category: string;
   tags?: string[];
   /** Vị (multi-select) — không ảnh hưởng giá */
