@@ -4,7 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search, Landmark, Repeat,
   ShoppingCart, Undo2, Store, PiggyBank, HelpCircle,
 } from 'lucide-react';
-import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
+import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost, expenseCategoryIsKnownCost } from '@/types';
 import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import {
   fetchLedger, fetchInCandidateOrders, setTxShipping, setTransactionExpense,
@@ -233,7 +233,8 @@ const guessInKind = (tx: LedgerTransaction): InKind => {
   if (cat === 'shopee') return 'shopee';
   if (cat === 'sweep') return 'sweep';
   if (cat === 'other_in') return 'other';
-  if (expenseCategoryIsCost(cat)) return 'credit';
+  // Chỉ hạng mục chuẩn mới là "bù chi phí" — ghi chú gõ tay cũ (vd "Chủ nạp vốn") thì không.
+  if (expenseCategoryIsKnownCost(cat)) return 'credit';
   const text = `${tx.content ?? ''} ${tx.description ?? ''}`.toLowerCase();
   if (text.includes('shopee')) return 'shopee';
   return 'order';

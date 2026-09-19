@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { GitMerge, Package, Plus, ShoppingBag, TrendingUp, Truck, X } from 'lucide-react';
+import { Package, Plus, ShoppingBag, TrendingUp, Truck } from 'lucide-react';
 import type { ImportedMaterialSummary } from '@/types/billReceipt';
-import { createMaterial, mergeMaterials } from '@/services/stockReceiptService';
+import { createMaterial } from '@/services/stockReceiptService';
 import StatsBanner from '@/components/ui/StatsBanner';
 import { filterByPeriod, PERIOD_OPTIONS, type DatePeriod } from '@/pages/StockReceipts/dateFilter';
 import FilterToolbar from '@/components/shared/FilterToolbar';
@@ -21,10 +21,7 @@ import { useImportedSuppliers } from '@/hooks/queries/useStockReceiptQuery';
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '@/components/ui/Table';
 import { formatVNDOrDash } from '@/utils/format/currencyUtil';
 import { formatDateISO, parseDateValue } from '@/utils/format/dateUtil';
-import MergeItemsModal, { type MergeItemDescriptor } from '@/pages/StockReceipts/MergeItemsModal';
 import EmptyState from '@/components/ui/EmptyState';
-
-import Checkbox from '@/components/ui/Checkbox';
 
 type MaterialForm = { name: string; unit: string; lastUnitPrice: string; quantity: string; supplierId: string; supplierName: string; receiptDate: string };
 const EMPTY_MATERIAL: MaterialForm = { name: '', unit: '', lastUnitPrice: '', quantity: '', supplierId: '', supplierName: '', receiptDate: '' };
@@ -88,8 +85,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
   extraActions,
 }) => {
   const { t } = useLanguage();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mergeOpen, setMergeOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'amount' | 'name' | 'count'>('recent');
   const [period, setPeriod] = useState<DatePeriod>('all');
   const [addOpen, setAddOpen] = useState(false);
@@ -123,16 +118,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
     return { totalAmount, totalQty, totalCount };
   }, [periodFiltered]);
 
-  const toggle = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const clearSelection = () => setSelected(new Set());
-
   const openAdd = () => { setForm(EMPTY_MATERIAL); setAddOpen(true); };
 
   const saveMaterial = async () => {
@@ -165,14 +150,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
     }
   };
 
-  const selectedItems: MergeItemDescriptor[] = filteredMaterials
-    .filter((m) => selected.has(m.id))
-    .map((m) => ({
-      id: m.id,
-      name: m.name,
-      subtitle: `${m.importCount} lần · ${m.totalQty} sp · ${formatVNDOrDash(m.totalAmount)}`,
-    }));
-
   // Nút hành động đặt trong toolbar (giống slot actions của trang Products).
   const toolbarActions = (
     <>
@@ -190,35 +167,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
         Thêm NVL
       </Button>
       {extraActions}
-      {selected.size >= 2 ? (
-        <Button
-          type="button"
-          onClick={() => setMergeOpen(true)}
-          leftIcon={<GitMerge />}
-          iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-          sizeClassName="px-3 py-1.5 text-xs"
-          backgroundClassName="bg-gradient-to-r from-primary-600 to-primary-600"
-          textClassName="font-semibold text-white"
-          roundedClassName="rounded-lg"
-          layoutClassName="inline-flex items-center gap-1.5"
-          disableVariantHover
-          disableVariantTextColor
-        >
-          Gộp {selected.size}
-        </Button>
-      ) : null}
-      {selected.size > 0 ? (
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={clearSelection}
-          leftIcon={<X />}
-          iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-          sizeClassName="px-2 py-1.5 text-xs"
-        >
-          Bỏ chọn
-        </Button>
-      ) : null}
       <Button
         type="button"
         variant="secondary"
@@ -278,13 +226,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
         }
         onClearAll={() => { setPeriod('all'); onMaterialSearchChange(''); }}
       />
-      {selected.size >= 1 ? (
-        <Typography size="xs" variant="muted">
-          Đã chọn {selected.size} mục.{' '}
-          {selected.size < 2 ? 'Chọn thêm để gộp.' : 'Bấm "Gộp" để hợp nhất.'}
-        </Typography>
-      ) : null}
-
       {/* ===== Desktop: bảng dày · Mobile: card ===== */}
       <Box layoutClassName="max-h-[640px] overflow-auto px-1 pb-1">
           {sortedMaterials.length === 0 ? (
@@ -295,28 +236,17 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
           ) : (
             <Box layoutClassName="grid gap-3 p-1 sm:hidden">
               {sortedMaterials.map((row) => {
-                const isChecked = selected.has(row.id);
                 const tier = materialRecencyTier(row.lastReceiptDate);
                 return (
                   <Card
                     key={row.id}
                     padding="md"
-                    layoutClassName={isChecked ? 'space-y-2' : 'space-y-2 border-l-4'}
-                    backgroundClassName={isChecked ? 'bg-primary-50/70 dark:bg-primary-950/30' : tier.backgroundClassName}
-                    borderClassName={
-                      isChecked
-                        ? 'border-2 border-primary-400 dark:border-primary-600'
-                        : tier.borderClassName
-                    }
+                    layoutClassName="space-y-2 border-l-4"
+                    backgroundClassName={tier.backgroundClassName}
+                    borderClassName={tier.borderClassName}
                   >
-                    {/* Hàng đầu: checkbox + tên (kèm chấm recency) */}
+                    {/* Hàng đầu: tên (kèm chấm recency) */}
                     <Box layoutClassName="flex items-start gap-2">
-                      <Checkbox
-                        checked={isChecked}
-                        onChange={() => toggle(row.id)}
-                        borderClassName="mt-1 shrink-0 rounded border-slate-300"
-                        focusClassName="cursor-pointer text-primary-600 focus:ring-primary-500"
-                      />
                       <Box layoutClassName="flex min-w-0 flex-1 items-center gap-1.5">
                         <Box
                           layoutClassName="mt-0.5 h-2 w-2 shrink-0 rounded-full"
@@ -370,7 +300,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableHeaderCell layoutClassName="sticky top-0 z-20 w-8 p-2 bg-white dark:bg-slate-800"> </TableHeaderCell>
                     <TableHeaderCell layoutClassName="sticky top-0 z-20 p-2 text-left bg-white dark:bg-slate-800">Tên NVL</TableHeaderCell>
                     <TableHeaderCell layoutClassName="sticky top-0 z-20 p-2 text-right bg-white dark:bg-slate-800">Đơn giá gần nhất</TableHeaderCell>
                     <TableHeaderCell layoutClassName="sticky top-0 z-20 p-2 text-right bg-white dark:bg-slate-800">Đã nhập</TableHeaderCell>
@@ -381,21 +310,11 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
                 </TableHead>
                 <TableBody>
                   {sortedMaterials.map((row) => {
-                    const isChecked = selected.has(row.id);
                     const tier = materialRecencyTier(row.lastReceiptDate);
                     return (
                       <TableRow
                         key={row.id}
-                        borderClassName="border-b border-slate-100 dark:border-slate-700/60"
-                        backgroundClassName={isChecked ? 'bg-primary-50/70 dark:bg-primary-950/30' : ''}>
-                        <TableCell layoutClassName="p-2">
-                          <Checkbox
-                            checked={isChecked}
-                            onChange={() => toggle(row.id)}
-                            borderClassName="shrink-0 rounded border-slate-300"
-                            focusClassName="cursor-pointer text-primary-600 focus:ring-primary-500"
-                          />
-                        </TableCell>
+                        borderClassName="border-b border-slate-100 dark:border-slate-700/60">
                         <TableCell layoutClassName="p-2" textClassName="text-sm font-medium text-slate-800 dark:text-slate-100">{row.name}</TableCell>
                         <TableCell layoutClassName="p-2 text-right" textClassName="text-sm font-semibold tabular-nums text-primary-700 dark:text-primary-300">
                           {formatVNDOrDash(row.lastUnitPrice)}
@@ -478,18 +397,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
           </Box>
         </Box>
       </BaseSlidePanel>
-
-      <MergeItemsModal
-        open={mergeOpen}
-        itemTypeLabel="nguyên liệu"
-        items={selectedItems}
-        onClose={() => setMergeOpen(false)}
-        onConfirm={mergeMaterials}
-        onDone={() => {
-          clearSelection();
-          void onRefresh();
-        }}
-      />
     </Box>
   );
 };

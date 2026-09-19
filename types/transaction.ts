@@ -79,6 +79,14 @@ export const expenseCategoryTag = (c?: string | null): string =>
     ? (EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? IN_CATEGORY_LABELS[c] ?? c)
     : '';
 
+/**
+ * Category thuộc DANH SÁCH CHUẨN của dropdown chi phí (khớp expense_category_is_known_cost ở BE).
+ * Chặt hơn expenseCategoryIsCost — hàm kia coi mọi chuỗi lạ (ghi chú gõ tay cũ) là chi phí.
+ * Dùng khi cần biết tiền VÀO có phải "thu bù chi phí" không.
+ */
+export const expenseCategoryIsKnownCost = (c?: string | null): boolean =>
+  EXPENSE_CATEGORIES.some((x) => x.value === c && x.cost !== false);
+
 /** Category này có tính vào chi phí quán không (khớp expense_category_is_cost ở BE).
  *  Nhãn riêng của tiền vào (capital/shopee/other_in) cũng KHÔNG phải chi phí. */
 export const expenseCategoryIsCost = (c?: string | null): boolean =>
