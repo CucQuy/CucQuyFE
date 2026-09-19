@@ -18,7 +18,7 @@ const SepaySettingsPage: React.FC = () => {
       <Box>
         <Heading level={2} textClassName="flex items-center gap-2 text-xl font-semibold">
           <QrCode className="h-6 w-6 text-primary-500" />
-          {t('nav.settingsSepay')}
+          {t('nav.txAccounts')}
         </Heading>
         <Typography size="sm" variant="muted" layoutClassName="mt-1">
           Cấu hình tài khoản ngân hàng nhận tiền / QR thanh toán.
