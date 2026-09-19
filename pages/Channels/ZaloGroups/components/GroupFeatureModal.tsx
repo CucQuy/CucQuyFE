@@ -15,6 +15,7 @@ import Button from '@/components/ui/Button';
 import Checkbox from '@/components/ui/Checkbox';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
+import Switch from '@/components/ui/Switch';
 import Typography from '@/components/ui/Typography';
 
 const userLabel = (u: UserData) => u.customName || u.displayName || u.email || u.uid;
@@ -152,15 +153,21 @@ const GroupFeatureModal: React.FC<Props> = ({
           >
             Chức năng thông báo
           </Typography>
-          <Box layoutClassName="grid gap-1.5 sm:grid-cols-2">
+          <Box layoutClassName="grid gap-1 sm:grid-cols-2">
             {ZALO_NOTIFY_FEATURES.map((f) => (
-              <Checkbox
+              <Box
                 key={f.value}
-                checked={current.features.includes(f.value)}
-                onChange={(e) => toggleFeature(f.value, e.target.checked)}
-                label={f.label}
-                labelClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
-              />
+                layoutClassName="flex items-center justify-between gap-3 py-1.5"
+              >
+                <Typography size="xs" textClassName="font-medium text-slate-700 dark:text-slate-200">
+                  {f.label}
+                </Typography>
+                <Switch
+                  checked={current.features.includes(f.value)}
+                  onCheckedChange={(v) => toggleFeature(f.value, v)}
+                  aria-label={f.label}
+                />
+              </Box>
             ))}
           </Box>
         </Box>

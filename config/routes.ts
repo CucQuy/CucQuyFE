@@ -25,7 +25,6 @@ import {
   ShieldCheck,
   Tag,
   Monitor,
-  MessageSquare,
   QrCode,
   Building2,
   Clock,
@@ -134,7 +133,8 @@ export const routes: RouteConfig[] = [
     icon: ShoppingCart,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
   },
-  // Kết nối đa kênh: mỗi việc là 1 screen riêng (không dùng tab) để phân quyền lẻ từng màn.
+  // Kết nối đa kênh: nhóm + cờ tổng chức năng + tin gửi khách gom trong 1 màn Zalo;
+  // thông báo đơn và nhật ký gửi vẫn là màn riêng để phân quyền lẻ.
   {
     type: "page",
     path: "/channels/zalo",
@@ -147,20 +147,6 @@ export const routes: RouteConfig[] = [
     path: "/channels/zalo/orders",
     labelKey: "nav.chZaloOrders",
     icon: Bell,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/zalo/features",
-    labelKey: "nav.chZaloFeatures",
-    icon: SlidersHorizontal,
-    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
-  },
-  {
-    type: "page",
-    path: "/channels/zalo/settings",
-    labelKey: "nav.chZaloSettings",
-    icon: MessageSquare,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
   {
@@ -502,8 +488,6 @@ export const navGroups: NavGroupConfig[] = [
     parentKey: "channels",
     childPaths: [
       "/channels/zalo",
-      "/channels/zalo/features",
-      "/channels/zalo/settings",
       "/channels/zalo/orders",
       "/channels/zalo/log",
     ],

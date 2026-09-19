@@ -79,14 +79,14 @@ const ZaloSettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Box layoutClassName="flex h-full items-center justify-center">
+      <Box layoutClassName="flex items-center justify-center py-10">
         <Spinner />
       </Box>
     );
   }
 
   return (
-    <Card layoutClassName="space-y-4 p-4">
+    <Box layoutClassName="space-y-4">
       <Box layoutClassName="flex flex-wrap items-start justify-between gap-2">
         <Box layoutClassName="space-y-1">
           <Heading
@@ -179,7 +179,7 @@ const ZaloSettingsPage: React.FC = () => {
           {saving ? 'Đang lưu…' : 'Lưu cài đặt'}
         </Button>
       </Box>
-    </Card>
+    </Box>
   );
 };
 

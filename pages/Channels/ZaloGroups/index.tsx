@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, RefreshCw, Users } from 'lucide-react';
+import { AlertTriangle, ChevronRight, RefreshCw, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
@@ -35,7 +35,8 @@ const newConfigId = () =>
  *
  * Danh sách = TOÀN BỘ nhóm của nick Zalo đang gửi (listAllGroupForPartner qua BE), tự
  * nạp khi vào màn — không nhập/dán ID nhóm tay nữa (sai 1 ký tự là bridge vẫn báo "đã
- * nhận" nhưng tin không tới nhóm nào). Bấm 1 nhóm → modal gán chức năng thông báo.
+ * nhận" nhưng tin không tới nhóm nào). Bấm vào DÒNG nhóm → modal bật/tắt chức năng
+ * thông báo của riêng nhóm đó.
  * Cấu hình lưu ở zalo_groups; nhóm chưa gán gì thì không nhận thông báo nào.
  */
 const ZaloGroupsPage: React.FC = () => {
@@ -229,12 +230,17 @@ const ZaloGroupsPage: React.FC = () => {
                 <TableHeaderCell>Thành viên</TableHeaderCell>
                 <TableHeaderCell>Chức năng thông báo</TableHeaderCell>
                 <TableHeaderCell>CTV</TableHeaderCell>
-                <TableHeaderCell>Thao tác</TableHeaderCell>
+                <TableHeaderCell> </TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.zaloGroupId}>
+                <TableRow
+                  key={r.zaloGroupId}
+                  onClick={() => setOpenId(r.zaloGroupId)}
+                  layoutClassName="cursor-pointer"
+                  hoverClassName="hover:bg-slate-50 dark:hover:bg-slate-700/40"
+                >
                   <TableCell layoutClassName="px-5 py-3.5">
                     <Typography size="sm" textClassName="font-semibold">
                       {r.name}
@@ -285,14 +291,8 @@ const ZaloGroupsPage: React.FC = () => {
                       {r.memberUids.length ? `${r.memberUids.length} CTV` : '—'}
                     </Typography>
                   </TableCell>
-                  <TableCell layoutClassName="whitespace-nowrap px-5 py-3.5">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setOpenId(r.zaloGroupId)}
-                    >
-                      Gán chức năng
-                    </Button>
+                  <TableCell layoutClassName="w-10 whitespace-nowrap px-5 py-3.5 text-right">
+                    <ChevronRight className="inline h-4 w-4 text-slate-400" />
                   </TableCell>
                 </TableRow>
               ))}

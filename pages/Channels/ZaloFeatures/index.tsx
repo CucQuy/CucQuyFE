@@ -63,14 +63,14 @@ const ZaloFeaturesPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Box layoutClassName="flex h-full items-center justify-center">
+      <Box layoutClassName="flex items-center justify-center py-10">
         <Spinner />
       </Box>
     );
   }
 
   return (
-    <Box layoutClassName="h-full space-y-4 overflow-y-auto">
+    <Box layoutClassName="space-y-4">
       {SECTIONS.map((sec) => (
         <Card key={sec.title} layoutClassName="space-y-1 p-0 overflow-hidden">
           <Box
