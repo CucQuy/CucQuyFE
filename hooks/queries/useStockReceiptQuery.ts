@@ -23,24 +23,15 @@ import { qk } from '@/hooks/queryKeys';
 import {
   fetchImportedMaterials,
   fetchImportedSuppliers,
-  fetchMaterialMergeSuggestions,
-  fetchMaterialMergeSuggestionsAi,
   fetchMaterialPriceOptions,
   fetchStockReceiptDetail,
   fetchStockReceiptSummaries,
   deleteStockReceipt,
-  mergeMaterials,
-  mergeSuppliers,
   saveStockReceiptDraft,
   updateMaterial,
   updateSupplier,
-  type MaterialMergeAiGroup,
-  type MaterialMergeSuggestionPair,
   type MaterialPriceOption,
 } from '@/services/stockReceiptService';
-
-/** Ngưỡng độ giống mặc định cho gợi ý gộp NVL (đồng bộ với BE). */
-export const DEFAULT_MATERIAL_MERGE_THRESHOLD = 0.4;
 
 // ==================== QUERIES ====================
 
@@ -116,64 +107,6 @@ export const useMaterialPriceOptions = (enabled = true): UseMaterialPriceOptions
   };
 };
 
-export interface UseMaterialMergeSuggestionsResult {
-  suggestions: MaterialMergeSuggestionPair[];
-  loading: boolean;
-  error: Error | null;
-  refetch: () => Promise<void>;
-}
-
-/**
- * Gợi ý các cặp NVL nghi trùng. `enabled` để chỉ fetch khi user mở panel gợi ý
- * (tránh gọi API nặng ngay khi vào trang). `threshold` đổi → key đổi → query mới.
- */
-export const useMaterialMergeSuggestions = (
-  enabled = true,
-  threshold = DEFAULT_MATERIAL_MERGE_THRESHOLD,
-): UseMaterialMergeSuggestionsResult => {
-  const { currentUser } = useAuth();
-  const query = useQuery({
-    queryKey: qk.stockReceipt.materialMergeSuggestions(threshold),
-    queryFn: () => fetchMaterialMergeSuggestions(threshold),
-    enabled: !!currentUser && enabled,
-  });
-  return {
-    suggestions: query.data ?? [],
-    loading: query.isLoading || query.isFetching,
-    error: query.error,
-    refetch: async () => {
-      await query.refetch();
-    },
-  };
-};
-
-export interface UseMaterialMergeSuggestionsAiResult {
-  groups: MaterialMergeAiGroup[];
-  loading: boolean;
-  error: Error | null;
-  /** Chạy AI phân tích (gọi Claude). On-demand — chỉ khi user bấm. */
-  run: () => Promise<void>;
-  /** Đã chạy ít nhất 1 lần (để phân biệt "chưa chạy" vs "chạy xong không có nhóm"). */
-  hasRun: boolean;
-}
-
-/**
- * Gợi ý gộp NVL bằng AI (Claude). Dùng mutation vì gọi tốn kém + on-demand
- * (chỉ khi user bấm nút), không auto-fetch như gợi ý theo tên.
- */
-export const useMaterialMergeSuggestionsAi = (): UseMaterialMergeSuggestionsAiResult => {
-  const mutation = useMutation({ mutationFn: fetchMaterialMergeSuggestionsAi });
-  return {
-    groups: mutation.data ?? [],
-    loading: mutation.isPending,
-    error: (mutation.error as Error) ?? null,
-    run: async () => {
-      await mutation.mutateAsync();
-    },
-    hasRun: mutation.isSuccess || mutation.isError,
-  };
-};
-
 export interface UseStockReceiptSummariesResult {
   receipts: SavedStockReceiptSummary[];
   loading: boolean;
@@ -239,11 +172,6 @@ export interface UpdateSupplierArgs {
   patch: Partial<SupplierContactInfo> & { name?: string };
 }
 
-export interface MergeArgs {
-  rootId: string;
-  duplicateIds: string[];
-}
-
 export interface UpdateMaterialArgs {
   id: string;
   patch: { name?: string; canonicalUnit?: string };
@@ -253,23 +181,11 @@ export interface UseStockReceiptMutationsResult {
   saveDraft: (args: SaveStockReceiptDraftArgs) => Promise<string>;
   updateSupplierInfo: (args: UpdateSupplierArgs) => Promise<void>;
   updateMaterialInfo: (args: UpdateMaterialArgs) => Promise<void>;
-  mergeSuppliersInto: (args: MergeArgs) => Promise<void>;
-  mergeMaterialsInto: (args: MergeArgs) => Promise<void>;
   deleteReceipt: (receiptId: string) => Promise<{ ok: boolean; reason?: string }>;
 }
 
 export const useStockReceiptMutations = (): UseStockReceiptMutationsResult => {
   const queryClient = useQueryClient();
-
-  // Prefix ['stock-receipt','material-merge-suggestions'] → invalidate mọi threshold.
-  const MATERIAL_MERGE_SUGGESTIONS_PREFIX = [
-    'stock-receipt',
-    'material-merge-suggestions',
-  ] as const;
-
-  const invalidateMaterialMergeSuggestions = () => {
-    queryClient.invalidateQueries({ queryKey: MATERIAL_MERGE_SUGGESTIONS_PREFIX });
-  };
 
   const invalidateMasters = () => {
     queryClient.invalidateQueries({ queryKey: qk.stockReceipt.suppliers });
@@ -292,29 +208,11 @@ export const useStockReceiptMutations = (): UseStockReceiptMutationsResult => {
     },
   });
 
-  const mergeSuppliersMutation = useMutation({
-    mutationFn: ({ rootId, duplicateIds }: MergeArgs) => mergeSuppliers(rootId, duplicateIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.stockReceipt.suppliers });
-      queryClient.invalidateQueries({ queryKey: qk.stockReceipt.summaries });
-    },
-  });
-
-  const mergeMaterialsMutation = useMutation({
-    mutationFn: ({ rootId, duplicateIds }: MergeArgs) => mergeMaterials(rootId, duplicateIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.stockReceipt.materials });
-      queryClient.invalidateQueries({ queryKey: qk.stockReceipt.materialPriceOptions });
-      invalidateMaterialMergeSuggestions();
-    },
-  });
-
   const updateMaterialMutation = useMutation({
     mutationFn: ({ id, patch }: UpdateMaterialArgs) => updateMaterial(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.stockReceipt.materials });
       queryClient.invalidateQueries({ queryKey: qk.stockReceipt.materialPriceOptions });
-      invalidateMaterialMergeSuggestions();
     },
   });
 
@@ -330,8 +228,6 @@ export const useStockReceiptMutations = (): UseStockReceiptMutationsResult => {
     saveDraft: (args) => saveDraftMutation.mutateAsync(args),
     updateSupplierInfo: (args) => updateSupplierMutation.mutateAsync(args),
     updateMaterialInfo: (args) => updateMaterialMutation.mutateAsync(args),
-    mergeSuppliersInto: (args) => mergeSuppliersMutation.mutateAsync(args),
-    mergeMaterialsInto: (args) => mergeMaterialsMutation.mutateAsync(args),
     deleteReceipt: (receiptId) => deleteReceiptMutation.mutateAsync(receiptId),
   };
 };

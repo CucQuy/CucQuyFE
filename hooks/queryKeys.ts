@@ -118,8 +118,6 @@ export const qk = {
     suppliers: ['stock-receipt', 'suppliers'] as const,
     materials: ['stock-receipt', 'materials'] as const,
     materialPriceOptions: ['stock-receipt', 'material-price-options'] as const,
-    materialMergeSuggestions: (threshold: number) =>
-      ['stock-receipt', 'material-merge-suggestions', threshold] as const,
     summaries: ['stock-receipt', 'summaries'] as const,
     detail: (id: string) => ['stock-receipt', 'detail', id] as const,
   },

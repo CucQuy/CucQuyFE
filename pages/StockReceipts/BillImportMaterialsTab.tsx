@@ -72,8 +72,6 @@ export interface BillImportMaterialsTabProps {
   masterLoading: boolean;
   onRefresh: () => void;
   filteredMaterials: ImportedMaterialSummary[];
-  /** Nút phụ chèn vào slot actions của toolbar (vd nút Gợi ý gộp). */
-  extraActions?: React.ReactNode;
 }
 
 const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
@@ -82,7 +80,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
   masterLoading,
   onRefresh,
   filteredMaterials,
-  extraActions,
 }) => {
   const { t } = useLanguage();
   const [sortBy, setSortBy] = useState<'recent' | 'amount' | 'name' | 'count'>('recent');
@@ -166,7 +163,6 @@ const BillImportMaterialsTab: React.FC<BillImportMaterialsTabProps> = ({
       >
         Thêm NVL
       </Button>
-      {extraActions}
       <Button
         type="button"
         variant="secondary"

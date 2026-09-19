@@ -3,7 +3,6 @@ import toast from 'react-hot-toast';
 import {
   ChevronDown,
   ChevronRight,
-  GitMerge,
   Mail,
   MapPin,
   Pencil,
@@ -16,7 +15,6 @@ import {
   TrendingUp,
   Truck,
   User,
-  X,
 } from 'lucide-react';
 import type { ImportedSupplierSummary } from '@/types/billReceipt';
 import {
@@ -24,7 +22,7 @@ import {
   supplierChannelBadgeColor,
   supplierChannelLabel,
 } from '@/types/billReceipt';
-import { mergeSuppliers, setSupplierPinned } from '@/services/stockReceiptService';
+import { setSupplierPinned } from '@/services/stockReceiptService';
 import StatsBanner from '@/components/ui/StatsBanner';
 import { filterByPeriod, PERIOD_OPTIONS, type DatePeriod } from '@/pages/StockReceipts/dateFilter';
 import FilterToolbar from '@/components/shared/FilterToolbar';
@@ -36,10 +34,7 @@ import Typography from '@/components/ui/Typography';
 import Badge from '@/components/ui/Badge';
 import { formatVNDOrDash } from '@/utils/format/currencyUtil';
 import SupplierEditModal from '@/pages/StockReceipts/SupplierEditModal';
-import MergeItemsModal, { type MergeItemDescriptor } from '@/pages/StockReceipts/MergeItemsModal';
 import EmptyState from '@/components/ui/EmptyState';
-
-import Checkbox from '@/components/ui/Checkbox';
 import { formatDateISO } from '@/utils/format/dateUtil';
 /** Bậc màu nền/viền theo tổng chi (VND) — primary đậm dần. */
 const supplierAmountTier = (
@@ -85,8 +80,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<ImportedSupplierSummary | null>(null);
   const [adding, setAdding] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mergeOpen, setMergeOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'amount' | 'name' | 'count'>('recent');
   const [period, setPeriod] = useState<DatePeriod>('all');
   const [pinningId, setPinningId] = useState<string | null>(null);
@@ -145,16 +138,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
     [channelFilter],
   );
 
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const clearSelection = () => setSelected(new Set());
-
   const handleTogglePin = async (row: ImportedSupplierSummary) => {
     setPinningId(row.id);
     try {
@@ -166,14 +149,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
       setPinningId(null);
     }
   };
-
-  const selectedItems: MergeItemDescriptor[] = filteredSuppliers
-    .filter((sp) => selected.has(sp.id))
-    .map((sp) => ({
-      id: sp.id,
-      name: sp.name,
-      subtitle: `${sp.receiptCount} phiếu · ${formatVNDOrDash(sp.totalAmount)}${sp.phone ? ' · ' + sp.phone : ''}`,
-    }));
 
   // Nút hành động đặt trong toolbar (giống slot actions của trang Products).
   const toolbarActions = (
@@ -191,35 +166,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
       >
         Thêm NCC
       </Button>
-      {selected.size >= 2 ? (
-        <Button
-          type="button"
-          onClick={() => setMergeOpen(true)}
-          leftIcon={<GitMerge />}
-          iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-          sizeClassName="px-3 py-1.5 text-xs"
-          backgroundClassName="bg-gradient-to-r from-primary-600 to-primary-600"
-          textClassName="font-semibold text-white"
-          roundedClassName="rounded-lg"
-          layoutClassName="inline-flex items-center gap-1.5"
-          disableVariantHover
-          disableVariantTextColor
-        >
-          Gộp {selected.size}
-        </Button>
-      ) : null}
-      {selected.size > 0 ? (
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={clearSelection}
-          leftIcon={<X />}
-          iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-          sizeClassName="px-2 py-1.5 text-xs"
-        >
-          Bỏ chọn
-        </Button>
-      ) : null}
       <Button
         type="button"
         variant="secondary"
@@ -284,13 +230,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
           onSupplierSearchChange('');
         }}
       />
-      {selected.size >= 1 ? (
-        <Typography size="xs" variant="muted">
-          Đã chọn {selected.size} NCC.{' '}
-          {selected.size < 2 ? 'Chọn thêm để gộp.' : 'Bấm "Gộp" để hợp nhất.'}
-        </Typography>
-      ) : null}
-
       {/* ===== CARD GRID (mobile + desktop đồng nhất) ===== */}
       <Box layoutClassName="max-h-[640px] overflow-auto p-1">
           {sortedSuppliers.length === 0 ? (
@@ -301,7 +240,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
           ) : (
             <Box layoutClassName="grid gap-3 p-1 sm:grid-cols-2 xl:grid-cols-3">
               {sortedSuppliers.map((row) => {
-                const isChecked = selected.has(row.id);
                 const open = expanded === row.id;
                 const tier = supplierAmountTier(row.totalAmount || 0);
                 return (
@@ -309,23 +247,15 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
                     key={row.id}
                     padding="md"
                     layoutClassName="space-y-2"
-                    backgroundClassName={isChecked ? 'bg-primary-50/70 dark:bg-primary-950/30' : tier.backgroundClassName}
+                    backgroundClassName={tier.backgroundClassName}
                     borderClassName={
-                      isChecked
-                        ? 'border-2 border-primary-400 dark:border-primary-600'
-                        : row.pinned
-                          ? 'border border-amber-300 dark:border-amber-700'
-                          : tier.borderClassName
+                      row.pinned
+                        ? 'border border-amber-300 dark:border-amber-700'
+                        : tier.borderClassName
                     }
                   >
-                    {/* Đầu danh bạ: checkbox + tên (to) + badge Loại + badge danh mục */}
+                    {/* Đầu danh bạ: tên (to) + badge Loại + badge danh mục */}
                     <Box layoutClassName="flex items-start gap-2">
-                      <Checkbox
-                        checked={isChecked}
-                        onChange={() => toggleSelect(row.id)}
-                        borderClassName="mt-1 shrink-0 rounded border-slate-300"
-                        focusClassName="cursor-pointer text-primary-600 focus:ring-primary-500"
-                      />
                       <Box layoutClassName="min-w-0 flex-1 space-y-1">
                         <Typography size="base" layoutClassName="break-words font-semibold">
                           {row.name}
@@ -508,18 +438,6 @@ const BillImportSuppliersTab: React.FC<BillImportSuppliersTabProps> = ({
         onSaved={() => {
           setEditing(null);
           setAdding(false);
-          void onRefresh();
-        }}
-      />
-
-      <MergeItemsModal
-        open={mergeOpen}
-        itemTypeLabel="nhà cung cấp"
-        items={selectedItems}
-        onClose={() => setMergeOpen(false)}
-        onConfirm={mergeSuppliers}
-        onDone={() => {
-          clearSelection();
           void onRefresh();
         }}
       />
