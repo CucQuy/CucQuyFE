@@ -132,17 +132,3 @@ export const updateUserRole = async (uid: string, role: UserRole): Promise<void>
   }
 };
 
-/**
- * Writes zaloCtvGroupChatId on each user doc from Zalo group membership (clears when not in any group).
- * (qua BE)
- */
-export const syncZaloCtvGroupFieldsFromGroups = async (
-  groups: ZaloGroupConfig[]
-): Promise<void> => {
-  try {
-    await apiClient.post('/users/sync-zalo-groups', { groups });
-  } catch (error) {
-    console.error('Error syncing Zalo fields to users:', error);
-    throw error;
-  }
-};

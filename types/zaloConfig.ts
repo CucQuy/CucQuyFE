@@ -58,8 +58,6 @@ export interface ZaloGroupConfig {
   id: string;
   name: string;
   zaloGroupId: string;
-  /** CTV thuộc nhóm — nhóm CÓ member chỉ nhận đơn của member đó (nhóm CTV). */
-  memberUids: string[];
   /** Tính năng thông báo nhóm này nhận. */
   features: ZaloNotifyFeature[];
   updateFieldWhitelist?: string[];

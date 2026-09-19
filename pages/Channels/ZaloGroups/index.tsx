@@ -3,7 +3,6 @@ import { AlertTriangle, RefreshCw, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
-import { useUsers } from '@/hooks/queries/useUsersQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { ZaloGroupConfig, ZaloNotifyFeature, zaloFeatureLabel } from '@/types';
 import Badge from '@/components/ui/Badge';
@@ -35,7 +34,6 @@ const ZaloGroupsPage: React.FC = () => {
   const { currentUser } = useAuth();
   const { data: zaloConfig, loading: configLoading } = useZaloGroups();
   const { save: saveZaloGroups } = useSaveZaloGroups();
-  const { users } = useUsers();
 
   const [bridgeGroups, setBridgeGroups] = useState<ZaloBridgeGroup[] | null>(null);
   const [loadingBridge, setLoadingBridge] = useState(false);
@@ -74,15 +72,6 @@ const ZaloGroupsPage: React.FC = () => {
     return m;
   }, [zaloConfig]);
 
-  /** uid CTV → ID nhóm đang giữ (1 CTV chỉ nên thuộc 1 nhóm). */
-  const uidTakenBy = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const g of zaloConfig?.groups ?? []) {
-      for (const uid of g.memberUids ?? []) m.set(uid, g.zaloGroupId.trim());
-    }
-    return m;
-  }, [zaloConfig]);
-
   const bridgeIds = useMemo(
     () => new Set((bridgeGroups ?? []).map((b) => b.groupId)),
     [bridgeGroups],
@@ -100,7 +89,6 @@ const ZaloGroupsPage: React.FC = () => {
         name: b.name || cfg?.name || b.groupId,
         members: b.members,
         features: (cfg?.features ?? []) as ZaloNotifyFeature[],
-        memberUids: cfg?.memberUids ?? [],
         updateFieldWhitelist: cfg?.updateFieldWhitelist ?? [],
       };
     });
@@ -111,7 +99,6 @@ const ZaloGroupsPage: React.FC = () => {
         name: g.name || g.zaloGroupId.trim(),
         members: 0,
         features: (g.features ?? []) as ZaloNotifyFeature[],
-        memberUids: g.memberUids ?? [],
         updateFieldWhitelist: g.updateFieldWhitelist ?? [],
       }));
     const q = search.trim().toLowerCase();
@@ -141,10 +128,7 @@ const ZaloGroupsPage: React.FC = () => {
         (g) => g.zaloGroupId.trim() !== next.zaloGroupId,
       );
       const existing = configByZaloId.get(next.zaloGroupId);
-      const hasConfig =
-        next.features.length > 0 ||
-        next.memberUids.length > 0 ||
-        next.updateFieldWhitelist.length > 0;
+      const hasConfig = next.features.length > 0 || next.updateFieldWhitelist.length > 0;
 
       // Không gán gì → bỏ khỏi cấu hình cho gọn (nhóm vẫn hiện vì lấy từ Zalo).
       const groups: ZaloGroupConfig[] = hasConfig
@@ -154,7 +138,6 @@ const ZaloGroupsPage: React.FC = () => {
               id: existing?.id ?? newConfigId(),
               name: next.name,
               zaloGroupId: next.zaloGroupId,
-              memberUids: next.memberUids,
               features: next.features,
               updateFieldWhitelist: next.updateFieldWhitelist,
             },
@@ -272,11 +255,6 @@ const ZaloGroupsPage: React.FC = () => {
                             Chưa gán
                           </Typography>
                         )}
-                        {r.memberUids.length ? (
-                          <Typography size="xs" variant="muted">
-                            · {r.memberUids.length} CTV
-                          </Typography>
-                        ) : null}
                         {gone ? (
                           <Badge
                             size="sm"
@@ -302,8 +280,6 @@ const ZaloGroupsPage: React.FC = () => {
         <GroupFeaturePanel
           key={activeGroup?.zaloGroupId ?? 'empty'}
           group={activeGroup}
-          users={users}
-          uidTakenBy={uidTakenBy}
           saving={saving}
           onSave={handleSaveGroup}
         />

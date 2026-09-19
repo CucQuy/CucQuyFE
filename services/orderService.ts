@@ -75,7 +75,7 @@ export const addOrder = async (orderData: Order): Promise<void> => {
       const createdByUid =
         (orderData.createdBy as string | undefined) ??
         (created?.createdBy as string | undefined);
-      const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent("create", createdByUid);
+      const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent("create");
       // Đơn mới → đẩy HÀNG ĐỢI gửi ẢNH thẻ chia sẻ vào Zalo (ZaloShareQueueHost xử lý
       // nền: render → chụp → upload → gửi; lỗi thì fallback text). Không chặn tạo đơn.
       enqueueOrderShare(created, zaloGroupIds);
@@ -129,9 +129,6 @@ export const updateOrder = async (
         const changedFieldIds = changes.map((c: any) => c.field).filter(Boolean);
         const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent(
           "update",
-          (prevOrder?.createdBy as string | undefined) ??
-            (updated?.createdByUid as string | undefined) ??
-            editor?.uid,
           changedFieldIds,
         );
         const orderForMsg = { ...updated, id: orderId };
@@ -185,9 +182,6 @@ export const updateOrderStatus = async (
         const changedFieldIds = changes.map((c: any) => c.field).filter(Boolean);
         const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent(
           'update',
-          (prevOrder?.createdBy as string | undefined) ??
-            (updated?.createdByUid as string | undefined) ??
-            editor?.uid,
           changedFieldIds,
         );
         await sendOrderUpdateNotification(
@@ -228,9 +222,6 @@ export const patchOrderFields = async (
         const changedFieldIds = changes.map((c: any) => c.field).filter(Boolean);
         const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent(
           'update',
-          (prevOrder?.createdBy as string | undefined) ??
-            (updated?.createdByUid as string | undefined) ??
-            editor?.uid,
           changedFieldIds,
         );
         await sendOrderUpdateNotification(
@@ -731,10 +722,7 @@ export const deleteOrder = async (
       try {
         const uidShort = editor?.uid ? "User-" + editor.uid.slice(0, 6) : null;
         const editorName = editor?.displayName || editor?.email || uidShort || "Unknown";
-        const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent(
-          "delete",
-          (existing.createdBy as string | undefined) ?? editor?.uid,
-        );
+        const zaloGroupIds = await resolveZaloGroupIdsForOrderEvent("delete");
         await sendOrderDeleteNotification(
           { ...existing, id: orderId },
           { name: editorName, uid: editor?.uid },

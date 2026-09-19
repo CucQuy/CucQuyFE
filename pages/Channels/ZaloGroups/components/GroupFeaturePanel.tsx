@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sendZaloTestMessage } from '@/services/zaloService';
-import { UserData, UserRole } from '@/types/user';
 import {
   ZALO_NOTIFY_FEATURES,
   ZALO_TRACKABLE_FIELDS,
@@ -14,12 +13,9 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Checkbox from '@/components/ui/Checkbox';
 import EmptyState from '@/components/ui/EmptyState';
-import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
 import Switch from '@/components/ui/Switch';
 import Typography from '@/components/ui/Typography';
-
-const userLabel = (u: UserData) => u.customName || u.displayName || u.email || u.uid;
 
 export interface GroupDraft {
   /** ID nhóm Zalo thật (từ danh sách nhóm của nick đang gửi). */
@@ -27,44 +23,25 @@ export interface GroupDraft {
   name: string;
   members: number;
   features: ZaloNotifyFeature[];
-  memberUids: string[];
   updateFieldWhitelist: string[];
 }
 
 interface Props {
   group: GroupDraft | null;
-  users: UserData[];
-  /** uid → id nhóm khác đang giữ CTV đó (1 CTV chỉ thuộc 1 nhóm). */
-  uidTakenBy: Map<string, string>;
   saving: boolean;
   onSave: (next: GroupDraft) => Promise<void>;
 }
 
 /**
  * Panel chức năng của 1 nhóm Zalo — nằm ngay cạnh danh sách nhóm (không modal):
- * bật/tắt loại thông báo nhóm nhận, chọn CTV thuộc nhóm (nhóm có CTV chỉ nhận đơn của
- * CTV đó) và lọc field khi báo sửa đơn. Parent truyền `key` theo id nhóm để panel
- * mount lại (seed draft) mỗi lần đổi nhóm.
+ * bật/tắt loại thông báo nhóm nhận và lọc field khi báo sửa đơn. Parent truyền `key`
+ * theo id nhóm để panel mount lại (seed draft) mỗi lần đổi nhóm.
  */
-const GroupFeaturePanel: React.FC<Props> = ({ group, users, uidTakenBy, saving, onSave }) => {
+const GroupFeaturePanel: React.FC<Props> = ({ group, saving, onSave }) => {
   const [draft, setDraft] = useState<GroupDraft | null>(group);
-  const [userSearch, setUserSearch] = useState('');
   const [testing, setTesting] = useState(false);
 
   const current = draft ?? group;
-
-  const collaborators = useMemo(
-    () =>
-      users
-        .filter((u) => u.role === UserRole.COLABORATOR)
-        .filter((u) => {
-          const q = userSearch.trim().toLowerCase();
-          if (!q) return true;
-          return userLabel(u).toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q);
-        })
-        .sort((a, b) => userLabel(a).localeCompare(userLabel(b))),
-    [users, userSearch],
-  );
 
   if (!current) {
     return (
@@ -94,13 +71,6 @@ const GroupFeaturePanel: React.FC<Props> = ({ group, users, uidTakenBy, saving, 
       updateFieldWhitelist: on
         ? [...new Set([...current.updateFieldWhitelist, key])]
         : current.updateFieldWhitelist.filter((x) => x !== key),
-    });
-
-  const toggleMember = (uid: string, on: boolean) =>
-    patch({
-      memberUids: on
-        ? [...new Set([...current.memberUids, uid])]
-        : current.memberUids.filter((x) => x !== uid),
     });
 
   const handleTest = async () => {
@@ -182,51 +152,6 @@ const GroupFeaturePanel: React.FC<Props> = ({ group, users, uidTakenBy, saving, 
           </Box>
         ) : null}
 
-        <Box
-          layoutClassName="space-y-2 rounded-xl p-3"
-          borderClassName="border border-slate-100 dark:border-slate-700/80"
-          backgroundClassName="bg-slate-50/70 dark:bg-slate-800/40"
-        >
-          <Typography
-            size="xs"
-            layoutClassName="block font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
-          >
-            CTV thuộc nhóm ({current.memberUids.length})
-          </Typography>
-          <Typography size="xs" variant="muted">
-            Có CTV trong nhóm → nhóm CHỈ nhận thông báo đơn do chính CTV đó tạo. Để trống nếu đây
-            là nhóm nội bộ nhận theo chức năng ở trên.
-          </Typography>
-          <Input
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            placeholder="Tìm CTV…"
-            containerClassName="w-full"
-          />
-          <Box layoutClassName="max-h-48 space-y-1 overflow-y-auto">
-            {collaborators.length === 0 ? (
-              <Typography size="xs" variant="muted">
-                Không có CTV nào khớp.
-              </Typography>
-            ) : (
-              collaborators.map((u) => {
-                const takenBy = uidTakenBy.get(u.uid);
-                const inThis = current.memberUids.includes(u.uid);
-                const blocked = !inThis && !!takenBy && takenBy !== current.zaloGroupId;
-                return (
-                  <Checkbox
-                    key={u.uid}
-                    checked={inThis}
-                    disabled={blocked}
-                    onChange={(e) => toggleMember(u.uid, e.target.checked)}
-                    label={blocked ? `${userLabel(u)} · đã ở nhóm khác` : userLabel(u)}
-                    labelClassName="text-xs font-medium text-slate-700 dark:text-slate-200"
-                  />
-                );
-              })
-            )}
-          </Box>
-        </Box>
       </Box>
 
       <Box

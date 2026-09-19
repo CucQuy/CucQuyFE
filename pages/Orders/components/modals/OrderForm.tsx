@@ -7,7 +7,6 @@ import { formatVND } from '@/utils/format/currencyUtil';
 import { previewPromotion, fetchPromotions } from '@/services/promotionService';
 import { ComputeResult, Promotion } from '@/types/promotion';
 import { useAuth } from '@/contexts/AuthContext';
-import { collaboratorHasZaloGroup } from '@/services/configurationService';
 import { UserRole } from '@/types/user';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProducts } from '@/hooks/queries/useProductsQuery';
@@ -650,17 +649,6 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, prefill, onS
   };
 
   const submitOrderData = async (formData: any) => {
-    if (userData?.role === UserRole.COLABORATOR && currentUser?.uid) {
-      const ok = await collaboratorHasZaloGroup(currentUser.uid);
-      if (!ok) {
-        toast.error(
-          'Bạn chưa được thêm vào nhóm Zalo. Hãy liên hệ quản trị viên.',
-        );
-        setPendingOrderData(null);
-        return;
-      }
-    }
-
     setIsSubmitting(true);
     try {
       await onSave(formData);

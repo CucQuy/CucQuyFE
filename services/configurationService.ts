@@ -4,7 +4,6 @@
  *  - screen-visibility      ↔ GET/PUT '/configurations/screen'
  *  - zalo-configuration     ↔ GET/PUT '/configurations/zalo-groups'
  *  - shipping-configuration ↔ GET/PUT '/configurations/shipping'
- *  - collaboratorHasZaloGroup ↔ GET '/configurations/collaborator-has-zalo/:uid'
  *
  * Các hàm resolve* là LOGIC THUẦN — giữ nguyên, chỉ fetch config qua API.
  */
@@ -27,17 +26,6 @@ import type {
   PaymentAccount,
   PaymentAccountKind,
 } from '@/types/paymentConfig';
-import { UserRole } from '@/types/user';
-import { getUserByUid } from '@/services/userService';
-
-/** CTV tạo đơn nhưng chưa được gán nhóm Zalo — chặn & báo rõ. */
-export class CollaboratorZaloGroupMissingError extends Error {
-  constructor() {
-    super('Bạn chưa được thêm vào nhóm Zalo. Hãy liên hệ quản trị viên.');
-    this.name = 'CollaboratorZaloGroupMissingError';
-  }
-}
-
 export const fetchScreenConfiguration = async (): Promise<ScreenConfiguration> => {
   const { data } = await apiClient.get<ScreenConfiguration>('/configurations/screen');
   return {
@@ -79,57 +67,20 @@ const groupAcceptsEvent = (
 const dedupeIds = (ids: string[]): string[] => [...new Set(ids.map((x) => x.trim()).filter(Boolean))];
 
 /**
- * Resolver chinh — filter group nao nhan event nay theo toggle + (cho update) field whitelist.
+ * Resolver chính — nhóm nào nhận event này theo feature được gán + (với sửa đơn)
+ * field whitelist. Mọi nhóm đều nhận theo cấu hình của chính nó, không phân biệt
+ * người tạo đơn.
  */
 export const resolveZaloGroupIdsForOrderEvent = async (
   eventType: ZaloOrderEventType,
-  createdByUid: string | undefined,
   changedFieldIds?: string[],
 ): Promise<string[]> => {
   const cfg = await fetchZaloGroupsConfiguration();
-
-  // Nhóm KHÔNG có member = nhóm nội bộ → nhận theo feature được gán (095).
-  // Nhóm CÓ member = nhóm CTV → chỉ nhận đơn do chính member đó tạo (xử lý bên dưới).
-  const targets = cfg.groups
-    .filter((g) => (g.memberUids ?? []).length === 0)
-    .filter((g) => groupAcceptsEvent(g, eventType, changedFieldIds))
-    .map((g) => g.zaloGroupId);
-
-  if (createdByUid) {
-    const user = await getUserByUid(createdByUid);
-    if (user?.role === UserRole.COLABORATOR) {
-      let ctvGroupId = user.zaloCtvGroupChatId?.trim() ?? '';
-      let ctvGroupConfig: ZaloGroupConfig | undefined;
-      if (ctvGroupId) {
-        ctvGroupConfig = cfg.groups.find((g) => g.zaloGroupId.trim() === ctvGroupId);
-      } else {
-        const found = cfg.groups.find((g) => g.zaloGroupId.trim() && g.memberUids.includes(createdByUid));
-        if (!found) {
-          if (eventType === 'create') throw new CollaboratorZaloGroupMissingError();
-        } else {
-          ctvGroupId = found.zaloGroupId.trim();
-          ctvGroupConfig = found;
-        }
-      }
-      if (ctvGroupId && ctvGroupConfig && groupAcceptsEvent(ctvGroupConfig, eventType, changedFieldIds)) {
-        targets.push(ctvGroupId);
-      }
-    }
-  }
-
-  return dedupeIds(targets);
-};
-
-/** @deprecated Dung resolveZaloGroupIdsForOrderEvent. */
-export const resolveZaloGroupIdsForNewOrder = async (
-  createdByUid: string | undefined,
-): Promise<string[]> => resolveZaloGroupIdsForOrderEvent('create', createdByUid);
-
-export const collaboratorHasZaloGroup = async (uid: string): Promise<boolean> => {
-  const { data } = await apiClient.get<boolean>(
-    `/configurations/collaborator-has-zalo/${encodeURIComponent(uid)}`
+  return dedupeIds(
+    cfg.groups
+      .filter((g) => groupAcceptsEvent(g, eventType, changedFieldIds))
+      .map((g) => g.zaloGroupId),
   );
-  return data === true;
 };
 
 export const saveZaloGroupsConfiguration = async (
