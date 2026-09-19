@@ -2,11 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   ArrowDownCircle, ArrowUpCircle, Inbox, RotateCcw, PackageOpen, Truck, Coins, Check, Search, Landmark, Repeat,
+  ShoppingCart, Undo2, Store, PiggyBank, HelpCircle,
 } from 'lucide-react';
 import { LedgerTransaction, EXPENSE_CATEGORIES, expenseCategoryIsCost } from '@/types';
 import { paymentAccountKindLabel } from '@/types/paymentConfig';
 import {
   fetchLedger, fetchInCandidateOrders, setTxShipping, setTransactionExpense,
+  markTransactionCapital, markTransactionShopee, markTransactionSweepIn,
+  markTransactionExpenseCredit, markTransactionOtherIn,
   type InCandidateOrder,
 } from '@/services/transactionService';
 import { reconcileOrderTransaction, createOrderRefund, REFUND_CATEGORIES, type RefundCategory } from '@/services/orderService';
@@ -43,6 +46,9 @@ const fmtDate = (v?: string | null): string => {
 
 /** Loại đối soát cho 1 giao dịch tiền RA. */
 type OutKind = 'stock' | 'expense' | 'shipping' | 'refund' | 'sweep';
+
+/** Loại đối soát cho 1 giao dịch tiền VÀO. */
+type InKind = 'order' | 'credit' | 'shopee' | 'capital' | 'sweep' | 'other';
 
 /**
  * Modal ĐỐI SOÁT gộp trên Sổ giao dịch: cột trái = các GD chưa khớp (vào + ra),
@@ -194,7 +200,7 @@ const LedgerReconcileModal: React.FC<Props> = ({ isOpen, onClose, fromDate, toDa
   );
 };
 
-/* ─────────────────────────── TIỀN VÀO → khớp ĐƠN ─────────────────────────── */
+/* ─────────────────────── TIỀN VÀO → chọn kiểu ─────────────────────── */
 
 const matchLabel: Record<NonNullable<InCandidateOrder['match']>, string> = {
   total: 'đúng tổng',
@@ -202,10 +208,144 @@ const matchLabel: Record<NonNullable<InCandidateOrder['match']>, string> = {
   deposit: 'đúng cọc',
 };
 
+/** 6 cách xử lý 1 khoản tiền vào — không phải cứ tiền vào là doanh thu bán hàng. */
+const IN_KINDS: {
+  id: InKind;
+  label: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'order', label: 'Đơn hàng', desc: 'Khách trả tiền cho một đơn cụ thể — khớp vào đơn đó.', icon: ShoppingCart },
+  { id: 'credit', label: 'Bù chi phí', desc: 'NCC/nhà xe/dịch vụ hoàn lại tiền — TRỪ vào chi phí hạng mục đó.', icon: Undo2 },
+  { id: 'shopee', label: 'Shopee', desc: 'Sàn Shopee đổ tiền về (settlement), doanh thu đã tính ở đơn sàn.', icon: Store },
+  { id: 'capital', label: 'Cấp vốn', desc: 'Chủ bơm tiền vào quán — không phải doanh thu.', icon: PiggyBank },
+  { id: 'sweep', label: 'Dồn tiền', desc: 'Tiền dồn từ TK hộ kinh doanh về TK cá nhân, không tính thu/chi.', icon: Repeat },
+  { id: 'other', label: 'Thu khác', desc: 'Không thuộc nhóm nào — ghi lý do, không tính doanh thu.', icon: HelpCircle },
+];
+
+/**
+ * Đoán sẵn cách xử lý khoản tiền vào: dựa vào danh mục đã gán (nếu ai đó set dở), nội dung CK
+ * và loại tài khoản nhận. Đoán sai thì bấm nút khác, không hại gì.
+ */
+const guessInKind = (tx: LedgerTransaction): InKind => {
+  const cat = (tx.expenseCategory ?? '').trim();
+  if (cat === 'capital') return 'capital';
+  if (cat === 'shopee') return 'shopee';
+  if (cat === 'sweep') return 'sweep';
+  if (cat === 'other_in') return 'other';
+  if (expenseCategoryIsCost(cat)) return 'credit';
+  const text = `${tx.content ?? ''} ${tx.description ?? ''}`.toLowerCase();
+  if (text.includes('shopee')) return 'shopee';
+  return 'order';
+};
+
 const InReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
+  // Chọn sẵn cách xử lý đoán được; đổi GD thì đoán lại (key={tx.id} ở chỗ render).
+  const suggested = useMemo(() => guessInKind(tx), [tx]);
+  const [kind, setKind] = useState<InKind>(suggested);
+  const active = IN_KINDS.find((k) => k.id === kind);
+
+  return (
+    <Box layoutClassName="flex min-h-0 flex-1 flex-col">
+      <TxHeader tx={tx} kindLabel="Tiền vào" />
+
+      {/* Cùng kiểu chọn như tiền ra: 6 nút + mô tả của nút đang chọn ngay dưới. */}
+      <Typography as="p" size="xs" layoutClassName="mb-1.5 font-semibold uppercase tracking-wide" textClassName="text-slate-500 dark:text-slate-400">
+        Khoản này là gì?
+      </Typography>
+      <Box layoutClassName="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+        {IN_KINDS.map((k) => {
+          const on = kind === k.id;
+          const Icon = k.icon;
+          return (
+            <Button
+              key={k.id}
+              type="button"
+              variant={on ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setKind(k.id)}
+              disableVariantHover
+              disableVariantTextColor
+              layoutClassName="relative flex flex-col items-center gap-1 py-2"
+              sizeClassName="px-1 text-[11px] font-medium"
+              roundedClassName="rounded-xl"
+              borderClassName={on ? 'border border-primary-600' : 'border border-slate-200 dark:border-slate-600'}
+              backgroundClassName={on ? 'bg-primary-600' : 'bg-white dark:bg-slate-800'}
+              hoverClassName={on ? '' : 'hover:border-primary-300 hover:bg-primary-50/60 dark:hover:bg-primary-900/10'}
+              textClassName={on ? 'text-white' : 'text-slate-600 dark:text-slate-300'}
+              stateClassName="transition-colors"
+            >
+              <Icon className="h-4 w-4" />
+              {k.label}
+              {/* Chấm nhỏ = hệ thống đoán khoản này thuộc loại đó. */}
+              {!on && k.id === suggested ? (
+                <Box layoutClassName="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full" backgroundClassName="bg-primary-500" />
+              ) : null}
+            </Button>
+          );
+        })}
+      </Box>
+      <Typography as="p" size="xs" variant="muted" layoutClassName="mb-3 mt-1.5">
+        {active?.desc}
+        {kind === suggested ? ' · hệ thống gợi ý sẵn' : ''}
+      </Typography>
+
+      <Box layoutClassName="min-h-0 flex-1 overflow-y-auto pr-1">
+        {kind === 'order' ? (
+          <InOrderPicker tx={tx} onMatched={onMatched} />
+        ) : kind === 'credit' ? (
+          <ExpenseCreditPicker tx={tx} onMatched={onMatched} />
+        ) : kind === 'other' ? (
+          <OtherInPicker tx={tx} onMatched={onMatched} />
+        ) : kind === 'shopee' ? (
+          <InMarkPanel
+            tone="orange"
+            title="Shopee/sàn đổ tiền về"
+            desc="Doanh thu đã được tính ở đơn của sàn nên khoản này chỉ đánh dấu đã đối soát, không cộng doanh thu lần nữa."
+            actionLabel={`Đánh dấu Shopee ${formatVND(tx.transferAmount)}`}
+            icon={Store}
+            onApply={() => markTransactionShopee(tx.id, true)}
+            okMessage="Đã đánh dấu là tiền Shopee đổ về."
+            onMatched={onMatched}
+          />
+        ) : kind === 'capital' ? (
+          <InMarkPanel
+            tone="indigo"
+            title="Chủ bơm vốn vào quán"
+            desc="Tiền của chủ chuyển vào để quán hoạt động — KHÔNG phải doanh thu, không tính vào lợi nhuận."
+            actionLabel={`Đánh dấu cấp vốn ${formatVND(tx.transferAmount)}`}
+            icon={PiggyBank}
+            onApply={() => markTransactionCapital(tx.id, true)}
+            okMessage="Đã đánh dấu là cấp vốn."
+            onMatched={onMatched}
+          />
+        ) : (
+          <InMarkPanel
+            tone="blue"
+            title="Tiền dồn từ TK hộ kinh doanh về TK cá nhân"
+            desc="Hai đầu của cùng một cú dồn tiền cuối ngày — tiền vẫn trong tiệm nên không tính doanh thu/chi phí."
+            actionLabel={`Đánh dấu dồn tiền ${formatVND(tx.transferAmount)}`}
+            icon={Repeat}
+            onApply={() => markTransactionSweepIn(tx.id)}
+            okMessage="Đã đánh dấu là tiền dồn về TK cá nhân."
+            onMatched={onMatched}
+            warn={tx.accountKind !== 'personal'
+              ? 'Lưu ý: khoản này không vào TK cá nhân — kiểm tra lại trước khi đánh dấu.'
+              : undefined}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+/* ---- Khớp ĐƠN: ứng viên cùng số tiền, hoặc tự tìm đơn ---- */
+const InOrderPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
   const [cands, setCands] = useState<InCandidateOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  /** Mở ô tìm đơn thủ công — khi ứng viên tự động không có (tiền lệch, đơn cũ hơn 10 ngày). */
+  const [manual, setManual] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -217,11 +357,11 @@ const InReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = 
     return () => { live = false; };
   }, [tx.id]);
 
-  const pick = async (o: InCandidateOrder) => {
+  const link = async (orderId: string, label: string) => {
     setBusy(true);
     try {
-      await reconcileOrderTransaction(o.orderId, tx.id);
-      toast.success(`Đã khớp ${formatVND(tx.transferAmount)} vào ${o.orderNumber ?? 'đơn'}.`);
+      await reconcileOrderTransaction(orderId, tx.id);
+      toast.success(`Đã khớp ${formatVND(tx.transferAmount)} vào ${label}.`);
       onMatched();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Khớp đơn thất bại.');
@@ -230,18 +370,29 @@ const InReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = 
     }
   };
 
+  if (loading) {
+    return (
+      <Box layoutClassName="flex flex-1 items-center justify-center py-10">
+        <Spinner size="md" textClassName="text-primary-500" />
+      </Box>
+    );
+  }
+
+  // Không có ứng viên → đưa thẳng ô tìm đơn, đừng để người dùng bế tắc ở màn trống.
+  const showManual = manual || cands.length === 0;
+
   return (
-    <Box layoutClassName="flex min-h-0 flex-1 flex-col">
-      <TxHeader tx={tx} kindLabel="Tiền vào · thanh toán đơn" />
-      {loading ? (
-        <Box layoutClassName="flex flex-1 items-center justify-center py-10"><Spinner size="md" textClassName="text-primary-500" /></Box>
-      ) : cands.length === 0 ? (
-        <Box layoutClassName="flex flex-1 flex-col items-center justify-center gap-2 py-8" textClassName="text-slate-400">
+    <Box layoutClassName="space-y-2.5">
+      {cands.length === 0 ? (
+        <Box layoutClassName="flex flex-col items-center gap-1 py-4" textClassName="text-slate-400">
           <Inbox className="h-7 w-7 opacity-40" />
-          <Typography size="xs" variant="muted">Không có đơn nào khớp số tiền {formatVND(tx.transferAmount)} trong ~10 ngày.</Typography>
+          <Typography size="xs" variant="muted">
+            Không có đơn nào khớp số tiền {formatVND(tx.transferAmount)} trong ~10 ngày — tìm đơn bên dưới,
+            hoặc chọn một cách xử lý khác ở trên.
+          </Typography>
         </Box>
       ) : (
-        <Box layoutClassName="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+        <Box layoutClassName="space-y-1.5">
           {cands.map((o) => (
             <Box
               key={o.orderId}
@@ -264,13 +415,213 @@ const InReconcile: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = 
                   Tổng {formatVND(o.total ?? 0)} · còn thiếu {formatVND(o.remaining)} · {fmtDate(o.createdAt)}
                 </Typography>
               </Box>
-              <Button type="button" variant="primary" size="sm" disabled={busy} leftIcon={<Check className="h-3.5 w-3.5" />} onClick={() => void pick(o)}>
+              <Button type="button" variant="primary" size="sm" disabled={busy} leftIcon={<Check className="h-3.5 w-3.5" />} onClick={() => void link(o.orderId, o.orderNumber ?? 'đơn')}>
                 Khớp
               </Button>
             </Box>
           ))}
+          {!showManual ? (
+            <Button
+              type="button" variant="ghost" size="sm"
+              leftIcon={<Search className="h-3.5 w-3.5" />}
+              onClick={() => setManual(true)}
+            >
+              Không thấy đơn? Tìm thủ công
+            </Button>
+          ) : null}
         </Box>
       )}
+
+      {showManual ? (
+        <Box layoutClassName="space-y-2">
+          <Typography size="xs" variant="muted">
+            Khớp tay: cộng {formatVND(tx.transferAmount)} vào tiền đã trả của đơn được chọn — số tiền
+            không cần trùng tổng đơn (trả thiếu/trả thừa vẫn ghi được).
+          </Typography>
+          <OrderSearchList busy={busy} actionLabel="Khớp" onPick={(o) => void link(o.id, o.orderNumber ?? 'đơn')} />
+        </Box>
+      ) : null}
+    </Box>
+  );
+};
+
+/* ---- Thu bù chi phí: chọn hạng mục chi phí được hoàn ---- */
+const ExpenseCreditPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Chỉ hạng mục CÓ tính chi phí mới bù được; nhóm "không tính" không ảnh hưởng lợi nhuận.
+  const cost = EXPENSE_CATEGORIES.filter((c) => c.cost !== false);
+  const suggested = (tx.expenseCategory ?? '').trim();
+
+  const apply = async (cat: string) => {
+    setBusy(true);
+    try {
+      await markTransactionExpenseCredit(tx.id, cat, note || undefined);
+      toast.success('Đã ghi nhận thu bù chi phí.');
+      onMatched();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ghi nhận thất bại.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Box layoutClassName="space-y-3">
+      <Box
+        layoutClassName="space-y-1 rounded-xl p-3"
+        borderClassName="border border-teal-200 dark:border-teal-800"
+        backgroundClassName="bg-teal-50/70 dark:bg-teal-900/20"
+      >
+        <Typography as="p" size="sm" layoutClassName="font-medium" textClassName="text-teal-800 dark:text-teal-200">
+          Tiền được hoàn lại, không phải doanh thu
+        </Typography>
+        <Typography as="p" size="xs" textClassName="text-teal-700/80 dark:text-teal-300/80">
+          Chọn đúng hạng mục đã chi ra: {formatVND(tx.transferAmount)} sẽ được TRỪ khỏi chi phí hạng
+          mục đó trong kỳ nhận tiền (vd NCC trả lại tiền hàng thiếu, nhà xe hoàn phí ship).
+        </Typography>
+      </Box>
+      <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn) — vd: NCC hoàn tiền thiếu hàng" sizeClassName="w-full px-2.5 py-1.5 text-sm" />
+      <Box layoutClassName="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {cost.map((c) => {
+          const hit = c.value === suggested;
+          return (
+            <Button
+              key={c.value}
+              type="button" variant="secondary" size="sm" disabled={busy}
+              onClick={() => void apply(c.value)}
+              layoutClassName="justify-center text-center"
+              sizeClassName="px-2 py-2 text-xs font-medium"
+              roundedClassName="rounded-lg"
+              borderClassName={hit ? 'border border-primary-400 dark:border-primary-500' : 'border border-slate-200 dark:border-slate-600'}
+              backgroundClassName={hit ? 'bg-primary-50 dark:bg-primary-900/20' : 'bg-white dark:bg-slate-800'}
+              hoverClassName="hover:border-primary-300 hover:bg-primary-50/60 dark:hover:bg-primary-900/10"
+              textClassName={hit ? 'text-primary-700 dark:text-primary-200' : 'text-slate-700 dark:text-slate-200'}
+              stateClassName="transition-colors"
+              disableVariantHover
+              disableVariantTextColor
+            >
+              {c.label}
+            </Button>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+};
+
+/* ---- Thu khác: bắt buộc ghi lý do để sau còn lần ra ---- */
+const OtherInPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const apply = async () => {
+    const reason = note.trim();
+    if (!reason) { toast.error('Ghi lý do khoản thu này đã.'); return; }
+    setBusy(true);
+    try {
+      await markTransactionOtherIn(tx.id, reason);
+      toast.success('Đã ghi nhận thu khác.');
+      onMatched();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Ghi nhận thất bại.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Box layoutClassName="space-y-3">
+      <Box
+        layoutClassName="space-y-1 rounded-xl p-3"
+        borderClassName="border border-slate-200 dark:border-slate-700"
+        backgroundClassName="bg-slate-50 dark:bg-slate-800/60"
+      >
+        <Typography as="p" size="sm" layoutClassName="font-medium" textClassName="text-slate-700 dark:text-slate-200">
+          Khoản thu không thuộc nhóm nào
+        </Typography>
+        <Typography as="p" size="xs" variant="muted">
+          Đánh dấu đã đối soát nhưng KHÔNG tính doanh thu/chi phí. Lý do là bắt buộc — vài tháng sau
+          xem lại sổ mà không có ghi chú thì không ai lần ra khoản này là gì.
+        </Typography>
+      </Box>
+      <Input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Lý do (bắt buộc) — vd: bạn trả nợ, tiền thừa chuyển nhầm"
+        sizeClassName="w-full px-2.5 py-1.5 text-sm"
+      />
+      <Button
+        type="button" variant="primary" fullWidth disabled={busy || !note.trim()}
+        leftIcon={<HelpCircle className="h-4 w-4" />}
+        onClick={() => void apply()}
+      >
+        Ghi nhận thu khác {formatVND(tx.transferAmount)}
+      </Button>
+    </Box>
+  );
+};
+
+/* ---- Đánh dấu 1 phát (Shopee / cấp vốn / dồn tiền): mô tả + 1 nút ---- */
+const IN_MARK_TONE: Record<'orange' | 'indigo' | 'blue', { border: string; bg: string; title: string; desc: string }> = {
+  orange: {
+    border: 'border border-orange-200 dark:border-orange-800',
+    bg: 'bg-orange-50/70 dark:bg-orange-900/20',
+    title: 'text-orange-800 dark:text-orange-200',
+    desc: 'text-orange-700/80 dark:text-orange-300/80',
+  },
+  indigo: {
+    border: 'border border-indigo-200 dark:border-indigo-800',
+    bg: 'bg-indigo-50/70 dark:bg-indigo-900/20',
+    title: 'text-indigo-800 dark:text-indigo-200',
+    desc: 'text-indigo-700/80 dark:text-indigo-300/80',
+  },
+  blue: {
+    border: 'border border-blue-200 dark:border-blue-800',
+    bg: 'bg-blue-50/70 dark:bg-blue-900/20',
+    title: 'text-blue-800 dark:text-blue-200',
+    desc: 'text-blue-700/80 dark:text-blue-300/80',
+  },
+};
+
+const InMarkPanel: React.FC<{
+  tone: 'orange' | 'indigo' | 'blue';
+  title: string;
+  desc: string;
+  actionLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onApply: () => Promise<void>;
+  okMessage: string;
+  onMatched: () => void;
+  /** Cảnh báo khi dữ liệu không khớp giả định (vd dồn tiền mà không vào TK cá nhân). */
+  warn?: string;
+}> = ({ tone, title, desc, actionLabel, icon: Icon, onApply, okMessage, onMatched, warn }) => {
+  const [busy, setBusy] = useState(false);
+  const cls = IN_MARK_TONE[tone];
+
+  const apply = async () => {
+    setBusy(true);
+    try {
+      await onApply();
+      toast.success(okMessage);
+      onMatched();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Đánh dấu thất bại.');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Box layoutClassName="space-y-3">
+      <Box layoutClassName="space-y-1 rounded-xl p-3" borderClassName={cls.border} backgroundClassName={cls.bg}>
+        <Typography as="p" size="sm" layoutClassName="font-medium" textClassName={cls.title}>{title}</Typography>
+        <Typography as="p" size="xs" textClassName={cls.desc}>{desc}</Typography>
+      </Box>
+      {warn ? (
+        <Typography size="xs" textClassName="text-amber-600 dark:text-amber-400">{warn}</Typography>
+      ) : null}
+      <Button
+        type="button" variant="primary" fullWidth disabled={busy}
+        leftIcon={<Icon className="h-4 w-4" />}
+        onClick={() => void apply()}
+      >
+        {actionLabel}
+      </Button>
     </Box>
   );
 };

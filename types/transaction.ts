@@ -58,8 +58,16 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; cost?:
   { value: 'sweep', label: 'Dồn tiền HKD → cá nhân (không tính)', cost: false },
 ];
 
+/** Nhãn của các category chỉ dùng cho TIỀN VÀO (không nằm trong dropdown chi phí). */
+const IN_CATEGORY_LABELS: Record<string, string> = {
+  capital: 'Cấp vốn',
+  shopee: 'Shopee thanh toán',
+  other_in: 'Thu khác',
+};
+
 export const expenseCategoryLabel = (c?: string | null): string =>
-  EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? (c ? 'Khác' : '—');
+  EXPENSE_CATEGORIES.find((x) => x.value === c)?.label
+  ?? (c ? (IN_CATEGORY_LABELS[c] ?? 'Khác') : '—');
 
 /**
  * Nhãn tag phân loại cho tiền RA (giống mã đơn của tiền vào).
@@ -67,11 +75,14 @@ export const expenseCategoryLabel = (c?: string | null): string =>
  * thay vì gộp về "Khác", và trả '' khi chưa phân loại.
  */
 export const expenseCategoryTag = (c?: string | null): string =>
-  c && c.trim() ? (EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? c) : '';
+  c && c.trim()
+    ? (EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? IN_CATEGORY_LABELS[c] ?? c)
+    : '';
 
-/** Category này có tính vào chi phí quán không (khớp expense_category_is_cost ở BE). */
+/** Category này có tính vào chi phí quán không (khớp expense_category_is_cost ở BE).
+ *  Nhãn riêng của tiền vào (capital/shopee/other_in) cũng KHÔNG phải chi phí. */
 export const expenseCategoryIsCost = (c?: string | null): boolean =>
-  !!c && c !== 'personal' && c !== 'owner' && c !== 'internal' && c !== 'sweep';
+  !!c && !['personal', 'owner', 'internal', 'sweep'].includes(c) && !(c in IN_CATEGORY_LABELS);
 
 /** Rule phân loại chi phí (nội dung CK chứa keyword → category). */
 export interface ExpenseRule {
@@ -85,13 +96,13 @@ export interface ExpenseRule {
 /**
  * Trạng thái thống nhất 1 giao dịch — BE derive sẵn (transaction_ledger_status),
  * FE KHÔNG tự ghép từ các cờ rời rạc nữa.
- *   Tiền vào: matched | shopee | capital | sweep_in | external | unmatched
+ *   Tiền vào: matched | shopee | capital | sweep_in | expense_credit | other_in | external | unmatched
  *   Tiền ra:  refund | shipping | sweep_out | settled | excluded | expense | stock | unmatched
  * `sweep_in`/`sweep_out` = 2 đầu của CÙNG 1 cú dồn tiền cuối ngày TK HKD → TK cá nhân
  * (luân chuyển nội bộ, không phải doanh thu/chi phí).
  */
 export type LedgerStatus =
-  | 'matched' | 'shopee' | 'capital' | 'sweep_in' | 'external' | 'unmatched'
+  | 'matched' | 'shopee' | 'capital' | 'sweep_in' | 'expense_credit' | 'other_in' | 'external' | 'unmatched'
   | 'refund' | 'shipping' | 'sweep_out' | 'settled' | 'excluded' | 'expense' | 'stock'
   | 'test';
 
@@ -183,6 +194,8 @@ export const LEDGER_STATUS_META: Record<LedgerStatus, { label: string; tone: Ton
   shopee: { label: 'Shopee thanh toán', tone: 'orange' },
   capital: { label: 'Cấp vốn', tone: 'indigo' },
   sweep_in: { label: 'Dồn về TK cá nhân', tone: 'blue' },
+  expense_credit: { label: 'Thu bù chi phí', tone: 'teal' },
+  other_in: { label: 'Thu khác', tone: 'slate' },
   sweep_out: { label: 'Dồn sang TK cá nhân', tone: 'blue' },
   external: { label: 'Ngoài hệ thống', tone: 'slate' },
   unmatched: { label: 'Chưa khớp', tone: 'amber' },

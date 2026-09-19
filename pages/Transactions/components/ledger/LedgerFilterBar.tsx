@@ -25,7 +25,7 @@ interface LedgerFilterBarProps {
   onAutoReconcile: () => void;
 }
 
-const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'capital', 'sweep_in', 'external', 'unmatched'];
+const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'capital', 'sweep_in', 'expense_credit', 'other_in', 'external', 'unmatched'];
 const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'sweep_out', 'settled', 'expense', 'stock', 'excluded', 'unmatched'];
 
 /**

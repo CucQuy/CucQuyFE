@@ -102,7 +102,8 @@ const LedgerDesktopTable: React.FC<LedgerDesktopTableProps> = ({ transactions, f
                     >
                       {tr.orderNumber}
                     </Badge>
-                  ) : tr.transferType === 'out' && expenseCategoryTag(tr.expenseCategory) ? (
+                  ) : (tr.transferType === 'out' || tr.status === 'expense_credit')
+                    && expenseCategoryTag(tr.expenseCategory) ? (
                     <ExpenseTag transaction={tr} />
                   ) : (
                     <Typography as="span" size="xs" variant="muted">—</Typography>

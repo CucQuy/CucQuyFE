@@ -70,7 +70,10 @@ const LedgerMobileList: React.FC<LedgerMobileListProps> = ({ transactions, forma
                   {tr.orderNumber}
                 </Badge>
               )}
-              {out && expenseCategoryTag(tr.expenseCategory) && <ExpenseTag transaction={tr} />}
+              {/* Tiền vào "bù chi phí" cũng cần thấy hạng mục được bù → không chỉ tiền ra. */}
+              {(out || tr.status === 'expense_credit') && expenseCategoryTag(tr.expenseCategory) && (
+                <ExpenseTag transaction={tr} />
+              )}
               {/* 100: TK của dòng tiền (fallback gateway khi TK chưa khai). */}
               {(tr.accountLabel || tr.gateway) && (
                 <Typography as="span" size="xs" variant="muted">

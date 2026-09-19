@@ -178,6 +178,37 @@ export const markTransactionShopee = async (
   await setTransactionExpense(transactionId, isShopee ? 'shopee' : null, false);
 };
 
+/**
+ * Đánh dấu 1 giao dịch TIỀN VÀO là "Dồn về TK cá nhân" (2 đầu của cú dồn tiền cuối ngày).
+ * Tái dùng expense_category='sweep' — BE derive status 'sweep_in'.
+ */
+export const markTransactionSweepIn = async (transactionId: string): Promise<void> => {
+  await setTransactionExpense(transactionId, 'sweep', false);
+};
+
+/**
+ * Đánh dấu 1 giao dịch TIỀN VÀO là "Thu bù chi phí": NCC/nhà xe hoàn lại tiền → gán ĐÚNG
+ * hạng mục chi phí để BE TRỪ khoản này khỏi chi phí kỳ đó (status 'expense_credit').
+ */
+export const markTransactionExpenseCredit = async (
+  transactionId: string,
+  category: string,
+  note?: string | null,
+): Promise<void> => {
+  await setTransactionExpense(transactionId, category, false, note ?? null);
+};
+
+/**
+ * Đánh dấu 1 giao dịch TIỀN VÀO là "Thu khác" + ghi lý do (review_note).
+ * expense_category='other_in' → BE derive status 'other_in', KHÔNG tính doanh thu/chi phí.
+ */
+export const markTransactionOtherIn = async (
+  transactionId: string,
+  note: string,
+): Promise<void> => {
+  await setTransactionExpense(transactionId, 'other_in', false, note);
+};
+
 /** Danh sách rule phân loại chi phí (nội dung CK → category). */
 export const fetchExpenseRules = async (): Promise<ExpenseRule[]> => {
   const res = await apiClient.get<ExpenseRule[]>('/transactions/expense-rules');
