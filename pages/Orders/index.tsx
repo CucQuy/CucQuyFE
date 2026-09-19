@@ -4,7 +4,9 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useOrders } from '@/hooks/useOrders';
+import { useProducts } from '@/hooks/queries/useProductsQuery';
 import { Order } from '@/types';
+import { AiOrderExtracted } from '@/types/aiOrder';
 import { UserRole } from '@/types/user';
 import { ORDER_EDIT_DENIED, refreshOrderTracking, fetchOrder } from '@/services/orderService';
 import { userCanEditOrder } from '@/utils/order/orderUtils';
@@ -17,6 +19,7 @@ import SpxExportModal from '@/pages/Orders/components/modals/SpxExportModal';
 import TrackingImportModal from '@/pages/Orders/components/modals/TrackingImportModal';
 import OrderDetail from '@/pages/Orders/components/modals/OrderDetail';
 import OrderForm from '@/pages/Orders/components/modals/OrderForm';
+import AiOrderImportModal from '@/pages/Orders/components/modals/AiOrderImportModal';
 import OrderList from '@/pages/Orders/components/OrderList';
 import OrdersStats from '@/pages/Orders/components/OrdersStats';
 import OrderToolbarActions from '@/pages/Orders/components/OrderToolbarActions';
@@ -24,6 +27,7 @@ import OrderToolbarActions from '@/pages/Orders/components/OrderToolbarActions';
 const OrdersPage: React.FC = () => {
   const { userData } = useAuth();
   const { orders, createNewOrder, modifyOrder, removeOrder, refreshOrders, changeStatus, patchFields } = useOrders();
+  const { products } = useProducts();
   const { t } = useLanguage();
   const canPermanentDelete = userData?.role === UserRole.SUPER_ADMIN;
   const canExportOrders =
@@ -33,6 +37,9 @@ const OrdersPage: React.FC = () => {
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isSpxExportOpen, setIsSpxExportOpen] = useState(false);
+  // Nhập đơn bằng AI: ảnh khách đặt → AI quét → điền sẵn form tạo đơn (user soát rồi lưu).
+  const [isAiImportOpen, setIsAiImportOpen] = useState(false);
+  const [aiPrefill, setAiPrefill] = useState<AiOrderExtracted | null>(null);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
@@ -69,6 +76,15 @@ const OrdersPage: React.FC = () => {
 
   const handleCreateNewOrder = () => {
     setEditingOrder(undefined);
+    setAiPrefill(null);
+    setIsOrderFormOpen(true);
+  };
+
+  // Kết quả quét ảnh → mở form tạo đơn với dữ liệu điền sẵn.
+  const handleApplyAiPrefill = (data: AiOrderExtracted) => {
+    setEditingOrder(undefined);
+    setAiPrefill(data);
+    setIsAiImportOpen(false);
     setIsOrderFormOpen(true);
   };
 
@@ -79,6 +95,7 @@ const OrdersPage: React.FC = () => {
     }
     // List trả bản NHẸ (thiếu decorations/giftItems/appliedPromotions). Sửa đơn phải có
     // dữ liệu ĐẦY ĐỦ, nếu không lúc lưu (order_update full) sẽ ghi đè mất → fetch full trước.
+    setAiPrefill(null);
     let full: Order = order;
     try {
       const fetched = await fetchOrder(order.id);
@@ -122,6 +139,7 @@ const OrdersPage: React.FC = () => {
       }
       setIsOrderFormOpen(false);
       setEditingOrder(undefined);
+      setAiPrefill(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
       if (msg === ORDER_EDIT_DENIED) {
@@ -168,6 +186,7 @@ const OrdersPage: React.FC = () => {
       onCompare={() => setIsCompareOpen(true)}
       onExportSpx={() => setIsSpxExportOpen(true)}
       onCreate={handleCreateNewOrder}
+      onAiImport={() => setIsAiImportOpen(true)}
     />
   );
 
@@ -230,8 +249,16 @@ const OrdersPage: React.FC = () => {
       <OrderForm
         isOpen={isOrderFormOpen}
         initialData={editingOrder}
+        prefill={aiPrefill}
         onSave={handleSaveOrder}
         onCancel={() => setIsOrderFormOpen(false)}
+      />
+
+      <AiOrderImportModal
+        open={isAiImportOpen}
+        onClose={() => setIsAiImportOpen(false)}
+        products={products}
+        onApply={handleApplyAiPrefill}
       />
 
       <ExportModal

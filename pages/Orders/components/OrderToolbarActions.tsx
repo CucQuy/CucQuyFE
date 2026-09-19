@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { BellRing, Download, LayoutGrid, PackagePlus, Plus, RefreshCw, Scale, Truck } from 'lucide-react';
+import { BellRing, Download, LayoutGrid, PackagePlus, Plus, RefreshCw, Scale, Sparkles, Truck } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { sendNotificationNow } from '@/services/notificationScheduleService';
 import Box from '@/components/ui/Box';
@@ -24,10 +24,12 @@ interface OrderToolbarActionsProps {
   onCompare: () => void;
   onExportSpx: () => void;
   onCreate: () => void;
+  /** Mở modal "Nhập đơn bằng AI" (quét ảnh khách đặt → điền sẵn form). */
+  onAiImport: () => void;
 }
 
 const OrderToolbarActions: React.FC<OrderToolbarActionsProps> = ({
-  onRefresh, isRefreshing, onExport, canExport, onSyncTracking, onCompare, onExportSpx, onCreate,
+  onRefresh, isRefreshing, onExport, canExport, onSyncTracking, onCompare, onExportSpx, onCreate, onAiImport,
 }) => {
   const { t } = useLanguage();
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -121,6 +123,28 @@ const OrderToolbarActions: React.FC<OrderToolbarActionsProps> = ({
         onSend={(fromDate, days) => void handleSendDeliveryZalo(fromDate, days)}
         sending={sendingNoti}
       />
+
+      <Button
+        type="button"
+        onClick={onAiImport}
+        leftIcon={<Sparkles />}
+        iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4"
+        backgroundClassName="bg-white dark:bg-slate-800"
+        borderClassName="border border-primary-200 dark:border-primary-800"
+        textClassName="font-medium text-primary-700 dark:text-primary-300"
+        roundedClassName="rounded-xl"
+        sizeClassName="px-3 py-2 text-xs"
+        layoutClassName="inline-flex items-center gap-1.5"
+        hoverClassName="hover:border-primary-400 hover:bg-primary-50/60 dark:hover:bg-primary-900/20"
+        stateClassName="transition-colors"
+        variant="secondary"
+        disableVariantHover
+        disableVariantTextColor
+      >
+        <Typography as="span" size="xs" layoutClassName="hidden sm:inline">
+          Nhập bằng AI
+        </Typography>
+      </Button>
 
       <Button
         type="button"

@@ -17,6 +17,7 @@ import { getNextOrderNumber } from '@/services/orderService';
 import { fetchCommissionGroups } from '@/services/commissionGroupService';
 import { calcItemCommission } from '@/types/commissionGroup';
 import { getUserByUid } from '@/services/userService';
+import { AiOrderExtracted } from '@/types/aiOrder';
 import { DeliveryType, Order, OrderStatus, PaymentMethod, PaymentStatus, Product, SurchargeLine, DiscountLine, sizeCount, WALK_IN_CUSTOMER_NAME, isWalkInCustomer } from '@/types/index';
 import { resolveTierPrice } from '@/types/product';
 import { useSurchargeTags } from '@/hooks/queries/useSurchargeTagsQuery';
@@ -43,6 +44,11 @@ import { pushRecentProductId } from '@/utils/product/recentProducts';
 interface OrderFormProps {
   isOpen: boolean;
   initialData?: Order | null;
+  /**
+   * Dữ liệu AI quét từ ảnh khách đặt (nhập đơn bằng AI) — CHỈ dùng khi tạo đơn mới:
+   * điền sẵn khách/ngày giao/món để user soát lại rồi lưu.
+   */
+  prefill?: AiOrderExtracted | null;
   onSave: (data: any) => Promise<void>;
   onCancel: () => void;
 }
@@ -82,7 +88,7 @@ const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </Card>
 );
 
-const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCancel }) => {
+const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, prefill, onSave, onCancel }) => {
   const { t } = useLanguage();
   const { currentUser, userData } = useAuth();
   const { customers, createNewCustomer } = useCustomers();
@@ -396,6 +402,64 @@ const OrderForm: React.FC<OrderFormProps> = ({ isOpen, initialData, onSave, onCa
     // Lưu lên localStorage để hiện trong "Hay dùng" lần sau.
     pushRecentProductId(product.id);
   };
+
+  // ── Nhập đơn bằng AI: điền sẵn form từ kết quả quét ảnh ──
+  // Chạy SAU effect reset ở trên (cùng lượt render), chỉ khi tạo đơn mới và đã có
+  // danh mục sản phẩm (cần products để lấy giá/ảnh/size đúng). Mỗi kết quả quét là
+  // 1 object mới → so tham chiếu để không áp lại khi user đã sửa tay trong form.
+  const appliedPrefillRef = useRef<AiOrderExtracted | null>(null);
+  useEffect(() => {
+    if (!isOpen) {
+      appliedPrefillRef.current = null;
+      return;
+    }
+    if (!prefill || initialData || products.length === 0) return;
+    if (appliedPrefillRef.current === prefill) return;
+    appliedPrefillRef.current = prefill;
+
+    if (prefill.customerName) setCustomerName(prefill.customerName);
+    if (prefill.phone) setPhone(prefill.phone);
+    if (prefill.address) setAddress(prefill.address);
+    if (prefill.deliveryDate) setDeliveryDate(prefill.deliveryDate);
+    if (prefill.deliveryTime) {
+      setDeliveryTime(prefill.deliveryTime);
+      setIsDeliveryTimeEnabled(true);
+    }
+    if (prefill.deliveryType) setDeliveryType(prefill.deliveryType);
+    if (prefill.paymentMethod) setPaymentMethod(prefill.paymentMethod);
+    if (prefill.paymentStatus) setPaymentStatus(prefill.paymentStatus);
+    if (prefill.depositAmount) setDepositAmount(prefill.depositAmount);
+    if (prefill.shippingCost) setShippingCost(prefill.shippingCost);
+
+    // Ghi chú đơn = ghi chú chung + ghi chú riêng từng món (FormItem không có ô note).
+    const itemNotes = prefill.items
+      .filter((i) => i.note)
+      .map((i) => `${i.productName}: ${i.note}`);
+    const note = [prefill.note, ...itemNotes].filter(Boolean).join('\n');
+    if (note) setNote(note);
+
+    // Món AI chưa khớp sản phẩm (productId rỗng) vẫn tạo dòng để user tự chọn lại.
+    setItems(
+      prefill.items.map((it) => {
+        const product = it.productId ? products.find((p) => p.id === it.productId) : undefined;
+        const size = it.size ? product?.sizes?.find((s) => s.name === it.size) : undefined;
+        return {
+          id: genItemId(),
+          productId: product?.id ?? '',
+          productName: product?.name ?? it.productName,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice ?? size?.price ?? product?.price ?? 0,
+          image: size?.image || product?.image,
+          flavors: it.flavors.length > 0 ? it.flavors : undefined,
+          size: size?.name,
+          sizeCounts: size
+            ? [{ name: size.name, qty: it.quantity, units: Array.from({ length: it.quantity }, () => []) }]
+            : undefined,
+        };
+      }),
+    );
+    loadedSnapRef.current = new Map();
+  }, [isOpen, prefill, initialData, products]);
 
   /**
    * Giảm 1 quantity từ ProductSearchBar stepper. Nếu quantity về 0 → xoá item.
