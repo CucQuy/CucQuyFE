@@ -29,6 +29,16 @@ import Switch from '@/components/ui/Switch';
 import Typography from '@/components/ui/Typography';
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '@/components/ui/Table';
 
+/** "19/09 00:00" — mốc chốt số dư, để biết số dư đang cộng dồn từ lúc nào. */
+const fmtPinnedAt = (iso?: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(String(iso).replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+};
+
 interface ParsedPreview {
   bankCode: string;
   accountNumber: string;
@@ -319,6 +329,11 @@ const PaymentSettingsTab: React.FC = () => {
                           <Pencil className="h-3 w-3 opacity-50" />
                         </Button>
                       )}
+                      {(acc.kind ?? 'none') !== 'none' && fmtPinnedAt(acc.openingBalanceAt) ? (
+                        <Typography as="div" size="xs" variant="muted" layoutClassName="mt-0.5">
+                          {t('paymentSettings.balancePinnedAt')} {fmtPinnedAt(acc.openingBalanceAt)}
+                        </Typography>
+                      ) : null}
                     </TableCell>
 
                     {/* Ghi nhận GD: tắt → webhook bỏ qua, không lưu giao dịch nào.
