@@ -529,7 +529,6 @@ export interface OrderNotifyRow {
   notifiedAt: string | null;
   zaloOrder: NotifyCellState;
   zaloPromo: NotifyCellState;
-  facebook: NotifyCellState;
 }
 
 export interface OrderNotifyMatrix {
@@ -576,7 +575,6 @@ export const fetchOrderNotifyMatrix = async (
       notifiedAt: typeof r.notifiedAt === 'string' ? r.notifiedAt : null,
       zaloOrder: cell(r.zaloOrder),
       zaloPromo: cell(r.zaloPromo),
-      facebook: cell(r.facebook),
     })),
     counts: { total: n(c.total), sent: n(c.sent), failed: n(c.failed), none: n(c.none) },
   };

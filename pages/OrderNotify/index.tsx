@@ -99,8 +99,8 @@ const NotifyCell: React.FC<{ cell: NotifyCellState; labels: { sent: string; fail
  * Màn "Thông báo đơn" của khu vực Đơn hàng: mỗi dòng 1 đơn + trạng thái tin thông báo
  * đơn hàng đã gửi cho khách (đã gửi kèm giờ / lỗi kèm lý do / chưa gửi).
  * Bấm "Gửi"/"Gửi lại" ở từng dòng để bắn tin cho khách của đơn đó.
- * BE (order_notify_matrix) vẫn trả sẵn cột khuyến mãi + Facebook — muốn hiện thêm cột
- * thì chỉ cần render `r.zaloPromo` / `r.facebook`, không phải sửa SQL.
+ * BE (order_notify_matrix) vẫn trả sẵn cột khuyến mãi — muốn hiện thêm cột thì chỉ cần
+ * render `r.zaloPromo`, không phải sửa SQL.
  */
 const OrderNotifyPage: React.FC = () => {
   const { t } = useLanguage();
