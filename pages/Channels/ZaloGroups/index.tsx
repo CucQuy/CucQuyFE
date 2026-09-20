@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, RefreshCw, Send, Users } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, RefreshCw, Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchZaloBridgeGroups, sendZaloTestMessage, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
@@ -63,6 +63,8 @@ const ZaloGroupsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   /** ID nhóm đang lưu — khoá chip của đúng dòng đó trong lúc gọi API. */
   const [savingId, setSavingId] = useState<string | null>(null);
+  /** Dòng đang mở để chỉnh chức năng (1 dòng tại 1 thời điểm). */
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
 
   const loadBridgeGroups = useCallback(async () => {
@@ -257,9 +259,10 @@ const ZaloGroupsPage: React.FC = () => {
               {rows.map((row, idx) => {
                 const gone = bridgeIds.size > 0 && !bridgeIds.has(row.zaloGroupId);
                 const busy = savingId === row.zaloGroupId;
+                const open = expandedId === row.zaloGroupId;
                 return (
+                  <React.Fragment key={row.zaloGroupId}>
                   <TableRow
-                    key={row.zaloGroupId}
                     backgroundClassName={
                       row.features.length > 0
                         ? 'bg-primary-50/50 dark:bg-primary-900/10'
@@ -296,88 +299,36 @@ const ZaloGroupsPage: React.FC = () => {
                       </Typography>
                     </TableCell>
 
-                    {/* Dãy chip: bấm 1 chip là bật/tắt + lưu luôn cho nhóm ở dòng này. */}
+                    {/* Chỉ tóm tắt số chức năng — bấm để mở hàng chỉnh bên dưới. */}
                     <TableCell layoutClassName="px-4 py-3">
-                      <Box layoutClassName="flex flex-wrap items-center gap-1.5">
-                        {ZALO_NOTIFY_FEATURES.map((f) => {
-                          const on = row.features.includes(f.value);
-                          return (
-                            <Button
-                              key={f.value}
-                              type="button"
-                              variant="ghost"
-                              disabled={busy}
-                              onClick={() => toggleFeature(row, f.value)}
-                              sizeClassName="px-2 py-1 text-[11px]"
-                              roundedClassName="rounded-full"
-                              layoutClassName="font-medium"
-                              borderClassName={
-                                on
-                                  ? 'border border-primary-300 dark:border-primary-700'
-                                  : 'border border-slate-200 dark:border-slate-600'
-                              }
-                              backgroundClassName={
-                                on ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-transparent'
-                              }
-                              textClassName={
-                                on
-                                  ? 'text-primary-800 dark:text-primary-200'
-                                  : 'text-slate-500 dark:text-slate-400'
-                              }
-                              hoverClassName="hover:border-primary-300 dark:hover:border-primary-700"
-                              stateClassName="transition-colors"
-                              disableVariantHover
-                              disableVariantTextColor
-                            >
-                              {f.label}
-                            </Button>
-                          );
-                        })}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setExpandedId(open ? null : row.zaloGroupId)}
+                        sizeClassName="px-2 py-1 text-xs"
+                        roundedClassName="rounded-lg"
+                        layoutClassName="inline-flex items-center gap-1.5"
+                        borderClassName="border border-transparent"
+                        hoverClassName="hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-600 dark:hover:bg-slate-700/40"
+                        stateClassName="transition-colors"
+                        disableVariantHover
+                        disableVariantTextColor
+                        textClassName={
+                          row.features.length > 0
+                            ? 'font-semibold text-primary-700 dark:text-primary-300'
+                            : 'text-slate-400 dark:text-slate-500'
+                        }
+                      >
+                        {open ? (
+                          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                        )}
+                        {row.features.length > 0
+                          ? `${row.features.length} chức năng`
+                          : 'Chưa gán'}
                         {busy ? <Spinner size="sm" /> : null}
-                      </Box>
-
-                      {/* Bật "sửa đơn" mới hỏi tiếp: chỉ báo khi đổi field nào. */}
-                      {row.features.includes('order_update') ? (
-                        <Box layoutClassName="mt-2 space-y-1">
-                          <Typography size="xs" variant="muted">
-                            Chỉ báo khi sửa (không chọn = báo mọi thay đổi):
-                          </Typography>
-                          <Box layoutClassName="flex flex-wrap items-center gap-1">
-                            {ZALO_TRACKABLE_FIELDS.map((f) => {
-                              const on = row.updateFieldWhitelist.includes(f.key);
-                              return (
-                                <Button
-                                  key={f.key}
-                                  type="button"
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() => toggleField(row, f.key)}
-                                  sizeClassName="px-1.5 py-0.5 text-[10px]"
-                                  roundedClassName="rounded"
-                                  borderClassName={
-                                    on
-                                      ? 'border border-emerald-300 dark:border-emerald-700'
-                                      : 'border border-dashed border-slate-200 dark:border-slate-600'
-                                  }
-                                  backgroundClassName={
-                                    on ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-transparent'
-                                  }
-                                  textClassName={
-                                    on
-                                      ? 'text-emerald-700 dark:text-emerald-300'
-                                      : 'text-slate-400 dark:text-slate-500'
-                                  }
-                                  stateClassName="transition-colors"
-                                  disableVariantHover
-                                  disableVariantTextColor
-                                >
-                                  {f.label}
-                                </Button>
-                              );
-                            })}
-                          </Box>
-                        </Box>
-                      ) : null}
+                      </Button>
                     </TableCell>
 
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
@@ -401,6 +352,101 @@ const ZaloGroupsPage: React.FC = () => {
                       </Button>
                     </TableCell>
                   </TableRow>
+
+                  {/* Hàng chỉnh: chỉ hiện khi mở đúng nhóm này. */}
+                  {open ? (
+                    <TableRow
+                      backgroundClassName="bg-slate-50/70 dark:bg-slate-800/40"
+                      borderClassName="border-b border-slate-100 dark:border-slate-700/60"
+                    >
+                      <TableCell colSpan={4} layoutClassName="px-4 py-3">
+                        <Box layoutClassName="space-y-2">
+                          <Typography size="xs" variant="muted">
+                            Bấm chip để bật/tắt loại thông báo nhóm này nhận — lưu ngay.
+                          </Typography>
+                          <Box layoutClassName="flex flex-wrap items-center gap-1.5">
+                            {ZALO_NOTIFY_FEATURES.map((f) => {
+                              const on = row.features.includes(f.value);
+                              return (
+                                <Button
+                                  key={f.value}
+                                  type="button"
+                                  variant="ghost"
+                                  disabled={busy}
+                                  onClick={() => toggleFeature(row, f.value)}
+                                  sizeClassName="px-2 py-1 text-[11px]"
+                                  roundedClassName="rounded-full"
+                                  layoutClassName="font-medium"
+                                  borderClassName={
+                                    on
+                                      ? 'border border-primary-300 dark:border-primary-700'
+                                      : 'border border-slate-200 dark:border-slate-600'
+                                  }
+                                  backgroundClassName={
+                                    on ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-transparent'
+                                  }
+                                  textClassName={
+                                    on
+                                      ? 'text-primary-800 dark:text-primary-200'
+                                      : 'text-slate-500 dark:text-slate-400'
+                                  }
+                                  hoverClassName="hover:border-primary-300 dark:hover:border-primary-700"
+                                  stateClassName="transition-colors"
+                                  disableVariantHover
+                                  disableVariantTextColor
+                                >
+                                  {f.label}
+                                </Button>
+                              );
+                            })}
+                          </Box>
+
+                          {row.features.includes('order_update') ? (
+                            <Box layoutClassName="space-y-1 pt-1">
+                              <Typography size="xs" variant="muted">
+                                Chỉ báo khi sửa (không chọn = báo mọi thay đổi):
+                              </Typography>
+                              <Box layoutClassName="flex flex-wrap items-center gap-1">
+                                {ZALO_TRACKABLE_FIELDS.map((f) => {
+                                  const on = row.updateFieldWhitelist.includes(f.key);
+                                  return (
+                                    <Button
+                                      key={f.key}
+                                      type="button"
+                                      variant="ghost"
+                                      disabled={busy}
+                                      onClick={() => toggleField(row, f.key)}
+                                      sizeClassName="px-1.5 py-0.5 text-[10px]"
+                                      roundedClassName="rounded"
+                                      borderClassName={
+                                        on
+                                          ? 'border border-emerald-300 dark:border-emerald-700'
+                                          : 'border border-dashed border-slate-200 dark:border-slate-600'
+                                      }
+                                      backgroundClassName={
+                                        on ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-transparent'
+                                      }
+                                      textClassName={
+                                        on
+                                          ? 'text-emerald-700 dark:text-emerald-300'
+                                          : 'text-slate-400 dark:text-slate-500'
+                                      }
+                                      stateClassName="transition-colors"
+                                      disableVariantHover
+                                      disableVariantTextColor
+                                    >
+                                      {f.label}
+                                    </Button>
+                                  );
+                                })}
+                              </Box>
+                            </Box>
+                          ) : null}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  </React.Fragment>
                 );
               })}
             </TableBody>
@@ -409,8 +455,8 @@ const ZaloGroupsPage: React.FC = () => {
       )}
 
       <Typography size="xs" variant="muted">
-        Bấm chip để bật/tắt loại thông báo cho nhóm — lưu ngay, không cần bấm Lưu. Nhóm không
-        bật chip nào thì không nhận thông báo nào.
+        Bấm ô "N chức năng" để mở danh sách và bật/tắt — lưu ngay, không cần bấm Lưu.
+        Nhóm chưa gán chức năng nào thì không nhận thông báo nào.
       </Typography>
     </Card>
   );
