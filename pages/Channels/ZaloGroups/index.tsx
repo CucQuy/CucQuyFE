@@ -14,6 +14,7 @@ import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Image from '@/components/ui/Image';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
@@ -33,6 +34,8 @@ export interface GroupDraft {
   zaloGroupId: string;
   name: string;
   members: number;
+  /** Ảnh đại diện nhóm từ Zalo; rỗng → hiện chữ cái đầu. */
+  avatar: string;
   features: ZaloNotifyFeature[];
   updateFieldWhitelist: string[];
 }
@@ -113,6 +116,7 @@ const ZaloGroupsPage: React.FC = () => {
         zaloGroupId: b.groupId,
         name: b.name || cfg?.name || b.groupId,
         members: b.members,
+        avatar: b.avatar,
         features: (cfg?.features ?? []) as ZaloNotifyFeature[],
         updateFieldWhitelist: cfg?.updateFieldWhitelist ?? [],
       };
@@ -123,6 +127,7 @@ const ZaloGroupsPage: React.FC = () => {
         zaloGroupId: g.zaloGroupId.trim(),
         name: g.name || g.zaloGroupId.trim(),
         members: 0,
+        avatar: '',
         features: (g.features ?? []) as ZaloNotifyFeature[],
         updateFieldWhitelist: g.updateFieldWhitelist ?? [],
       }));
@@ -275,22 +280,42 @@ const ZaloGroupsPage: React.FC = () => {
                     borderClassName="border-b border-slate-100 dark:border-slate-700/60 last:border-0"
                   >
                     <TableCell layoutClassName="px-4 py-3">
-                      <Typography as="div" size="sm" textClassName="font-semibold text-slate-900 dark:text-white">
-                        {row.name}
-                      </Typography>
-                      <Typography as="div" size="xs" variant="muted" layoutClassName="font-mono">
-                        {row.zaloGroupId}
-                      </Typography>
-                      {gone ? (
-                        <Badge
-                          size="sm"
-                          borderClassName="border-amber-200 dark:border-amber-800"
-                          backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
-                          textClassName="text-amber-700 dark:text-amber-300"
-                        >
-                          Không còn trong Zalo
-                        </Badge>
-                      ) : null}
+                      <Box layoutClassName="flex items-center gap-2.5">
+                        {row.avatar ? (
+                          <Image
+                            src={row.avatar}
+                            alt={row.name}
+                            layoutClassName="h-9 w-9 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <Box
+                            layoutClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                            backgroundClassName="bg-slate-100 dark:bg-slate-700"
+                          >
+                            <Typography as="span" size="sm" textClassName="font-semibold text-slate-500 dark:text-slate-300">
+                              {(row.name || '?').trim().charAt(0).toUpperCase()}
+                            </Typography>
+                          </Box>
+                        )}
+                        <Box layoutClassName="min-w-0">
+                          <Typography as="div" size="sm" textClassName="font-semibold text-slate-900 dark:text-white">
+                            {row.name}
+                          </Typography>
+                          <Typography as="div" size="xs" variant="muted" layoutClassName="font-mono">
+                            {row.zaloGroupId}
+                          </Typography>
+                          {gone ? (
+                            <Badge
+                              size="sm"
+                              borderClassName="border-amber-200 dark:border-amber-800"
+                              backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
+                              textClassName="text-amber-700 dark:text-amber-300"
+                            >
+                              Không còn trong Zalo
+                            </Badge>
+                          ) : null}
+                        </Box>
+                      </Box>
                     </TableCell>
 
                     <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
