@@ -54,19 +54,19 @@ const STATUS_GROUPS: StatusGroup[] = [
   // ── Tiền ra ──
   { id: 'stock',    label: 'Nhập hàng',            statuses: ['stock', 'supplier'],                      side: 'out' },
   { id: 'opex',     label: 'Chi phí vận hành',     statuses: ['expense', 'shipping'],                    side: 'out' },
-  { id: 'personal', label: 'Tiền cá nhân',         statuses: ['excluded'],                               side: 'out' },
   { id: 'refund',   label: 'Hoàn tiền khách',      statuses: ['refund'],                                 side: 'out' },
   // ── Hai chiều ──
-  // Dồn tiền HKD → cá nhân có 2 đầu (sweep_in/sweep_out) nên khi lọc 1 chiều chỉ còn 1 đầu.
-  { id: 'internal', label: 'Nội bộ',               statuses: ['sweep_in', 'sweep_out', 'settled'],       side: 'both' },
+  // Tiền cá nhân và luân chuyển nội bộ (dồn TK, nạp ví, kết toán) cùng một kiểu: tiền không
+  // ra/vào tiệm nên KHÔNG đụng tới lợi nhuận → 1 tab, khỏi bắt người xem phân biệt.
+  { id: 'personal', label: 'Cá nhân / nội bộ',
+    statuses: ['excluded', 'sweep_in', 'sweep_out', 'settled'], side: 'both' },
   { id: 'todo',     label: 'Chưa xử lý',           statuses: ['unmatched'],                              side: 'both' },
   { id: 'test',     label: 'GD test',              statuses: ['test'],                                   side: 'both', hideWhenEmpty: true },
 ];
 
 /** Nhãn riêng khi đang lọc 1 chiều tiền — nói rõ hơn "Nội bộ"/"Chưa xử lý" chung. */
 const SIDE_LABEL: Record<string, { in?: string; out?: string }> = {
-  internal: { in: 'Dồn từ TK kinh doanh', out: 'Nội bộ (dồn TK, nạp ví)' },
-  todo:     { in: 'Chưa khớp',            out: 'Chưa phân loại' },
+  todo: { in: 'Chưa khớp', out: 'Chưa phân loại' },
 };
 
 /**
