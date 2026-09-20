@@ -68,6 +68,7 @@ const EMPTY_LEDGER: LedgerResult = {
     count: 0, inCount: 0, outCount: 0,
     reconciledCount: 0, unreconciledCount: 0, reconciledPct: 100,
   },
+  statusCounts: {},
   byAccount: [],
 };
 

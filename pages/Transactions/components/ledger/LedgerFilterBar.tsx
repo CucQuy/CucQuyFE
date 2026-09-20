@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
-import { RefreshCw, ArrowDownCircle, ArrowUpCircle, CircleDot, Tags, Landmark, CreditCard, Scale, Wand2 } from 'lucide-react';
+import { RefreshCw, ArrowDownCircle, ArrowUpCircle, Tags, Landmark, CreditCard, Scale, Wand2 } from 'lucide-react';
 import { LedgerFilters, LedgerStatus, LEDGER_STATUS_META, EXPENSE_CATEGORIES } from '@/types';
+import Box from '@/components/ui/Box';
 import IconButton from '@/components/ui/IconButton';
 import Button from '@/components/ui/Button';
+import Typography from '@/components/ui/Typography';
+import Tabs, { type TabsItem } from '@/components/ui/Tabs';
 import FilterToolbar, { PillDropdown, type ToolbarPill, type ToolbarOption } from '@/components/shared/FilterToolbar';
 
 interface LedgerFilterBarProps {
@@ -15,6 +18,8 @@ interface LedgerFilterBarProps {
   onStatusChange: (v: LedgerFilters['status']) => void;
   onCategoryChange: (v: string) => void;
   onGatewayChange: (v: string) => void;
+  /** Số GD theo trạng thái trong kỳ (+ 'all') — badge trên tab, BE trả sẵn. */
+  statusCounts: Record<string, number>;
   /** Tài khoản đã khai (099) cho dropdown lọc theo TK nhận / TK chi. */
   accountOptions: { value: string; label: string }[];
   onAccountChange: (v: string) => void;
@@ -33,7 +38,7 @@ const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'sweep_out', 'settle
  * tìm kiếm + pill nhanh Tiền vào/Tiền ra + dropdown trạng thái/danh mục/ngân hàng.
  */
 const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
-  filters, search, gatewayOptions, accountOptions, isFetching,
+  filters, search, gatewayOptions, accountOptions, statusCounts, isFetching,
   onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange,
   onAccountChange, onRefresh, onReconcile, onAutoReconcile,
 }) => {
@@ -62,11 +67,33 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
     },
   ];
 
+  // Tab trạng thái (như màn Đơn hàng): "Tất cả" + các trạng thái CÓ giao dịch trong kỳ.
+  // Ẩn trạng thái rỗng để dải tab không dài lê thê — trừ tab đang chọn (phải thấy để bỏ chọn).
+  const statusTabs: TabsItem[] = useMemo(() => {
+    const badge = (n: number, active: boolean) => (
+      <Typography
+        as="span"
+        size="xs"
+        layoutClassName="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5"
+        backgroundClassName={active ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-slate-100 dark:bg-slate-700'}
+        textClassName={active ? 'text-primary-600 dark:text-primary-300' : 'text-slate-500 dark:text-slate-400'}
+      >
+        {n}
+      </Typography>
+    );
+    const current = filters.status || 'all';
+    const items: TabsItem[] = [
+      { id: 'all', label: 'Tất cả', badge: badge(statusCounts.all ?? 0, current === 'all') },
+    ];
+    statusOptions.forEach((st) => {
+      const n = statusCounts[st] ?? 0;
+      if (n === 0 && current !== st) return;
+      items.push({ id: st, label: LEDGER_STATUS_META[st].label, badge: badge(n, current === st) });
+    });
+    return items;
+  }, [statusOptions, statusCounts, filters.status]);
+
   // Options cho pill dropdown (mục đầu value '' = "Mọi …" hiển thị nhạt, không tính là filter).
-  const statusOpts: ToolbarOption[] = [
-    { value: '', label: 'Mọi trạng thái' },
-    ...statusOptions.map((s) => ({ value: s, label: LEDGER_STATUS_META[s].label })),
-  ];
   const categoryOpts: ToolbarOption[] = [
     { value: '', label: 'Mọi danh mục' },
     ...EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
@@ -85,20 +112,21 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
   );
 
   return (
-    <FilterToolbar
+    <Box layoutClassName="flex flex-col gap-3">
+      <Box layoutClassName="-mb-1 overflow-x-auto scrollbar-hide">
+        <Tabs
+          items={statusTabs}
+          value={filters.status || 'all'}
+          onChange={(v) => onStatusChange((v === 'all' ? '' : v) as LedgerFilters['status'])}
+        />
+      </Box>
+      <FilterToolbar
       search={search}
       onSearchChange={onSearchChange}
       searchPlaceholder="Tìm nội dung, mã đơn, số TK..."
       pills={pills}
       customFilters={
         <>
-          <PillDropdown
-            icon={CircleDot}
-            value={filters.status || ''}
-            options={statusOpts}
-            onChange={(v) => onStatusChange((v || '') as LedgerFilters['status'])}
-            ariaLabel="Trạng thái"
-          />
           <PillDropdown
             icon={Tags}
             value={filters.category || ''}
@@ -187,7 +215,8 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
         onAccountChange('');
         onSearchChange('');
       }}
-    />
+      />
+    </Box>
   );
 };
 

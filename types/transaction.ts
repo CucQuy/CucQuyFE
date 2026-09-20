@@ -168,6 +168,8 @@ export interface LedgerResult {
   items: LedgerTransaction[];
   total: number;
   summary: LedgerSummary;
+  /** Số GD theo từng trạng thái trong kỳ (+ khoá 'all') — badge trên dải tab trạng thái. */
+  statusCounts: Record<string, number>;
   /** Dòng tiền tách theo từng tài khoản trong kỳ. */
   byAccount: LedgerAccountFlow[];
 }

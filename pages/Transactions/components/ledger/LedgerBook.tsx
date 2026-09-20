@@ -113,6 +113,7 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
             filters={filters}
             search={search}
             gatewayOptions={gatewayOptions}
+            statusCounts={data.statusCounts}
             isFetching={isFetching}
             onSearchChange={setSearch}
             onTypeChange={setType}

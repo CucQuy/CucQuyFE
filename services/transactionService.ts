@@ -83,6 +83,7 @@ export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult>
     items?: unknown[];
     total?: unknown;
     summary?: Record<string, unknown>;
+    statusCounts?: Record<string, unknown>;
     byAccount?: unknown[];
   }>(
     '/transactions/ledger',
@@ -119,10 +120,14 @@ export const fetchLedger = async (filters: LedgerFilters): Promise<LedgerResult>
     unreconciledCount: num(s.unreconciledCount),
     reconciledPct: num(s.reconciledPct),
   };
+  const counts = (d.statusCounts ?? {}) as Record<string, unknown>;
   return {
     items: Array.isArray(d.items) ? d.items.map((it) => mapLedgerItem((it ?? {}) as Record<string, unknown>)) : [],
     total: num(d.total),
     summary,
+    statusCounts: Object.fromEntries(
+      Object.entries(counts).map(([k, v]) => [k, num(v)]),
+    ),
     byAccount: Array.isArray(d.byAccount)
       ? d.byAccount.map((a) => mapAccountFlow((a ?? {}) as Record<string, unknown>))
       : [],
