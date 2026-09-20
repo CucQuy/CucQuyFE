@@ -205,7 +205,6 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
         onClose={() => setSelected(null)}
         transaction={selected}
         formatDate={formatDate}
-        onChanged={refetch}
       />
 
       <LedgerReconcileModal

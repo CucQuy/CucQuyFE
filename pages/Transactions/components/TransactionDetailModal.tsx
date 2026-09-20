@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import React from 'react';
 import {
   Calendar,
   Building2,
@@ -12,22 +11,16 @@ import {
   Clock,
   Wallet,
   Tag,
-  Save,
 } from 'lucide-react';
 import { Transaction, LedgerTransaction, ManualExpense } from '@/types';
-import { expenseCategoryLabel, EXPENSE_CATEGORIES } from '@/types/transaction';
+import { expenseCategoryLabel } from '@/types/transaction';
 import { paymentAccountKindLabel } from '@/types/paymentConfig';
-import { setTransactionExpense, linkTransactionOrder } from '@/services/transactionService';
 import { formatVND } from '@/utils/format/currencyUtil';
 import BaseModal from '@/components/BaseModal';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
-import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Heading from '@/components/ui/Heading';
-import Input from '@/components/ui/Input';
-import Label from '@/components/ui/Label';
-import Select from '@/components/ui/Select';
 import Typography from '@/components/ui/Typography';
 
 /** Dòng sổ (có TK derive) hoặc giao dịch trần — modal dùng chung cho cả 2 nguồn. */
@@ -41,8 +34,6 @@ interface TransactionDetailModalProps {
   /** Khoản chi phí tay tương ứng (nếu GD tiền-ra này đã được gán). */
   linkedExpense?: ManualExpense;
   formatDate: (dateStr: string) => string;
-  /** Gọi sau khi sửa danh mục / mã đơn thành công (để refetch sổ). */
-  onChanged?: () => unknown | Promise<unknown>;
 }
 
 const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
@@ -51,48 +42,13 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   transaction,
   linkedExpense,
   formatDate,
-  onChanged,
 }) => {
-  // Sửa danh mục + mã đơn ngay tại modal (dùng service PATCH sẵn có).
-  const [category, setCategory] = useState('');
-  const [orderNumber, setOrderNumber] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setCategory(transaction?.expenseCategory ?? '');
-    setOrderNumber(transaction?.orderNumber ?? '');
-  }, [transaction?.id]);
-
   if (!transaction) return null;
 
   const isIncoming = transaction.transferType === 'in';
+  const category = transaction.expenseCategory ?? '';
+  const orderNumber = transaction.orderNumber ?? '';
 
-  const origCategory = transaction.expenseCategory ?? '';
-  const origOrder = transaction.orderNumber ?? '';
-  const nextOrder = orderNumber.trim().toUpperCase();
-  const dirty = category !== origCategory || nextOrder !== origOrder;
-  // Category hiện tại không nằm trong danh sách chuẩn (vd 'shopee'/'capital') → giữ làm option để không mất.
-  const extraCategory = origCategory && !EXPENSE_CATEGORIES.some((c) => c.value === origCategory) ? origCategory : '';
-
-  const handleSave = async () => {
-    if (!dirty || saving) return;
-    setSaving(true);
-    try {
-      if (category !== origCategory) {
-        await setTransactionExpense(transaction.id, category || null, !!transaction.costExcluded, transaction.reviewNote ?? null);
-      }
-      if (nextOrder !== origOrder) {
-        await linkTransactionOrder(transaction.id, nextOrder);
-      }
-      toast.success('Đã cập nhật giao dịch');
-      await onChanged?.();
-      onClose();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Cập nhật thất bại');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const formatFullDate = (dateStr: string) => {
     try {
@@ -170,53 +126,28 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           )}
         </Card>
 
-        {/* Sửa nhanh phân loại + mã đơn (PATCH sẵn có) */}
-        <Card layoutClassName="p-4" backgroundClassName="bg-white dark:bg-slate-800" borderClassName="border-primary-200 dark:border-primary-800">
+        {/* Phân loại + mã đơn: CHỈ XEM. Sửa/đối soát làm ở nút "Đối soát" trên thanh công cụ,
+            nơi có đủ ứng viên đơn / phiếu nhập — sửa mò trong modal xem dễ sai sổ. */}
+        <Card layoutClassName="p-4" backgroundClassName="bg-white dark:bg-slate-800" borderClassName="border-slate-200 dark:border-slate-700">
           <Box layoutClassName="mb-3 flex items-center gap-2">
-            <Tag className="h-4 w-4 text-primary-500" />
-            <Typography as="span" size="xs" layoutClassName="font-medium uppercase" textClassName="text-primary-600 dark:text-primary-300">
-              Sửa phân loại &amp; mã đơn
+            <Tag className="h-4 w-4 text-slate-400" />
+            <Typography as="span" size="xs" layoutClassName="font-medium uppercase" textClassName="text-slate-600 dark:text-slate-400">
+              Phân loại &amp; mã đơn
             </Typography>
           </Box>
           <Box layoutClassName="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Box layoutClassName="space-y-1.5">
-              <Label className="mb-0">Danh mục</Label>
-              <Select fullWidth value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">— Chưa phân loại —</option>
-                {extraCategory ? <option value={extraCategory}>{extraCategory}</option> : null}
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </Select>
+            <Box layoutClassName="space-y-0.5">
+              <Typography as="p" size="xs" variant="muted">Danh mục</Typography>
+              <Typography as="p" size="sm" layoutClassName="font-medium" textClassName="text-slate-900 dark:text-white">
+                {category ? expenseCategoryLabel(category) : 'Chưa phân loại'}
+              </Typography>
             </Box>
-            <Box layoutClassName="space-y-1.5">
-              <Label className="mb-0">Mã đơn hàng</Label>
-              <Input
-                value={orderNumber}
-                onChange={(e) => setOrderNumber(e.target.value)}
-                placeholder="vd ORD-000123 (để trống = gỡ liên kết)"
-                fullWidth
-              />
+            <Box layoutClassName="space-y-0.5">
+              <Typography as="p" size="xs" variant="muted">Mã đơn hàng</Typography>
+              <Typography as="p" size="sm" layoutClassName="font-medium" textClassName="text-slate-900 dark:text-white">
+                {orderNumber || '—'}
+              </Typography>
             </Box>
-          </Box>
-          <Box layoutClassName="mt-3 flex justify-end">
-            <Button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={!dirty || saving}
-              variant="primary"
-              leftIcon={<Save />}
-              iconClassName="inline-flex shrink-0 [&_svg]:h-4 [&_svg]:w-4"
-              sizeClassName="px-4 py-2 text-sm"
-              roundedClassName="rounded-lg"
-              backgroundClassName="bg-primary-600"
-              hoverClassName="hover:bg-primary-700"
-              textClassName="font-medium text-white"
-              layoutClassName="inline-flex items-center gap-1.5"
-              disableVariantHover
-            >
-              {saving ? 'Đang lưu…' : 'Lưu'}
-            </Button>
           </Box>
         </Card>
 
