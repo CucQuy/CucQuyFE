@@ -154,7 +154,8 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
 
   return (
     <Box layoutClassName="flex flex-col gap-3">
-      <Box layoutClassName="-mb-1 overflow-x-auto scrollbar-hide">
+      {/* Tabs tự cuộn ngang rồi — bọc thêm 1 lớp overflow nữa là 2 thanh cuộn lồng nhau. */}
+      <Box layoutClassName="-mb-1 min-w-0">
         <Tabs
           items={statusTabs}
           value={currentKey}
