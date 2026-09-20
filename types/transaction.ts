@@ -105,13 +105,13 @@ export interface ExpenseRule {
  * Trạng thái thống nhất 1 giao dịch — BE derive sẵn (transaction_ledger_status),
  * FE KHÔNG tự ghép từ các cờ rời rạc nữa.
  *   Tiền vào: matched | shopee | capital | sweep_in | expense_credit | other_in | external | unmatched
- *   Tiền ra:  refund | shipping | sweep_out | settled | excluded | expense | stock | unmatched
+ *   Tiền ra:  refund | shipping | sweep_out | settled | excluded | supplier | expense | stock | unmatched
  * `sweep_in`/`sweep_out` = 2 đầu của CÙNG 1 cú dồn tiền cuối ngày TK HKD → TK cá nhân
  * (luân chuyển nội bộ, không phải doanh thu/chi phí).
  */
 export type LedgerStatus =
   | 'matched' | 'shopee' | 'capital' | 'sweep_in' | 'expense_credit' | 'other_in' | 'external' | 'unmatched'
-  | 'refund' | 'shipping' | 'sweep_out' | 'settled' | 'excluded' | 'expense' | 'stock'
+  | 'refund' | 'shipping' | 'sweep_out' | 'settled' | 'excluded' | 'supplier' | 'expense' | 'stock'
   | 'test';
 
 /** 1 dòng sổ = Transaction + trạng thái derive + tài khoản của dòng tiền (100). */
@@ -186,7 +186,8 @@ export interface LedgerFilters {
   from?: string;
   to?: string;
   type?: 'in' | 'out' | '';
-  status?: LedgerStatus | '';
+  /** 1 trạng thái, hoặc NHIỀU trạng thái phân tách dấu phẩy khi tab là 1 nhóm ('stock,supplier'). */
+  status?: LedgerStatus | string;
   category?: string;
   gateway?: string;
   /** payment_accounts.id — chỉ xem dòng tiền của 1 tài khoản. */
@@ -214,6 +215,7 @@ export const LEDGER_STATUS_META: Record<LedgerStatus, { label: string; tone: Ton
   settled: { label: 'Kết toán', tone: 'blue' },
   excluded: { label: 'Không tính', tone: 'slate' },
   expense: { label: 'Chi phí', tone: 'amber' },
+  supplier: { label: 'Trả NCC', tone: 'teal' },
   stock: { label: 'Đã gắn phiếu', tone: 'teal' },
   test: { label: 'Giao dịch test', tone: 'rose' },
 };

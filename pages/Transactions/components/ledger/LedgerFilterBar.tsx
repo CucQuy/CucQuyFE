@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { RefreshCw, ArrowDownCircle, ArrowUpCircle, Tags, Landmark, CreditCard, Scale, Wand2 } from 'lucide-react';
-import { LedgerFilters, LedgerStatus, LEDGER_STATUS_META, EXPENSE_CATEGORIES } from '@/types';
+import { LedgerFilters, LedgerStatus, EXPENSE_CATEGORIES } from '@/types';
 import Box from '@/components/ui/Box';
 import IconButton from '@/components/ui/IconButton';
 import Button from '@/components/ui/Button';
@@ -30,23 +30,57 @@ interface LedgerFilterBarProps {
   onAutoReconcile: () => void;
 }
 
-const IN_STATUSES: LedgerStatus[] = ['matched', 'shopee', 'capital', 'sweep_in', 'expense_credit', 'other_in', 'external', 'unmatched'];
-const OUT_STATUSES: LedgerStatus[] = ['refund', 'shipping', 'sweep_out', 'settled', 'expense', 'stock', 'excluded', 'unmatched'];
+/**
+ * Tab của màn Số dư tài khoản = NHÓM "khoản này là gì", không phải từng trạng thái kỹ thuật
+ * (13 trạng thái thì dải tab chạy dài mà vẫn khó đọc). Mỗi nhóm gộp vài status; giá trị gửi
+ * xuống BE là danh sách status nối bằng dấu phẩy, BE lọc `status = ANY(...)`.
+ */
+interface StatusGroup {
+  id: string;
+  label: string;
+  statuses: LedgerStatus[];
+  /** Nhóm này thuộc chiều tiền nào (để dải tab đổi theo pill Tiền vào/Tiền ra). */
+  side: 'in' | 'out' | 'both';
+}
+
+const STATUS_GROUPS: StatusGroup[] = [
+  // ── Tiền vào ──
+  { id: 'order',    label: 'Khách trả đơn',        statuses: ['matched'],                                side: 'in' },
+  { id: 'shopee',   label: 'Shopee',               statuses: ['shopee'],                                 side: 'in' },
+  { id: 'capital',  label: 'Cấp vốn',              statuses: ['capital'],                                side: 'in' },
+  { id: 'otherIn',  label: 'Thu khác',             statuses: ['external', 'other_in', 'expense_credit'], side: 'in' },
+  // ── Tiền ra ──
+  { id: 'stock',    label: 'Nhập hàng',            statuses: ['stock', 'supplier'],                      side: 'out' },
+  { id: 'opex',     label: 'Chi phí vận hành',     statuses: ['expense', 'shipping'],                    side: 'out' },
+  { id: 'personal', label: 'Tiền cá nhân',         statuses: ['excluded'],                               side: 'out' },
+  { id: 'refund',   label: 'Hoàn tiền khách',      statuses: ['refund'],                                 side: 'out' },
+  // ── Hai chiều ──
+  // Dồn tiền HKD → cá nhân có 2 đầu (sweep_in/sweep_out) nên khi lọc 1 chiều chỉ còn 1 đầu.
+  { id: 'internal', label: 'Nội bộ',               statuses: ['sweep_in', 'sweep_out', 'settled'],       side: 'both' },
+  { id: 'todo',     label: 'Chưa xử lý',           statuses: ['unmatched'],                              side: 'both' },
+  { id: 'test',     label: 'GD test',              statuses: ['test'],                                   side: 'both' },
+];
+
+/** Nhãn riêng khi đang lọc 1 chiều tiền — nói rõ hơn "Nội bộ"/"Chưa xử lý" chung. */
+const SIDE_LABEL: Record<string, { in?: string; out?: string }> = {
+  internal: { in: 'Dồn từ TK kinh doanh', out: 'Nội bộ (dồn TK, nạp ví)' },
+  todo:     { in: 'Chưa khớp',            out: 'Chưa phân loại' },
+};
 
 /**
  * Toolbar lọc sổ giao dịch — dùng chung FilterToolbar (chuẩn như trang Đơn hàng):
- * tìm kiếm + pill nhanh Tiền vào/Tiền ra + dropdown trạng thái/danh mục/ngân hàng.
+ * dải tab nhóm giao dịch + tìm kiếm + pill nhanh Tiền vào/Tiền ra + dropdown danh mục/ngân hàng.
  */
 const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
   filters, search, gatewayOptions, accountOptions, statusCounts, isFetching,
   onSearchChange, onTypeChange, onStatusChange, onCategoryChange, onGatewayChange,
   onAccountChange, onRefresh, onReconcile, onAutoReconcile,
 }) => {
-  // Trạng thái khả dụng theo loại đang chọn (thu ≠ chi).
-  const statusOptions = useMemo<LedgerStatus[]>(() => {
-    if (filters.type === 'in') return IN_STATUSES;
-    if (filters.type === 'out') return OUT_STATUSES;
-    return [...IN_STATUSES, ...OUT_STATUSES.filter((s) => s !== 'unmatched')];
+  // Nhóm khả dụng theo chiều tiền đang chọn (thu ≠ chi).
+  const groups = useMemo<StatusGroup[]>(() => {
+    if (filters.type === 'in') return STATUS_GROUPS.filter((g) => g.side !== 'out');
+    if (filters.type === 'out') return STATUS_GROUPS.filter((g) => g.side !== 'in');
+    return STATUS_GROUPS;
   }, [filters.type]);
 
   // Pill nhanh: Tiền vào / Tiền ra (loại trừ nhau, bấm lại để bỏ).
@@ -67,8 +101,11 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
     },
   ];
 
-  // Tab trạng thái (như màn Đơn hàng): "Tất cả" + các trạng thái CÓ giao dịch trong kỳ.
-  // Ẩn trạng thái rỗng để dải tab không dài lê thê — trừ tab đang chọn (phải thấy để bỏ chọn).
+  // Tab đang chọn: BE nhận danh sách status, nên id tab là chuỗi 'a,b' — khớp ngược lại đây.
+  const currentKey = filters.status || 'all';
+
+  // Tab nhóm (như màn Đơn hàng): "Tất cả" + các nhóm CÓ giao dịch trong kỳ.
+  // Ẩn nhóm rỗng để dải tab không dài lê thê — trừ tab đang chọn (phải thấy để bỏ chọn).
   const statusTabs: TabsItem[] = useMemo(() => {
     const badge = (n: number, active: boolean) => (
       <Typography
@@ -81,17 +118,19 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
         {n}
       </Typography>
     );
-    const current = filters.status || 'all';
     const items: TabsItem[] = [
-      { id: 'all', label: 'Tất cả', badge: badge(statusCounts.all ?? 0, current === 'all') },
+      { id: 'all', label: 'Tất cả', badge: badge(statusCounts.all ?? 0, currentKey === 'all') },
     ];
-    statusOptions.forEach((st) => {
-      const n = statusCounts[st] ?? 0;
-      if (n === 0 && current !== st) return;
-      items.push({ id: st, label: LEDGER_STATUS_META[st].label, badge: badge(n, current === st) });
+    groups.forEach((g) => {
+      const key = g.statuses.join(',');
+      const n = g.statuses.reduce((sum, st) => sum + (statusCounts[st] ?? 0), 0);
+      if (n === 0 && currentKey !== key) return;
+      const side = filters.type === 'in' || filters.type === 'out' ? filters.type : undefined;
+      const label = (side && SIDE_LABEL[g.id]?.[side]) || g.label;
+      items.push({ id: key, label, badge: badge(n, currentKey === key) });
     });
     return items;
-  }, [statusOptions, statusCounts, filters.status]);
+  }, [groups, statusCounts, currentKey, filters.type]);
 
   // Options cho pill dropdown (mục đầu value '' = "Mọi …" hiển thị nhạt, không tính là filter).
   const categoryOpts: ToolbarOption[] = [
@@ -116,8 +155,8 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
       <Box layoutClassName="-mb-1 overflow-x-auto scrollbar-hide">
         <Tabs
           items={statusTabs}
-          value={filters.status || 'all'}
-          onChange={(v) => onStatusChange((v === 'all' ? '' : v) as LedgerFilters['status'])}
+          value={currentKey}
+          onChange={(v) => onStatusChange(v === 'all' ? '' : v)}
         />
       </Box>
       <FilterToolbar
