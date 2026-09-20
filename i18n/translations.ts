@@ -141,7 +141,7 @@ export const translations = {
     },
     channels: {
       zaloTitle: "Zalo",
-      zaloDesc: "Groups that receive notifications, global feature switches and the message sent to customers — all in one screen. Tap a group to toggle its own notifications.",
+      zaloDesc: "Groups that receive notifications. Toggle each notification type right on the group row.",
       zaloOrdersTitle: "Order alerts",
       zaloOrdersDesc: "Which orders were notified, which failed or were never sent.",
       zaloLogTitle: "Send log",
@@ -965,7 +965,7 @@ export const translations = {
     channels: {
       // ── Tiêu đề các màn ──
       zaloTitle: "Zalo",
-      zaloDesc: "Nhóm nhận thông báo, cờ tổng chức năng và tin gửi khách — gom trong một màn. Bấm vào nhóm để bật/tắt chức năng của riêng nhóm đó.",
+      zaloDesc: "Nhóm nhận thông báo — bật/tắt từng loại thông báo bằng chip ngay trên dòng của nhóm.",
       zaloOrdersTitle: "Thông báo đơn",
       zaloOrdersDesc: "Đơn nào đã gửi tin cho khách, đơn nào lỗi hoặc chưa gửi.",
       zaloLogTitle: "Nhật ký gửi",
