@@ -51,12 +51,15 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; cost?:
   { value: 'shipping', label: 'Vận chuyển/Ship' },
   { value: 'packaging', label: 'Bao bì/Hộp' },
   { value: 'other', label: 'Khác' },
+  // 105: rút vốn/rút lời/nạp ví gộp hết vào 'personal' — chia nhỏ chẳng để làm gì vì
+  // cả nhóm đều KHÔNG tính vào P&L. 'owner'/'internal' chỉ còn ở dữ liệu cũ (map nhãn bên dưới).
   { value: 'personal', label: 'Cá nhân (không tính)', cost: false },
-  { value: 'owner', label: 'Rút vốn/Rút lời (không tính)', cost: false },
-  { value: 'internal', label: 'Nội bộ/Nạp ví (không tính)', cost: false },
   // Dồn tiền cuối ngày TK HKD → TK cá nhân: tiền vẫn trong tiệm, không phải thu/chi.
   { value: 'sweep', label: 'Dồn tiền HKD → cá nhân (không tính)', cost: false },
 ];
+
+/** Category cũ đã gộp vào 'personal' (105) — giữ để dữ liệu cũ vẫn ra đúng nhãn. */
+const LEGACY_PERSONAL = ['owner', 'internal'];
 
 /** Nhãn của các category chỉ dùng cho TIỀN VÀO (không nằm trong dropdown chi phí). */
 const IN_CATEGORY_LABELS: Record<string, string> = {
@@ -65,19 +68,22 @@ const IN_CATEGORY_LABELS: Record<string, string> = {
   other_in: 'Thu khác',
 };
 
-export const expenseCategoryLabel = (c?: string | null): string =>
-  EXPENSE_CATEGORIES.find((x) => x.value === c)?.label
-  ?? (c ? (IN_CATEGORY_LABELS[c] ?? 'Khác') : '—');
+export const expenseCategoryLabel = (c?: string | null): string => {
+  if (c && LEGACY_PERSONAL.includes(c)) return 'Cá nhân (không tính)';
+  return EXPENSE_CATEGORIES.find((x) => x.value === c)?.label
+    ?? (c ? (IN_CATEGORY_LABELS[c] ?? 'Khác') : '—');
+};
 
 /**
  * Nhãn tag phân loại cho tiền RA (giống mã đơn của tiền vào).
  * Khác expenseCategoryLabel: giữ nguyên chuỗi free-text (vd "Kết toán SePay (nội bộ)")
  * thay vì gộp về "Khác", và trả '' khi chưa phân loại.
  */
-export const expenseCategoryTag = (c?: string | null): string =>
-  c && c.trim()
-    ? (EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? IN_CATEGORY_LABELS[c] ?? c)
-    : '';
+export const expenseCategoryTag = (c?: string | null): string => {
+  if (!c || !c.trim()) return '';
+  if (LEGACY_PERSONAL.includes(c)) return 'Cá nhân (không tính)';
+  return EXPENSE_CATEGORIES.find((x) => x.value === c)?.label ?? IN_CATEGORY_LABELS[c] ?? c;
+};
 
 /**
  * Category thuộc DANH SÁCH CHUẨN của dropdown chi phí (khớp expense_category_is_known_cost ở BE).

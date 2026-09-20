@@ -881,7 +881,8 @@ const ShippingPicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }>
 /* ---- Chi phí: bấm 1 phát là xong, chia 2 nhóm cho đỡ rối ---- */
 const ExpensePicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> = ({ tx, onMatched }) => {
   const [busy, setBusy] = useState(false);
-  // 'sweep' có nút "Dồn tiền" riêng → không lặp lại trong danh sách hạng mục.
+  // 'sweep' có nút "Dồn tiền" riêng → không lặp lại. Nhóm "không tính" giờ chỉ còn
+  // 'personal' (105 gộp rút vốn/nạp ví vào đây) nên khối này còn đúng 1 nút.
   const cost = EXPENSE_CATEGORIES.filter((c) => c.cost !== false);
   const nonCost = EXPENSE_CATEGORIES.filter((c) => c.cost === false && c.value !== 'sweep');
   // Danh mục rule auto-gán sẵn (nếu có) → highlight để bấm phát ăn ngay.
@@ -949,7 +950,7 @@ const ExpensePicker: React.FC<{ tx: LedgerTransaction; onMatched: () => void }> 
         {suggested ? ' Ô viền xanh là hạng mục hệ thống đã đoán.' : ''}
       </Typography>
       {group('Chi phí quán', '— trừ vào lợi nhuận', cost, 'cost')}
-      {group('Không tính', '— tiền cá nhân / nội bộ', nonCost, 'free')}
+      {group('Không tính', '— tiền cá nhân, không trừ lợi nhuận', nonCost, 'free')}
     </Box>
   );
 };

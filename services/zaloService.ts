@@ -119,6 +119,8 @@ export interface ZaloBridgeGroup {
   groupId: string;
   name: string;
   members: number;
+  /** URL ảnh đại diện nhóm (group_avt); rỗng nếu nhóm không có ảnh. */
+  avatar: string;
 }
 
 /**
@@ -135,6 +137,7 @@ export const fetchZaloBridgeGroups = async (phone?: string): Promise<ZaloBridgeG
           groupId: typeof g?.groupId === 'string' ? g.groupId : '',
           name: typeof g?.name === 'string' ? g.name : '',
           members: typeof g?.members === 'number' ? g.members : 0,
+          avatar: typeof g?.avatar === 'string' ? g.avatar : '',
         }))
         .filter((g) => g.groupId)
     : [];
