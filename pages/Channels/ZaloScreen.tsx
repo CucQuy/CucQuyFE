@@ -32,10 +32,8 @@ const ZaloScreen: React.FC = () => {
   return (
     <ChannelScreen title={t('channels.zaloTitle')} desc={t('channels.zaloDesc')}>
       <Box layoutClassName="h-full space-y-4 overflow-y-auto">
-        {/* Nhóm: khối chính (list trái + panel phải), tự cuộn bên trong nên cần chiều cao cố định. */}
-        <Box layoutClassName="h-[64vh] min-h-[460px]">
-          <ZaloGroupsPage />
-        </Box>
+        {/* Nhóm: bảng chính của màn, cao theo nội dung (cả trang đã cuộn). */}
+        <ZaloGroupsPage />
 
         <CollapsibleSection
           title="Chức năng thông báo (cờ tổng)"

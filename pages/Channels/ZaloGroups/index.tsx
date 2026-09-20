@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, RefreshCw, Users } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Send, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { fetchZaloBridgeGroups, type ZaloBridgeGroup } from '@/services/zaloService';
+import { fetchZaloBridgeGroups, sendZaloTestMessage, type ZaloBridgeGroup } from '@/services/zaloService';
 import { useSaveZaloGroups, useZaloGroups } from '@/hooks/queries/useConfigQuery';
 import { useAuth } from '@/contexts/AuthContext';
-import { ZaloGroupConfig, ZaloNotifyFeature, zaloFeatureLabel } from '@/types';
+import {
+  ZALO_NOTIFY_FEATURES,
+  ZALO_TRACKABLE_FIELDS,
+  ZaloGroupConfig,
+  ZaloNotifyFeature,
+} from '@/types';
 import Badge from '@/components/ui/Badge';
 import Box from '@/components/ui/Box';
 import Button from '@/components/ui/Button';
@@ -13,7 +18,24 @@ import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
-import GroupFeaturePanel, { type GroupDraft } from './components/GroupFeaturePanel';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from '@/components/ui/Table';
+
+/** 1 dòng của bảng = 1 nhóm Zalo + cấu hình thông báo đang gán cho nó. */
+export interface GroupDraft {
+  /** ID nhóm Zalo thật (từ danh sách nhóm của nick đang gửi). */
+  zaloGroupId: string;
+  name: string;
+  members: number;
+  features: ZaloNotifyFeature[];
+  updateFieldWhitelist: string[];
+}
 
 /** Id cho row cấu hình mới (BE tự sinh nếu trống, nhưng giữ ổn định ở FE). */
 const newConfigId = () =>
@@ -26,8 +48,8 @@ const newConfigId = () =>
  *
  * Danh sách = TOÀN BỘ nhóm của nick Zalo đang gửi (listAllGroupForPartner qua BE), tự
  * nạp khi vào màn — không nhập/dán ID nhóm tay nữa (sai 1 ký tự là bridge vẫn báo "đã
- * nhận" nhưng tin không tới nhóm nào). Màn chia 2: DANH SÁCH nhóm bên trái, bấm 1 nhóm
- * → panel bên phải hiện đúng chức năng của nhóm đó để bật/tắt.
+ * nhận" nhưng tin không tới nhóm nào). Mỗi nhóm 1 dòng bảng, cột Chức năng là dãy chip
+ * bật/tắt ngay tại dòng (lưu luôn, không cần bấm Lưu) — kiểu bảng tài khoản thanh toán.
  * Cấu hình lưu ở zalo_groups; nhóm chưa gán gì thì không nhận thông báo nào.
  */
 const ZaloGroupsPage: React.FC = () => {
@@ -39,8 +61,9 @@ const ZaloGroupsPage: React.FC = () => {
   const [loadingBridge, setLoadingBridge] = useState(false);
   const [bridgeError, setBridgeError] = useState('');
   const [search, setSearch] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  /** ID nhóm đang lưu — khoá chip của đúng dòng đó trong lúc gọi API. */
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
 
   const loadBridgeGroups = useCallback(async () => {
     setLoadingBridge(true);
@@ -107,22 +130,9 @@ const ZaloGroupsPage: React.FC = () => {
     );
   }, [bridgeGroups, bridgeIds, configByZaloId, zaloConfig, search]);
 
-  const activeGroup = useMemo(
-    () => rows.find((r) => r.zaloGroupId === openId) ?? null,
-    [rows, openId],
-  );
-
-  // Vào màn (hoặc lọc mất nhóm đang xem) → tự chọn nhóm đầu để panel không trống trơn.
-  useEffect(() => {
-    if (rows.length === 0) return;
-    if (!openId || !rows.some((r) => r.zaloGroupId === openId)) {
-      setOpenId(rows[0].zaloGroupId);
-    }
-  }, [rows, openId]);
-
   /** Lưu cấu hình 1 nhóm (BE ghi đè cả list nên phải gửi kèm các nhóm khác). */
   const handleSaveGroup = async (next: GroupDraft) => {
-    setSaving(true);
+    setSavingId(next.zaloGroupId);
     try {
       const others = (zaloConfig?.groups ?? []).filter(
         (g) => g.zaloGroupId.trim() !== next.zaloGroupId,
@@ -145,146 +155,264 @@ const ZaloGroupsPage: React.FC = () => {
         : others;
 
       await saveZaloGroups({ groups, updatedBy: currentUser?.uid ?? null });
-      toast.success(`Đã lưu chức năng cho "${next.name}"`);
     } catch {
       toast.error('Lưu cấu hình nhóm thất bại');
     } finally {
-      setSaving(false);
+      setSavingId(null);
     }
+  };
+
+  /** Bật/tắt 1 chức năng của 1 nhóm — lưu ngay như toggle ở bảng tài khoản. */
+  const toggleFeature = (row: GroupDraft, feature: ZaloNotifyFeature) => {
+    const on = row.features.includes(feature);
+    void handleSaveGroup({
+      ...row,
+      features: on ? row.features.filter((f) => f !== feature) : [...row.features, feature],
+      // Tắt "sửa đơn" thì bộ lọc field của nó cũng hết nghĩa → dọn luôn.
+      updateFieldWhitelist:
+        on && feature === 'order_update' ? [] : row.updateFieldWhitelist,
+    });
+  };
+
+  /** Chọn field được phép báo khi SỬA đơn (rỗng = báo mọi thay đổi). */
+  const toggleField = (row: GroupDraft, key: string) => {
+    const on = row.updateFieldWhitelist.includes(key);
+    void handleSaveGroup({
+      ...row,
+      updateFieldWhitelist: on
+        ? row.updateFieldWhitelist.filter((f) => f !== key)
+        : [...row.updateFieldWhitelist, key],
+    });
+  };
+
+  const handleTest = async (row: GroupDraft) => {
+    setTestingId(row.zaloGroupId);
+    const r = await sendZaloTestMessage(row.zaloGroupId);
+    setTestingId(null);
+    if (r.ok) toast.success(`Đã gửi tin test vào "${row.name}"`);
+    else toast.error(r.error || 'Gửi test thất bại');
   };
 
   const loading = configLoading || (loadingBridge && !bridgeGroups);
 
   return (
-    <Box layoutClassName="grid h-full min-h-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-      {/* Cột trái: danh sách nhóm */}
-      <Card
-        padding="none"
-        layoutClassName="flex min-h-0 flex-col overflow-hidden"
-        borderClassName="border-slate-100 dark:border-slate-700"
-      >
-        <Box
-          layoutClassName="shrink-0 space-y-2 px-3 py-3"
-          borderClassName="border-b border-slate-100 dark:border-slate-700"
-        >
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm nhóm theo tên hoặc ID…"
-            containerClassName="w-full"
-          />
-          <Box layoutClassName="flex items-center justify-between gap-2">
-            <Typography size="xs" variant="muted">
-              {bridgeGroups ? `${bridgeGroups.length} nhóm từ Zalo` : '—'}
-            </Typography>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => void loadBridgeGroups()}
-              disabled={loadingBridge}
-              sizeClassName="px-2 py-1 text-xs"
-              leftIcon={loadingBridge ? <Spinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
-              layoutClassName="inline-flex items-center gap-1.5"
-            >
-              {loadingBridge ? 'Đang nạp…' : 'Nạp lại'}
-            </Button>
-          </Box>
+    <Card padding="lg" layoutClassName="space-y-3">
+      <Box layoutClassName="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Tìm nhóm theo tên hoặc ID…"
+          containerClassName="w-full sm:w-72"
+        />
+        <Typography size="xs" variant="muted">
+          {bridgeGroups ? `${bridgeGroups.length} nhóm từ Zalo` : '—'}
+        </Typography>
+        <Box layoutClassName="ml-auto">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void loadBridgeGroups()}
+            disabled={loadingBridge}
+            sizeClassName="px-3 py-1.5 text-xs"
+            leftIcon={loadingBridge ? <Spinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
+            layoutClassName="inline-flex items-center gap-1.5"
+          >
+            {loadingBridge ? 'Đang nạp…' : 'Nạp lại'}
+          </Button>
         </Box>
+      </Box>
 
-        <Box layoutClassName="max-h-72 min-h-0 flex-1 overflow-auto lg:max-h-none">
-          {loading ? (
-            <Box layoutClassName="flex items-center justify-center py-10">
-              <Spinner />
-            </Box>
-          ) : bridgeError && rows.length === 0 ? (
-            <EmptyState
-              icon={<AlertTriangle className="h-8 w-8" />}
-              title="Không lấy được danh sách nhóm"
-              description={bridgeError}
-            />
-          ) : rows.length === 0 ? (
-            <EmptyState
-              icon={<Users className="h-8 w-8" />}
-              title="Nick Zalo đang gửi không có nhóm nào"
-              description="Thêm tài khoản Zalo vào nhóm rồi bấm Nạp lại."
-            />
-          ) : (
-            <Box layoutClassName="divide-y divide-slate-100 dark:divide-slate-700/60">
-              {rows.map((r) => {
-                const active = r.zaloGroupId === openId;
-                const gone = bridgeIds.size > 0 && !bridgeIds.has(r.zaloGroupId);
+      {loading ? (
+        <Box layoutClassName="flex items-center justify-center py-10">
+          <Spinner />
+        </Box>
+      ) : bridgeError && rows.length === 0 ? (
+        <EmptyState
+          icon={<AlertTriangle className="h-8 w-8" />}
+          title="Không lấy được danh sách nhóm"
+          description={bridgeError}
+        />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={<Users className="h-8 w-8" />}
+          title="Nick Zalo đang gửi không có nhóm nào"
+          description="Thêm tài khoản Zalo vào nhóm rồi bấm Nạp lại."
+        />
+      ) : (
+        <Box layoutClassName="overflow-x-auto">
+          <Table>
+            <TableHead
+              backgroundClassName="bg-slate-50 dark:bg-slate-700/60"
+              borderClassName="border-b border-slate-200 dark:border-slate-600"
+            >
+              <TableRow textClassName="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                <TableHeaderCell layoutClassName="px-4 py-3.5">Nhóm</TableHeaderCell>
+                <TableHeaderCell layoutClassName="px-4 py-3.5 text-right">Thành viên</TableHeaderCell>
+                <TableHeaderCell layoutClassName="px-4 py-3.5">Chức năng thông báo</TableHeaderCell>
+                <TableHeaderCell layoutClassName="px-4 py-3.5 text-right">Thao tác</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((row, idx) => {
+                const gone = bridgeIds.size > 0 && !bridgeIds.has(row.zaloGroupId);
+                const busy = savingId === row.zaloGroupId;
                 return (
-                  <Button
-                    key={r.zaloGroupId}
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setOpenId(r.zaloGroupId)}
-                    layoutClassName="w-full text-left"
-                    sizeClassName="px-3 py-2.5"
-                    roundedClassName="rounded-none"
-                    backgroundClassName={active ? 'bg-primary-50 dark:bg-primary-950/30' : undefined}
-                    hoverClassName={active ? undefined : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'}
-                    disableVariantHover
-                    disableVariantTextColor
+                  <TableRow
+                    key={row.zaloGroupId}
+                    backgroundClassName={
+                      row.features.length > 0
+                        ? 'bg-primary-50/50 dark:bg-primary-900/10'
+                        : idx % 2 === 0
+                          ? ''
+                          : 'bg-slate-50/50 dark:bg-slate-700/20'
+                    }
+                    hoverClassName="hover:bg-primary-50/60 dark:hover:bg-primary-900/10"
+                    stateClassName="transition-colors"
+                    borderClassName="border-b border-slate-100 dark:border-slate-700/60 last:border-0"
                   >
-                    <Box layoutClassName="w-full min-w-0 space-y-1">
-                      <Typography
-                        size="sm"
-                        layoutClassName={`truncate ${active ? 'font-semibold text-primary-800 dark:text-primary-200' : 'font-medium'}`}
-                      >
-                        {r.name}
+                    <TableCell layoutClassName="px-4 py-3">
+                      <Typography as="div" size="sm" textClassName="font-semibold text-slate-900 dark:text-white">
+                        {row.name}
                       </Typography>
+                      <Typography as="div" size="xs" variant="muted" layoutClassName="font-mono">
+                        {row.zaloGroupId}
+                      </Typography>
+                      {gone ? (
+                        <Badge
+                          size="sm"
+                          borderClassName="border-amber-200 dark:border-amber-800"
+                          backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
+                          textClassName="text-amber-700 dark:text-amber-300"
+                        >
+                          Không còn trong Zalo
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+
+                    <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
+                      <Typography as="span" size="sm" variant={row.members ? undefined : 'muted'}>
+                        {row.members || '—'}
+                      </Typography>
+                    </TableCell>
+
+                    {/* Dãy chip: bấm 1 chip là bật/tắt + lưu luôn cho nhóm ở dòng này. */}
+                    <TableCell layoutClassName="px-4 py-3">
                       <Box layoutClassName="flex flex-wrap items-center gap-1.5">
-                        <Typography size="xs" variant="muted">
-                          {r.members ? `${r.members} TV` : 'Không rõ TV'}
-                        </Typography>
-                        {r.features.length > 0 ? (
-                          <Badge
-                            size="sm"
-                            borderClassName="border-primary-200 dark:border-primary-800"
-                            backgroundClassName="bg-primary-50 dark:bg-primary-950/40"
-                            textClassName="text-primary-700 dark:text-primary-300"
-                          >
-                            {r.features.length === 1
-                              ? zaloFeatureLabel(r.features[0])
-                              : `${r.features.length} chức năng`}
-                          </Badge>
-                        ) : (
-                          <Typography size="xs" variant="muted">
-                            Chưa gán
-                          </Typography>
-                        )}
-                        {gone ? (
-                          <Badge
-                            size="sm"
-                            borderClassName="border-amber-200 dark:border-amber-800"
-                            backgroundClassName="bg-amber-50 dark:bg-amber-950/40"
-                            textClassName="text-amber-700 dark:text-amber-300"
-                          >
-                            Không còn trong Zalo
-                          </Badge>
-                        ) : null}
+                        {ZALO_NOTIFY_FEATURES.map((f) => {
+                          const on = row.features.includes(f.value);
+                          return (
+                            <Button
+                              key={f.value}
+                              type="button"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() => toggleFeature(row, f.value)}
+                              sizeClassName="px-2 py-1 text-[11px]"
+                              roundedClassName="rounded-full"
+                              layoutClassName="font-medium"
+                              borderClassName={
+                                on
+                                  ? 'border border-primary-300 dark:border-primary-700'
+                                  : 'border border-slate-200 dark:border-slate-600'
+                              }
+                              backgroundClassName={
+                                on ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-transparent'
+                              }
+                              textClassName={
+                                on
+                                  ? 'text-primary-800 dark:text-primary-200'
+                                  : 'text-slate-500 dark:text-slate-400'
+                              }
+                              hoverClassName="hover:border-primary-300 dark:hover:border-primary-700"
+                              stateClassName="transition-colors"
+                              disableVariantHover
+                              disableVariantTextColor
+                            >
+                              {f.label}
+                            </Button>
+                          );
+                        })}
+                        {busy ? <Spinner size="sm" /> : null}
                       </Box>
-                    </Box>
-                  </Button>
+
+                      {/* Bật "sửa đơn" mới hỏi tiếp: chỉ báo khi đổi field nào. */}
+                      {row.features.includes('order_update') ? (
+                        <Box layoutClassName="mt-2 space-y-1">
+                          <Typography size="xs" variant="muted">
+                            Chỉ báo khi sửa (không chọn = báo mọi thay đổi):
+                          </Typography>
+                          <Box layoutClassName="flex flex-wrap items-center gap-1">
+                            {ZALO_TRACKABLE_FIELDS.map((f) => {
+                              const on = row.updateFieldWhitelist.includes(f.key);
+                              return (
+                                <Button
+                                  key={f.key}
+                                  type="button"
+                                  variant="ghost"
+                                  disabled={busy}
+                                  onClick={() => toggleField(row, f.key)}
+                                  sizeClassName="px-1.5 py-0.5 text-[10px]"
+                                  roundedClassName="rounded"
+                                  borderClassName={
+                                    on
+                                      ? 'border border-emerald-300 dark:border-emerald-700'
+                                      : 'border border-dashed border-slate-200 dark:border-slate-600'
+                                  }
+                                  backgroundClassName={
+                                    on ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-transparent'
+                                  }
+                                  textClassName={
+                                    on
+                                      ? 'text-emerald-700 dark:text-emerald-300'
+                                      : 'text-slate-400 dark:text-slate-500'
+                                  }
+                                  stateClassName="transition-colors"
+                                  disableVariantHover
+                                  disableVariantTextColor
+                                >
+                                  {f.label}
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                        </Box>
+                      ) : null}
+                    </TableCell>
+
+                    <TableCell layoutClassName="whitespace-nowrap px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={testingId === row.zaloGroupId}
+                        onClick={() => void handleTest(row)}
+                        sizeClassName="px-2.5 py-1.5 text-xs"
+                        leftIcon={
+                          testingId === row.zaloGroupId ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )
+                        }
+                        iconClassName="inline-flex shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
+                        layoutClassName="inline-flex items-center gap-1.5"
+                      >
+                        Gửi test
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </Box>
-          )}
+            </TableBody>
+          </Table>
         </Box>
-      </Card>
+      )}
 
-      {/* Cột phải: chức năng của nhóm đang chọn */}
-      <Box layoutClassName="min-h-[420px] min-w-0">
-        <GroupFeaturePanel
-          key={activeGroup?.zaloGroupId ?? 'empty'}
-          group={activeGroup}
-          saving={saving}
-          onSave={handleSaveGroup}
-        />
-      </Box>
-    </Box>
+      <Typography size="xs" variant="muted">
+        Bấm chip để bật/tắt loại thông báo cho nhóm — lưu ngay, không cần bấm Lưu. Nhóm không
+        bật chip nào thì không nhận thông báo nào.
+      </Typography>
+    </Card>
   );
 };
 
