@@ -41,6 +41,8 @@ interface StatusGroup {
   statuses: LedgerStatus[];
   /** Nhóm này thuộc chiều tiền nào (để dải tab đổi theo pill Tiền vào/Tiền ra). */
   side: 'in' | 'out' | 'both';
+  /** Chỉ hiện khi có giao dịch (dành cho nhóm không phải nghiệp vụ thường ngày). */
+  hideWhenEmpty?: boolean;
 }
 
 const STATUS_GROUPS: StatusGroup[] = [
@@ -58,7 +60,7 @@ const STATUS_GROUPS: StatusGroup[] = [
   // Dồn tiền HKD → cá nhân có 2 đầu (sweep_in/sweep_out) nên khi lọc 1 chiều chỉ còn 1 đầu.
   { id: 'internal', label: 'Nội bộ',               statuses: ['sweep_in', 'sweep_out', 'settled'],       side: 'both' },
   { id: 'todo',     label: 'Chưa xử lý',           statuses: ['unmatched'],                              side: 'both' },
-  { id: 'test',     label: 'GD test',              statuses: ['test'],                                   side: 'both' },
+  { id: 'test',     label: 'GD test',              statuses: ['test'],                                   side: 'both', hideWhenEmpty: true },
 ];
 
 /** Nhãn riêng khi đang lọc 1 chiều tiền — nói rõ hơn "Nội bộ"/"Chưa xử lý" chung. */
@@ -104,8 +106,8 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
   // Tab đang chọn: BE nhận danh sách status, nên id tab là chuỗi 'a,b' — khớp ngược lại đây.
   const currentKey = filters.status || 'all';
 
-  // Tab nhóm (như màn Đơn hàng): "Tất cả" + các nhóm CÓ giao dịch trong kỳ.
-  // Ẩn nhóm rỗng để dải tab không dài lê thê — trừ tab đang chọn (phải thấy để bỏ chọn).
+  // Tab nhóm (như màn Đơn hàng): "Tất cả" + ĐỦ các nhóm, kể cả nhóm 0 giao dịch — dải tab
+  // phải đứng yên để biết hệ thống chia tiền thành những nhóm nào, không nhảy theo kỳ lọc.
   const statusTabs: TabsItem[] = useMemo(() => {
     const badge = (n: number, active: boolean) => (
       <Typography
@@ -124,7 +126,7 @@ const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
     groups.forEach((g) => {
       const key = g.statuses.join(',');
       const n = g.statuses.reduce((sum, st) => sum + (statusCounts[st] ?? 0), 0);
-      if (n === 0 && currentKey !== key) return;
+      if (n === 0 && g.hideWhenEmpty && currentKey !== key) return;
       const side = filters.type === 'in' || filters.type === 'out' ? filters.type : undefined;
       const label = (side && SIDE_LABEL[g.id]?.[side]) || g.label;
       items.push({ id: key, label, badge: badge(n, currentKey === key) });
