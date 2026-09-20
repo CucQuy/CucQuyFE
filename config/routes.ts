@@ -133,8 +133,8 @@ export const routes: RouteConfig[] = [
     icon: ShoppingCart,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.COLABORATOR],
   },
-  // Kết nối đa kênh: nhóm + cờ tổng chức năng + tin gửi khách gom trong 1 màn Zalo;
-  // thông báo đơn và nhật ký gửi vẫn là màn riêng để phân quyền lẻ.
+  // Kết nối đa kênh: "Thông báo" gom cài đặt của MỌI kênh (không thuộc kênh nào);
+  // thông báo đơn và nhật ký gửi là màn riêng của Zalo, phân quyền lẻ.
   {
     type: "page",
     path: "/channels/notify",
@@ -474,12 +474,14 @@ export const navGroups: NavGroupConfig[] = [
     childPaths: ["/goals", "/goals/overview", "/goals/settings"],
   },
   {
-    // Kết nối đa kênh (cha) › Zalo (con) › từng màn. Giữ cấp "Zalo" dù hiện chỉ có 1 kênh
-    // — nối thêm kênh khác là gắn thẳng vào, không phải xếp lại menu.
+    // Kết nối đa kênh (cha):
+    //  • "Thông báo" là màn CHUNG mọi kênh → treo thẳng cấp 2, không thuộc kênh nào.
+    //  • Mỗi kênh là 1 nhóm con riêng (Zalo hôm nay; FB/IG/TikTok nối thêm sau chỉ
+    //    việc thêm 1 nhóm con nữa, không phải xếp lại menu).
     key: "channels",
     labelKey: "nav.channelsGroup",
     icon: MessageCircle,
-    childPaths: [],
+    childPaths: ["/channels/notify"],
   },
   {
     key: "channelsZalo",
@@ -487,7 +489,6 @@ export const navGroups: NavGroupConfig[] = [
     icon: MessageCircle,
     parentKey: "channels",
     childPaths: [
-      "/channels/notify",
       "/channels/zalo/orders",
       "/channels/zalo/log",
     ],
