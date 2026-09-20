@@ -8,7 +8,6 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Spinner from '@/components/ui/Spinner';
 import Typography from '@/components/ui/Typography';
-import LedgerSummaryBar from './LedgerSummaryBar';
 import LedgerAccountFlowCard from './LedgerAccountFlowCard';
 import LedgerFilterBar from './LedgerFilterBar';
 import LedgerDesktopTable from './LedgerDesktopTable';
@@ -30,7 +29,7 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
-/** Sổ giao dịch thống nhất: summary + filter (chuẩn như Orders) + bảng phân trang server-side. */
+/** Số dư tài khoản: dòng tiền từng TK + filter (chuẩn như Orders) + bảng phân trang server-side. */
 const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, toDate }) => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -100,9 +99,8 @@ const LedgerBook: React.FC<{ fromDate: string; toDate: string }> = ({ fromDate, 
 
   return (
     <Box layoutClassName="space-y-4">
-      <LedgerSummaryBar summary={data.summary} />
-
-      {/* Tiền nào của TK nào: bấm 1 thẻ để lọc sổ theo tài khoản đó. */}
+      {/* Tiền nào của TK nào: bấm 1 thẻ để lọc sổ theo tài khoản đó.
+          Dải thống kê thu/chi/số dư ròng đã bỏ — màn Tổng quan lo phần đó. */}
       <LedgerAccountFlowCard accounts={data.byAccount} selected={account} onSelect={setAccount} />
 
       {/* 1 card bọc toolbar + bảng (giống Orders) */}
