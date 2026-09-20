@@ -137,8 +137,8 @@ export const routes: RouteConfig[] = [
   // thông báo đơn và nhật ký gửi vẫn là màn riêng để phân quyền lẻ.
   {
     type: "page",
-    path: "/channels/zalo",
-    labelKey: "nav.chZaloGroups",
+    path: "/channels/notify",
+    labelKey: "nav.chNotify",
     icon: MessageCircle,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
   },
@@ -487,7 +487,7 @@ export const navGroups: NavGroupConfig[] = [
     icon: MessageCircle,
     parentKey: "channels",
     childPaths: [
-      "/channels/zalo",
+      "/channels/notify",
       "/channels/zalo/orders",
       "/channels/zalo/log",
     ],

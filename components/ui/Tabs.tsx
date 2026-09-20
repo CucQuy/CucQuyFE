@@ -29,17 +29,23 @@ const Tabs: React.FC<TabsProps> = ({ items, value, onChange, className }) => {
       const container = containerRef.current;
       if (!activeButton || !container) return;
 
-      const buttonRect = activeButton.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
+      // offsetLeft (toạ độ trong CONTENT) chứ không phải getBoundingClientRect (toạ độ màn
+      // hình): gạch chân nằm absolute trong container cuộn ngang, dùng rect thì dải tab dài
+      // vừa cuộn là gạch lệch đúng bằng scrollLeft.
       setIndicatorStyle({
-        left: buttonRect.left - containerRect.left,
-        width: buttonRect.width
+        left: activeButton.offsetLeft,
+        width: activeButton.offsetWidth,
       });
     };
 
     updateIndicator();
+    // Font/badge về muộn làm đổi bề rộng tab → đo lại ở frame sau.
+    const raf = requestAnimationFrame(updateIndicator);
     window.addEventListener('resize', updateIndicator);
-    return () => window.removeEventListener('resize', updateIndicator);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', updateIndicator);
+    };
   }, [activeIndex, items]);
 
   const wrapperClassName = twMerge(['w-full border-b border-slate-200 dark:border-slate-700', className ?? ''].filter(Boolean).join(' '));

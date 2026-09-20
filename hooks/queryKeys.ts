@@ -114,6 +114,9 @@ export const qk = {
     inbox: ['notifications', 'inbox'] as const,
     unread: ['notifications', 'unread'] as const,
   },
+  notifySettings: {
+    all: ['notify-settings'] as const,
+  },
   stockReceipt: {
     suppliers: ['stock-receipt', 'suppliers'] as const,
     materials: ['stock-receipt', 'materials'] as const,

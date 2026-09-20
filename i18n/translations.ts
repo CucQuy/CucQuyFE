@@ -84,7 +84,7 @@ export const translations = {
       notifications: "Notifications",
       channelsGroup: "Channels",
       channelsZalo: "Zalo",
-      chZaloGroups: "Groups & settings",
+      chNotify: "Notifications",
       chZaloOrders: "Order alerts",
       chZaloLog: "Send log",
       settings: "Settings",
@@ -140,8 +140,8 @@ export const translations = {
       filterYear: "Year"
     },
     channels: {
-      zaloTitle: "Zalo",
-      zaloDesc: "Groups that receive notifications. Toggle each notification type right on the group row.",
+      notifyTitle: "Notification settings",
+      notifyDesc: "Every notification setting in one place: pick a channel, choose which groups/pages receive what, customer messages, global switches and schedules.",
       zaloOrdersTitle: "Order alerts",
       zaloOrdersDesc: "Which orders were notified, which failed or were never sent.",
       zaloLogTitle: "Send log",
@@ -907,7 +907,7 @@ export const translations = {
       notifications: "Thông báo",
       channelsGroup: "Kết nối đa kênh",
       channelsZalo: "Zalo",
-      chZaloGroups: "Nhóm & cài đặt",
+      chNotify: "Thông báo",
       chZaloOrders: "Thông báo đơn",
       chZaloLog: "Nhật ký gửi",
       settings: "Cài đặt",
@@ -964,8 +964,8 @@ export const translations = {
     },
     channels: {
       // ── Tiêu đề các màn ──
-      zaloTitle: "Zalo",
-      zaloDesc: "Nhóm nhận thông báo — bật/tắt từng loại thông báo bằng chip ngay trên dòng của nhóm.",
+      notifyTitle: "Cài đặt thông báo",
+      notifyDesc: "Gom mọi cài đặt thông báo: chọn kênh, nơi nào nhận loại nào, tin gửi khách, cờ tổng và lịch gửi định kỳ.",
       zaloOrdersTitle: "Thông báo đơn",
       zaloOrdersDesc: "Đơn nào đã gửi tin cho khách, đơn nào lỗi hoặc chưa gửi.",
       zaloLogTitle: "Nhật ký gửi",
